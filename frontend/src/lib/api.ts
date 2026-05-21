@@ -83,4 +83,14 @@ export const api = {
   forumLikeAnswer: (id: string) => request(`/forum/answers/${id}/like`, { method: "POST" }),
   forumFlagPost: (id: string) => request(`/forum/posts/${id}/flag`, { method: "POST" }),
   forumFlagAnswer: (id: string) => request(`/forum/answers/${id}/flag`, { method: "POST" }),
+
+  // Family
+  familyMe: () => request("/family/me"),
+  familyCreate: () => request("/family", { method: "POST" }),
+  familyJoin: (code: string) => request("/family/join", { method: "POST", body: { code } }),
+  familyLeave: () => request("/family/leave", { method: "DELETE" }),
+
+  // Test result
+  saveTestResult: (data: any) => request("/test/result", { method: "POST", body: data }),
+  getLatestTestResult: () => request("/test/result"),
 };

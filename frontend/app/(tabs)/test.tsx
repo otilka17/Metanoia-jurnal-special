@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
+import { useState, useEffect } from "react";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { api } from "@/src/lib/api";
 import { theme } from "@/src/lib/theme";
 
 type Axis = "gift" | "adhd" | "emo";
@@ -151,15 +152,92 @@ export default function TestScreen() {
   const [idx, setIdx] = useState(0);
   const [answers, setAnswers] = useState<{ axis: Axis; score: number }[]>([]);
   const [done, setDone] = useState(false);
+  const [savedResult, setSavedResult] = useState<any>(null);
+  const [loadingSaved, setLoadingSaved] = useState(true);
+
+  // Load latest saved test result (own or partner's) on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const r: any = await api.getLatestTestResult();
+        if (r.result) setSavedResult(r.result);
+      } catch (e) { console.warn(e); }
+      setLoadingSaved(false);
+    })();
+  }, []);
 
   const onPick = (axis: Axis, score: number) => {
     const next = [...answers, { axis, score }];
     setAnswers(next);
     if (idx < QUESTIONS.length - 1) setIdx(idx + 1);
-    else setDone(true);
+    else {
+      setDone(true);
+      // Persist result on backend
+      const scores: Record<Axis, number> = { gift: 0, adhd: 0, emo: 0 };
+      next.forEach((a) => { scores[a.axis] += a.score; });
+      const profile = computeProfile(scores);
+      api.saveTestResult({
+        scores,
+        profile_title: profile.title,
+        profile_description: profile.description,
+        betts_type: profile.bettsType || "",
+        betts_desc: profile.bettsDesc || "",
+        recommendation: profile.recommendation,
+        profile_color: profile.color,
+        profile_icon: profile.icon,
+      }).then((r: any) => { setSavedResult({ ...r.result, is_mine: true, author_name: "Tu" }); })
+        .catch((e) => console.warn("save test result failed", e));
+    }
   };
 
   const reset = () => { setIdx(0); setAnswers([]); setDone(false); };
+
+  // If a saved result exists and user hasn't started a new test, show it
+  if (!done && answers.length === 0 && savedResult && !loadingSaved) {
+    return (
+      <ScrollView style={styles.root} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+        {!savedResult.is_mine && (
+          <View style={styles.partnerBanner}>
+            <Ionicons name="people" size={18} color={theme.colors.primary} />
+            <Text style={styles.partnerBannerText}>Test salvat de <Text style={{ fontWeight: "700" }}>{savedResult.author_name}</Text> · {new Date(savedResult.created_at).toLocaleDateString("ro-RO", { day: "numeric", month: "short", year: "numeric" })}</Text>
+          </View>
+        )}
+        <View style={[styles.resultHero, { backgroundColor: savedResult.profile_color || theme.colors.primary }]}>
+          <Ionicons name={(savedResult.profile_icon || "sparkles") as any} size={48} color="#fff" />
+          <Text style={styles.resultTitle}>{savedResult.profile_title}</Text>
+        </View>
+        <Text style={styles.resultDesc}>{savedResult.profile_description}</Text>
+        {savedResult.betts_type && (
+          <View style={[styles.bettsBox, { borderColor: savedResult.profile_color || theme.colors.primary }]}>
+            <Text style={[styles.bettsTitle, { color: savedResult.profile_color || theme.colors.primary }]}>{savedResult.betts_type}</Text>
+            <Text style={styles.bettsDesc}>{savedResult.betts_desc}</Text>
+          </View>
+        )}
+        <View style={styles.scoresBox}>
+          <View style={styles.scoreRow}><Text style={styles.scoreLabel}>Supradotare</Text><Text style={[styles.scoreVal, { color: "#5E8B7E" }]}>{savedResult.scores?.gift ?? 0}</Text></View>
+          <View style={styles.scoreRow}><Text style={styles.scoreLabel}>ADHD/Hiperactivitate</Text><Text style={[styles.scoreVal, { color: "#DE8F6E" }]}>{savedResult.scores?.adhd ?? 0}</Text></View>
+          <View style={styles.scoreRow}><Text style={styles.scoreLabel}>Sensibilitate emoțională</Text><Text style={[styles.scoreVal, { color: "#E8C37C" }]}>{savedResult.scores?.emo ?? 0}</Text></View>
+        </View>
+        <View style={styles.recBox}>
+          <Ionicons name="bulb" size={20} color={theme.colors.primary} />
+          <Text style={styles.recText}>{savedResult.recommendation}</Text>
+        </View>
+        <Text style={styles.disclaimer}>⚠ Acest test este orientativ, NU un diagnostic. Pentru certitudine, consultă un psiholog specializat.</Text>
+        <TouchableOpacity testID="test-restart" style={styles.btn} onPress={() => { setSavedResult(null); reset(); }}>
+          <Ionicons name="refresh" size={18} color="#fff" />
+          <Text style={styles.btnText}>Refă testul</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    );
+  }
+
+  if (loadingSaved) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.bg }}>
+        <ActivityIndicator color={theme.colors.primary} size="large" />
+      </View>
+    );
+  }
 
   if (done) {
     const scores: Record<Axis, number> = { gift: 0, adhd: 0, emo: 0 };
@@ -240,4 +318,6 @@ const styles = StyleSheet.create({
   disclaimer: { fontSize: 12, color: theme.colors.textSecondary, fontStyle: "italic", marginBottom: 20, lineHeight: 18 },
   btn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: theme.colors.primary, paddingVertical: 14, borderRadius: 999 },
   btnText: { color: "#fff", fontWeight: "600", fontSize: 15 },
+  partnerBanner: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: theme.colors.primary + "11", borderRadius: 12, padding: 12, marginBottom: 16, borderLeftWidth: 3, borderLeftColor: theme.colors.primary },
+  partnerBannerText: { flex: 1, fontSize: 12, color: theme.colors.textPrimary },
 });

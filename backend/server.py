@@ -206,6 +206,28 @@ class ForumAnswerCreate(BaseModel):
     is_anonymous: bool = False
 
 
+# ============ FAMILY MODELS ============
+class FamilyJoinRequest(BaseModel):
+    code: str
+
+class TestResultCreate(BaseModel):
+    scores: dict          # {"gift": 12, "adhd": 5, "emo": 7}
+    profile_title: str
+    profile_description: str
+    betts_type: Optional[str] = ""
+    betts_desc: Optional[str] = ""
+    recommendation: str
+    profile_color: Optional[str] = ""
+    profile_icon: Optional[str] = ""
+
+
+def generate_family_code(length: int = 6) -> str:
+    """Generate a friendly 6-char alphanumeric code (no confusing chars)."""
+    import secrets
+    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no I, O, 0, 1
+    return "".join(secrets.choice(alphabet) for _ in range(length))
+
+
 # Fixed forum categories (parenting topics)
 FORUM_CATEGORIES = [
     {"id": "somn", "title": "Somn și odihnă", "icon": "moon", "color": "#7A9E9F"},
@@ -449,11 +471,33 @@ async def remove_bookmark(subtopic_id: str, user: dict = Depends(get_current_use
     return {"ok": True}
 
 
+async def _get_family_user_ids(user_id: str) -> List[str]:
+    """Return list of user_ids in same family (incl. self) or just [user_id] if no family."""
+    fam = await db.families.find_one({"member_ids": user_id}, {"_id": 0})
+    if not fam:
+        return [user_id]
+    return fam.get("member_ids", [user_id])
+
+
 # ============ JOURNAL ============
 @api_router.get("/journal")
 async def list_journal(user: dict = Depends(get_current_user)):
-    items = await db.journal.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(500)
-    return {"entries": items}
+    user_ids = await _get_family_user_ids(user["id"])
+    items = await db.journal.find({"user_id": {"$in": user_ids}}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    # Enrich with author_name (cache lookups)
+    name_cache: dict = {}
+    out = []
+    for it in items:
+        uid = it.get("user_id")
+        if uid not in name_cache:
+            u = await db.users.find_one({"id": uid}, {"_id": 0, "name": 1})
+            name_cache[uid] = (u or {}).get("name", "Părinte")
+        out.append({
+            **it,
+            "author_name": name_cache[uid],
+            "is_mine": uid == user["id"],
+        })
+    return {"entries": out}
 
 @api_router.post("/journal", response_model=JournalEntry)
 async def create_journal(data: JournalCreate, user: dict = Depends(get_current_user)):
@@ -472,9 +516,10 @@ async def create_journal(data: JournalCreate, user: dict = Depends(get_current_u
 
 @api_router.get("/journal/stats")
 async def journal_stats(user: dict = Depends(get_current_user)):
-    # last 30 days mood counts + category counts
+    # last 30 days mood counts + category counts (FAMILY-WIDE)
+    user_ids = await _get_family_user_ids(user["id"])
     since = datetime.now(timezone.utc) - timedelta(days=30)
-    cursor = db.journal.find({"user_id": user["id"], "created_at": {"$gte": since}}, {"_id": 0})
+    cursor = db.journal.find({"user_id": {"$in": user_ids}, "created_at": {"$gte": since}}, {"_id": 0})
     items = await cursor.to_list(1000)
     mood_counts: dict = {}
     cat_counts: dict = {}
@@ -612,6 +657,138 @@ async def journal_patterns(user: dict = Depends(get_current_user)):
 @api_router.get("/")
 async def root():
     return {"message": "Ghid Părinte API"}
+
+
+# ============ FAMILY (Share with partner) ============
+MAX_FAMILY_MEMBERS = 2
+
+
+async def _family_for(user_id: str):
+    return await db.families.find_one({"member_ids": user_id}, {"_id": 0})
+
+
+async def _enrich_family(fam: dict, current_user_id: str) -> dict:
+    if not fam:
+        return None
+    members = []
+    for uid in fam.get("member_ids", []):
+        u = await db.users.find_one({"id": uid}, {"_id": 0, "id": 1, "name": 1, "email": 1})
+        if u:
+            members.append({
+                "id": u["id"],
+                "name": u.get("name", "Părinte"),
+                "email": u.get("email", ""),
+                "is_me": uid == current_user_id,
+            })
+    return {
+        "id": fam["id"],
+        "code": fam["code"],
+        "members": members,
+        "created_at": fam.get("created_at"),
+    }
+
+
+@api_router.get("/family/me")
+async def family_me(user: dict = Depends(get_current_user)):
+    fam = await _family_for(user["id"])
+    if not fam:
+        return {"family": None}
+    return {"family": await _enrich_family(fam, user["id"])}
+
+
+@api_router.post("/family")
+async def family_create(user: dict = Depends(get_current_user)):
+    existing = await _family_for(user["id"])
+    if existing:
+        raise HTTPException(status_code=400, detail="Ești deja într-o familie")
+    # generate unique code (retry up to 10 times)
+    for _ in range(10):
+        code = generate_family_code(6)
+        clash = await db.families.find_one({"code": code})
+        if not clash:
+            break
+    else:
+        raise HTTPException(status_code=500, detail="Nu am putut genera cod unic")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "code": code,
+        "member_ids": [user["id"]],
+        "created_by": user["id"],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.families.insert_one(doc.copy())
+    doc.pop("_id", None)
+    return {"family": await _enrich_family(doc, user["id"])}
+
+
+@api_router.post("/family/join")
+async def family_join(data: FamilyJoinRequest, user: dict = Depends(get_current_user)):
+    existing = await _family_for(user["id"])
+    if existing:
+        raise HTTPException(status_code=400, detail="Ești deja într-o familie. Părăsește-o întâi.")
+    code = data.code.strip().upper()
+    if not code or len(code) < 4:
+        raise HTTPException(status_code=400, detail="Cod invalid")
+    fam = await db.families.find_one({"code": code})
+    if not fam:
+        raise HTTPException(status_code=404, detail="Cod inexistent")
+    members = fam.get("member_ids", [])
+    if user["id"] in members:
+        raise HTTPException(status_code=400, detail="Deja faci parte din această familie")
+    if len(members) >= MAX_FAMILY_MEMBERS:
+        raise HTTPException(status_code=400, detail="Familia are deja numărul maxim de membri")
+    await db.families.update_one({"id": fam["id"]}, {"$addToSet": {"member_ids": user["id"]}})
+    fresh = await db.families.find_one({"id": fam["id"]}, {"_id": 0})
+    return {"family": await _enrich_family(fresh, user["id"])}
+
+
+@api_router.delete("/family/leave")
+async def family_leave(user: dict = Depends(get_current_user)):
+    fam = await _family_for(user["id"])
+    if not fam:
+        raise HTTPException(status_code=404, detail="Nu ești într-o familie")
+    new_members = [m for m in fam.get("member_ids", []) if m != user["id"]]
+    if not new_members:
+        # Delete family entirely + cascade test results owned by family creation
+        await db.families.delete_one({"id": fam["id"]})
+    else:
+        await db.families.update_one({"id": fam["id"]}, {"$set": {"member_ids": new_members}})
+    return {"ok": True}
+
+
+# ============ TEST RESULT (Shared with family) ============
+@api_router.post("/test/result")
+async def save_test_result(data: TestResultCreate, user: dict = Depends(get_current_user)):
+    doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "scores": data.scores,
+        "profile_title": data.profile_title,
+        "profile_description": data.profile_description,
+        "betts_type": data.betts_type or "",
+        "betts_desc": data.betts_desc or "",
+        "recommendation": data.recommendation,
+        "profile_color": data.profile_color or "",
+        "profile_icon": data.profile_icon or "",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.test_results.insert_one(doc.copy())
+    doc.pop("_id", None)
+    return {"ok": True, "result": doc}
+
+
+@api_router.get("/test/result")
+async def get_latest_test_result(user: dict = Depends(get_current_user)):
+    user_ids = await _get_family_user_ids(user["id"])
+    cursor = db.test_results.find({"user_id": {"$in": user_ids}}, {"_id": 0}).sort("created_at", -1).limit(1)
+    items = await cursor.to_list(1)
+    if not items:
+        return {"result": None}
+    it = items[0]
+    u = await db.users.find_one({"id": it["user_id"]}, {"_id": 0, "name": 1})
+    it["author_name"] = (u or {}).get("name", "Părinte")
+    it["is_mine"] = it["user_id"] == user["id"]
+    return {"result": it}
 
 
 # ============ FORUM (Comunitate) ============

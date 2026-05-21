@@ -7,6 +7,7 @@ import { theme } from "@/src/lib/theme";
 
 const MENU = [
   { label: "Acasă", route: "/(tabs)", icon: "home" as const },
+  { label: "Familie", route: "/family", icon: "people-circle" as const },
   { label: "Comunitate", route: "/forum", icon: "people" as const },
   { label: "Test profil copil", route: "/(tabs)/test", icon: "clipboard" as const },
   { label: "Întreabă specialistul", route: "/(tabs)/ask", icon: "chatbubbles" as const },

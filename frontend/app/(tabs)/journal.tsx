@@ -15,7 +15,7 @@ import {
   type ReminderSettings,
 } from "@/src/lib/notifications";
 
-type Entry = { id: string; title: string; note: string; mood: string; triggers: string; category_id?: string; created_at: string };
+type Entry = { id: string; title: string; note: string; mood: string; triggers: string; category_id?: string; created_at: string; author_name?: string; is_mine?: boolean; user_id?: string };
 type Cat = { id: string; title: string; color: string };
 
 function pad(n: number) { return n.toString().padStart(2, "0"); }
@@ -253,6 +253,12 @@ export default function JournalScreen() {
                   </TouchableOpacity>
                 </View>
                 <Text style={styles.entryTitle}>{e.title}</Text>
+                {!e.is_mine && e.author_name && (
+                  <View style={styles.authorTag}>
+                    <Ionicons name="person-circle" size={12} color={theme.colors.primary} />
+                    <Text style={styles.authorTagText}>{e.author_name}</Text>
+                  </View>
+                )}
                 <Text style={styles.entryNote}>{e.note}</Text>
                 {!!e.triggers && <View style={styles.triggersBox}><Text style={styles.triggersLabel}>Declanșatori</Text><Text style={styles.triggersText}>{e.triggers}</Text></View>}
                 <Text style={styles.entryDate}>{new Date(e.created_at).toLocaleString("ro-RO", { dateStyle: "medium", timeStyle: "short" })}</Text>
@@ -486,6 +492,8 @@ const styles = StyleSheet.create({
   catTag: { flex: 1, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, borderWidth: 1 },
   catTagText: { fontSize: 11, fontWeight: "600", flex: 1 },
   entryTitle: { fontSize: 16, fontWeight: "600", color: theme.colors.textPrimary, marginBottom: 4 },
+  authorTag: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: theme.colors.primary + "11", alignSelf: "flex-start", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, marginBottom: 6 },
+  authorTagText: { fontSize: 11, color: theme.colors.primary, fontWeight: "600" },
   entryNote: { fontSize: 14, color: theme.colors.textSecondary, lineHeight: 20 },
   triggersBox: { backgroundColor: theme.colors.surfaceElevated, borderRadius: 8, padding: 10, marginTop: 8 },
   triggersLabel: { fontSize: 10, fontWeight: "600", color: theme.colors.textSecondary, letterSpacing: 1, marginBottom: 2 },

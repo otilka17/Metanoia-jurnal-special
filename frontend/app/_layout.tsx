@@ -64,6 +64,7 @@ function RootNav() {
       <Stack.Screen name="forum/index" />
       <Stack.Screen name="forum/new" />
       <Stack.Screen name="forum/[id]" />
+      <Stack.Screen name="family" />
     </Stack>
   );
 }

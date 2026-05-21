@@ -113,6 +113,15 @@ export default function HomeScreen() {
         <Ionicons name="chevron-forward" size={22} color="#fff" />
       </TouchableOpacity>
 
+      <TouchableOpacity testID="open-family" style={styles.familyCard} onPress={() => router.push("/family")}>
+        <View style={styles.familyIcon}><Ionicons name="people-circle" size={22} color="#fff" /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.familyTitle}>Familie</Text>
+          <Text style={styles.familyText}>Partajează jurnalul și testul cu partenerul tău</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={22} color="#fff" />
+      </TouchableOpacity>
+
       <View style={styles.heroCard}>
         <Ionicons name="bulb-outline" size={28} color={theme.colors.primary} />
         <Text style={styles.heroTitle}>Sfatul zilei</Text>
@@ -176,6 +185,10 @@ const styles = StyleSheet.create({
   forumIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.22)", alignItems: "center", justifyContent: "center" },
   forumTitle: { color: "#fff", fontWeight: "700", fontSize: 15 },
   forumText: { color: "rgba(255,255,255,0.9)", fontSize: 12, marginTop: 2 },
+  familyCard: { flexDirection: "row", alignItems: "center", gap: 14, backgroundColor: "#5E8B7E", borderRadius: 16, padding: 16, marginBottom: 16 },
+  familyIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.22)", alignItems: "center", justifyContent: "center" },
+  familyTitle: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  familyText: { color: "rgba(255,255,255,0.9)", fontSize: 12, marginTop: 2 },
   heroCard: { backgroundColor: theme.colors.surface, borderRadius: 16, padding: 20, marginBottom: 20, borderWidth: 1, borderColor: theme.colors.border },
   heroTitle: { ...theme.font.h3, color: theme.colors.textPrimary, marginTop: 8, marginBottom: 2 },
   heroDate: { fontSize: 11, color: theme.colors.primary, fontWeight: "600", letterSpacing: 0.5, marginBottom: 8, textTransform: "capitalize" },

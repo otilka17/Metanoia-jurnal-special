@@ -180,6 +180,42 @@ backend:
         agent: "testing"
         comment: "All endpoints pass. POST /forum/posts/{id}/flag is idempotent ($addToSet) — calling twice from same user still returns 200. After 3 unique flaggers, GET /forum/posts no longer includes the post for any non-author viewer, while the original author still sees it in their listing. Direct GET /forum/posts/{id} still works for both author and non-author even after 3+ flags (only listing is filtered)."
 
+  - task: "Family: create / join / leave (max 2 members)"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "All endpoints pass (see /app/backend_test_family.py — 67/67). GET /api/family/me returns {family:null} initially. POST /api/family creates family with 6-char uppercase alphanumeric code matching [A-HJ-NP-Z2-9]{6} (no I/O/0/1), members[0].is_me=true. Calling POST /api/family a second time → 400 'Ești deja într-o familie'. POST /api/family/join from creator → 400 ('Deja faci parte...'). Invalid code 'XXXX99' → 404, empty code → 400. Partner joining with valid code → 200, family has 2 members with correct is_me flags. Third user joining → 400 with message containing 'număr maxim'. DELETE /api/family/leave: partner leaving leaves family with 1 member; A leaving last deletes the family (GET /family/me → null afterwards). is_me flag correctly reflects current user across all GET /family/me responses for both members."
+
+  - task: "Family-scoped Journal visibility + author enrichment"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Cross-visibility verified. When users A and B are in the same family, GET /api/journal from either side returns both users' entries. Each entry includes author_name (from User.name) and is_mine boolean computed correctly per requester. GET /api/journal/stats aggregates across all family members (total>=2 with mood counts for both 'happy' and 'sad'). After B leaves the family, B's GET /api/journal returns only B's own entries (A's entries no longer visible)."
+
+  - task: "Test Result endpoints (save + family-shared latest)"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "POST /api/test/result accepts the full payload {scores, profile_title, profile_description, betts_type, betts_desc, recommendation, profile_color, profile_icon} and returns {ok:true, result:{...}} with the saved doc. GET /api/test/result returns the latest result enriched with author_name and is_mine. Cross-user verification: with A and B in same family, A saves a new test result then B's GET /api/test/result returns A's result with is_mine=false and author_name == A's name. All /test/* and /family/* protected routes correctly require Bearer auth (return 401/403 without)."
+
 frontend:
   - task: "Forum UI - lista postări + filtrare categorii"
     implemented: true
@@ -234,11 +270,9 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Forum: categorii, pseudonim, listare postări"
-    - "Forum: creare, vizualizare, ștergere postări"
-    - "Forum: răspunsuri (creare, ștergere)"
-    - "Forum: like (toggle) pentru postări și răspunsuri"
-    - "Forum: raportare conținut (flag)"
+    - "Family: create / join / leave (max 2 members)"
+    - "Family-scoped Journal visibility + author enrichment"
+    - "Test Result endpoints (save + family-shared latest)"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -250,3 +284,5 @@ agent_communication:
     message: "Implemented full Forum (Comunitate) feature P1. 11 new endpoints added under /api/forum/*. Test credentials: test@test.com / test123 (in /app/memory/test_credentials.md). Please test all UI flows next."
   - agent: "testing"
     message: "Frontend Forum E2E COMPLETE at 390x844 with test@test.com/test123. All three Forum UI tasks PASS: (1) Home → purple 'Comunitate' card → /forum, header + 8 chips render, filtering by Emoții și crize works, Toate works, pull-to-refresh available, empty state with CTA. (2) /forum/new — all 7 category chips clickable, title/content inputs + character counters work, Pseudonim/Anonim radio toggles default to Pseudonim showing 'Părinte_39336', submission navigates via router.replace to /forum/{id}. (3) /forum/{id} — title/content/category badge/author render; heart-icon like is optimistic (0→1 red, 1→0); 3-dot menu opens bottom-sheet modal with 'Șterge' for owner; reply composer with anonim/pseudonim switcher works; sent reply appears in the answers list and count updates to '1 răspuns'; reply like toggles. Romanian diacritics render correctly. No console errors. Backend API logs confirm correct sequencing (GET categories, GET posts, POST posts, GET post/{id}, POST like x2 toggle, POST answers, GET posts?category=emotii). Forum feature is production-ready."
+  - agent: "testing"
+    message: "Family + Test Result backend tests COMPLETE — 67/67 passed in /app/backend_test_family.py. Covered every scenario from the review: (1) GET /api/family/me initial null. (2) POST /api/family creates family with 6-char uppercase alphanumeric code matching [A-HJ-NP-Z2-9]{6} (no I/O/0/1), single member with is_me=true; second call → 400. (3) /family/join: creator → 400 'Deja faci parte', invalid code 'XXXX99' → 404, empty code → 400, partner join → 200 with 2 members, 3rd member → 400 'număr maxim'. (4) GET /family/me from both users returns same family id with correct per-user is_me. (5) Journal cross-visibility: both family members see each other's entries with correct author_name (from User.name) and per-user is_mine; /journal/stats aggregates across both users (total=2 with happy+sad). (6) DELETE /family/leave: partner leave leaves A alone; A's second leave deletes the family (subsequent GET /family/me → null); partner's GET /journal after leaving correctly excludes A's entries. (7) POST /test/result with full payload returns {ok, result}; GET /test/result returns latest enriched with author_name + is_mine; cross-family verification shows partner B receives A's saved test with is_mine=false and author_name=A's name. (8) All protected routes return 403 without Bearer (FastAPI HTTPBearer default). Cleanup performed — test@test.com is not in any family at end of run. Main agent can summarize and finish."
