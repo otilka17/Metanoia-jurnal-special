@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Share, Modal, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
+import * as Clipboard from "expo-clipboard";
 import { storage } from "@/src/utils/storage";
 import { theme } from "@/src/lib/theme";
 import { GUIDE, GUIDE_INTRO, GUIDE_SUBTITLE, GUIDE_TITLE } from "@/src/lib/guide";
@@ -19,6 +20,23 @@ export default function GuideScreen() {
   const [active, setActive] = useState("s1");
   const [read, setRead] = useState<Record<string, boolean>>({});
   const [exporting, setExporting] = useState(false);
+  const [actionText, setActionText] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const onCopy = async () => {
+    if (!actionText) return;
+    await Clipboard.setStringAsync(actionText);
+    setCopied(true);
+    setTimeout(() => { setCopied(false); setActionText(null); }, 1000);
+  };
+
+  const onShare = async () => {
+    if (!actionText) return;
+    try {
+      await Share.share({ message: actionText });
+      setActionText(null);
+    } catch {}
+  };
 
   useEffect(() => {
     (async () => {
@@ -164,7 +182,15 @@ ${GUIDE.map((s) => `
             </View>
 
             {s.content.map((p, i) => (
-              <Text key={i} style={i === 2 && s.id === "s1" ? styles.quote : styles.paragraph}>{p}</Text>
+              <TouchableOpacity
+                key={i}
+                testID={`para-${s.id}-${i}`}
+                activeOpacity={0.6}
+                onLongPress={() => setActionText(p)}
+                delayLongPress={350}
+              >
+                <Text style={i === 2 && s.id === "s1" ? styles.quote : styles.paragraph}>{p}</Text>
+              </TouchableOpacity>
             ))}
 
             {s.bullets?.map((b, bi) => (
@@ -218,6 +244,29 @@ ${GUIDE.map((s) => `
           <Text style={styles.footerText}>Ghid Părinte — sursă: documentele specialistului</Text>
         </View>
       </ScrollView>
+
+      <Modal visible={!!actionText} transparent animationType="fade" onRequestClose={() => setActionText(null)}>
+        <Pressable style={styles.modalBg} onPress={() => setActionText(null)}>
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalHeader}>
+              <Ionicons name="document-text-outline" size={18} color={theme.colors.primary} />
+              <Text style={styles.modalTitle}>Paragraf</Text>
+              <TouchableOpacity onPress={() => setActionText(null)}><Ionicons name="close" size={22} color={theme.colors.textSecondary} /></TouchableOpacity>
+            </View>
+            <Text style={styles.modalQuote} numberOfLines={6}>{actionText}</Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity testID="copy-paragraph" style={styles.modalBtn} onPress={onCopy}>
+                <Ionicons name={copied ? "checkmark" : "copy-outline"} size={18} color={theme.colors.primary} />
+                <Text style={styles.modalBtnText}>{copied ? "Copiat!" : "Copiază"}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity testID="share-paragraph" style={[styles.modalBtn, styles.modalBtnPrimary]} onPress={onShare}>
+                <Ionicons name="share-social-outline" size={18} color="#fff" />
+                <Text style={[styles.modalBtnText, { color: "#fff" }]}>Share</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
