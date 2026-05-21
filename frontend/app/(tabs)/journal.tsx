@@ -1,16 +1,24 @@
 import { useState, useCallback, useEffect } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator,
-  Modal, TextInput, KeyboardAvoidingView, Platform, Alert,
+  Modal, TextInput, KeyboardAvoidingView, Platform, Alert, Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { api } from "@/src/lib/api";
 import { theme, moods } from "@/src/lib/theme";
+import {
+  getReminderSettings, saveReminderSettings, requestNotificationPermission,
+  scheduleDailyReminder, cancelAllJournalReminders, openAppSettings,
+  type ReminderSettings,
+} from "@/src/lib/notifications";
 
 type Entry = { id: string; title: string; note: string; mood: string; triggers: string; category_id?: string; created_at: string };
 type Cat = { id: string; title: string; color: string };
+
+function pad(n: number) { return n.toString().padStart(2, "0"); }
 
 export default function JournalScreen() {
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -29,6 +37,17 @@ export default function JournalScreen() {
   const [filterCat, setFilterCat] = useState<string | null>(null);
   const [patternsText, setPatternsText] = useState<string>("");
   const [patternsLoading, setPatternsLoading] = useState(false);
+
+  // Reminder state
+  const [reminder, setReminder] = useState<ReminderSettings>({ enabled: false, hour: 20, minute: 0 });
+  const [showReminderModal, setShowReminderModal] = useState(false);
+  const [showPrePerm, setShowPrePerm] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [reminderBusy, setReminderBusy] = useState(false);
+
+  useEffect(() => {
+    (async () => { setReminder(await getReminderSettings()); })();
+  }, []);
 
   const fetchPatterns = async () => {
     setPatternsLoading(true);
@@ -78,6 +97,78 @@ export default function JournalScreen() {
     ]);
   };
 
+  // ============ REMINDER ACTIONS ============
+  const openReminderPanel = async () => {
+    setReminder(await getReminderSettings());
+    setShowReminderModal(true);
+  };
+
+  const proceedEnableReminder = async (h: number, m: number) => {
+    setReminderBusy(true);
+    try {
+      const perm = await requestNotificationPermission();
+      if (!perm.granted) {
+        if (!perm.canAskAgain) {
+          Alert.alert(
+            "Permisiuni dezactivate",
+            "Te rog activează notificările din Setări pentru a primi reminderul zilnic.",
+            [
+              { text: "Anulează", style: "cancel" },
+              { text: "Deschide setări", onPress: () => openAppSettings() },
+            ]
+          );
+        } else {
+          Alert.alert("Permisiune respinsă", "Reminderul nu poate fi activat fără permisiunea pentru notificări.");
+        }
+        return;
+      }
+      const ok = await scheduleDailyReminder(h, m);
+      if (!ok) {
+        Alert.alert("Eroare", "Nu am putut programa notificarea. Încearcă din nou.");
+        return;
+      }
+      const s: ReminderSettings = { enabled: true, hour: h, minute: m };
+      await saveReminderSettings(s);
+      setReminder(s);
+      Alert.alert("Reminder activ ✓", `Vei primi notificarea zilnic la ${pad(h)}:${pad(m)}.`);
+    } finally {
+      setReminderBusy(false);
+    }
+  };
+
+  const handleEnableTap = async () => {
+    // Show pre-permission explanation first
+    setShowPrePerm(true);
+  };
+
+  const disableReminder = async () => {
+    setReminderBusy(true);
+    try {
+      await cancelAllJournalReminders();
+      const s: ReminderSettings = { ...reminder, enabled: false };
+      await saveReminderSettings(s);
+      setReminder(s);
+    } finally {
+      setReminderBusy(false);
+    }
+  };
+
+  const onTimePicked = async (event: any, date?: Date) => {
+    setShowTimePicker(false);
+    if (event?.type === "dismissed" || !date) return;
+    const h = date.getHours();
+    const m = date.getMinutes();
+    if (reminder.enabled) {
+      // Reschedule with new time
+      await proceedEnableReminder(h, m);
+    } else {
+      // Just save the time preference (not yet enabled)
+      const s: ReminderSettings = { ...reminder, hour: h, minute: m };
+      await saveReminderSettings(s);
+      setReminder(s);
+    }
+  };
+
   const getMood = (k: string) => moods.find((m) => m.key === k) || moods[0];
   const getCat = (id: string) => cats.find((c) => c.id === id);
 
@@ -95,6 +186,10 @@ export default function JournalScreen() {
           <Text style={styles.title}>Jurnal Părinte</Text>
           <Text style={styles.subtitle}>Notițe și statistici lunare</Text>
         </View>
+        <TouchableOpacity testID="open-reminder-button" style={styles.iconCircle} onPress={openReminderPanel}>
+          <Ionicons name={reminder.enabled ? "notifications" : "notifications-outline"} size={20} color={reminder.enabled ? theme.colors.primary : theme.colors.textSecondary} />
+          {reminder.enabled && <View style={styles.bellDot} />}
+        </TouchableOpacity>
         <TouchableOpacity testID="open-stats-button" style={styles.iconCircle} onPress={() => setShowStats(true)}>
           <Ionicons name="stats-chart" size={20} color={theme.colors.primary} />
         </TouchableOpacity>
@@ -268,6 +363,85 @@ export default function JournalScreen() {
           </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
+
+      {/* REMINDER MODAL */}
+      <Modal visible={showReminderModal} transparent animationType="fade" onRequestClose={() => setShowReminderModal(false)}>
+        <Pressable style={styles.sheetBg} onPress={() => setShowReminderModal(false)}>
+          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.sheetHandle} />
+            <View style={styles.sheetIcon}><Ionicons name="notifications" size={28} color={theme.colors.primary} /></View>
+            <Text style={styles.sheetTitle}>Reminder zilnic jurnal</Text>
+            <Text style={styles.sheetDesc}>
+              {reminder.enabled
+                ? "Primești o notificare zilnică ca să nu uiți să adaugi o însemnare."
+                : "Activează un reminder care îți amintește zilnic să adaugi o însemnare scurtă în jurnal."
+              }
+            </Text>
+
+            <TouchableOpacity testID="reminder-time-btn" style={styles.timeButton} onPress={() => setShowTimePicker(true)}>
+              <Ionicons name="time-outline" size={20} color={theme.colors.primary} />
+              <Text style={styles.timeButtonText}>{pad(reminder.hour)}:{pad(reminder.minute)}</Text>
+              <Text style={styles.timeButtonHint}>Apasă pentru a schimba</Text>
+            </TouchableOpacity>
+
+            {reminder.enabled ? (
+              <TouchableOpacity testID="reminder-disable-btn" style={[styles.dangerBtn, reminderBusy && { opacity: 0.6 }]} onPress={disableReminder} disabled={reminderBusy}>
+                {reminderBusy ? <ActivityIndicator color="#B56B6B" /> : (
+                  <>
+                    <Ionicons name="notifications-off" size={18} color="#B56B6B" />
+                    <Text style={styles.dangerBtnText}>Dezactivează reminder</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity testID="reminder-enable-btn" style={[styles.primaryBtn, { marginTop: 16, flexDirection: "row", gap: 8 }, reminderBusy && { opacity: 0.6 }]} onPress={handleEnableTap} disabled={reminderBusy}>
+                {reminderBusy ? <ActivityIndicator color="#fff" /> : (
+                  <>
+                    <Ionicons name="notifications" size={18} color="#fff" />
+                    <Text style={styles.primaryBtnText}>Activează reminder</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity onPress={() => setShowReminderModal(false)} style={{ marginTop: 12, alignSelf: "center" }}>
+              <Text style={{ color: theme.colors.textSecondary, fontSize: 14 }}>Închide</Text>
+            </TouchableOpacity>
+
+            {showTimePicker && (
+              <DateTimePicker
+                value={(() => { const d = new Date(); d.setHours(reminder.hour); d.setMinutes(reminder.minute); d.setSeconds(0); return d; })()}
+                mode="time"
+                is24Hour
+                display={Platform.OS === "ios" ? "spinner" : "default"}
+                onChange={onTimePicked}
+              />
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* PRE-PERMISSION EXPLANATION */}
+      <Modal visible={showPrePerm} transparent animationType="fade" onRequestClose={() => setShowPrePerm(false)}>
+        <View style={styles.permBg}>
+          <View style={styles.permBox}>
+            <View style={styles.permIcon}><Ionicons name="notifications" size={32} color={theme.colors.primary} /></View>
+            <Text style={styles.permTitle}>Permite notificările</Text>
+            <Text style={styles.permDesc}>
+              Vom programa o notificare zilnică la <Text style={{ fontWeight: "700", color: theme.colors.primary }}>{pad(reminder.hour)}:{pad(reminder.minute)}</Text> care te va întreba dacă vrei să adaugi o însemnare în jurnal.
+            </Text>
+            <Text style={styles.permDescSmall}>
+              Notificarea rămâne pe device — datele tale nu sunt trimise nicăieri.
+            </Text>
+            <TouchableOpacity testID="perm-accept" style={styles.primaryBtn} onPress={async () => { setShowPrePerm(false); await proceedEnableReminder(reminder.hour, reminder.minute); }}>
+              <Text style={styles.primaryBtnText}>Da, activează</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowPrePerm(false)} style={{ marginTop: 8, paddingVertical: 12 }}>
+              <Text style={{ color: theme.colors.textSecondary, textAlign: "center" }}>Acum nu</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -278,7 +452,25 @@ const styles = StyleSheet.create({
   title: { ...theme.font.h1, color: theme.colors.textPrimary },
   subtitle: { ...theme.font.body, color: theme.colors.textSecondary, marginTop: 2 },
   iconCircle: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border },
+  bellDot: { position: "absolute", top: 8, right: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: theme.colors.primary, borderWidth: 2, borderColor: theme.colors.surface },
   fab: { width: 48, height: 48, borderRadius: 24, backgroundColor: theme.colors.primary, alignItems: "center", justifyContent: "center" },
+  sheetBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" },
+  sheet: { backgroundColor: theme.colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36 },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: theme.colors.border, alignSelf: "center", marginBottom: 12 },
+  sheetIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: theme.colors.primary + "22", alignSelf: "center", alignItems: "center", justifyContent: "center", marginBottom: 12 },
+  sheetTitle: { fontSize: 18, fontWeight: "700", color: theme.colors.textPrimary, textAlign: "center", marginBottom: 6 },
+  sheetDesc: { fontSize: 13, color: theme.colors.textSecondary, textAlign: "center", marginBottom: 18, lineHeight: 19 },
+  timeButton: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: theme.colors.bg, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1, borderColor: theme.colors.border, marginBottom: 12 },
+  timeButtonText: { fontSize: 22, fontWeight: "700", color: theme.colors.primary, fontVariant: ["tabular-nums"] },
+  timeButtonHint: { flex: 1, fontSize: 11, color: theme.colors.textSecondary, textAlign: "right" },
+  dangerBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#B56B6B22", borderRadius: 999, paddingVertical: 14, marginTop: 16 },
+  dangerBtnText: { color: "#B56B6B", fontWeight: "700" },
+  permBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center", padding: 24 },
+  permBox: { width: "100%", maxWidth: 360, backgroundColor: theme.colors.surface, borderRadius: 20, padding: 24, alignItems: "stretch" },
+  permIcon: { width: 64, height: 64, borderRadius: 32, backgroundColor: theme.colors.primary + "22", alignItems: "center", justifyContent: "center", alignSelf: "center", marginBottom: 14 },
+  permTitle: { fontSize: 18, fontWeight: "700", color: theme.colors.textPrimary, textAlign: "center", marginBottom: 8 },
+  permDesc: { fontSize: 14, color: theme.colors.textPrimary, textAlign: "center", lineHeight: 21, marginBottom: 10 },
+  permDescSmall: { fontSize: 12, color: theme.colors.textSecondary, textAlign: "center", marginBottom: 20, lineHeight: 17 },
   chip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1.5, backgroundColor: theme.colors.surface },
   chipText: { fontSize: 12, color: theme.colors.textPrimary, maxWidth: 160 },
   dot: { width: 8, height: 8, borderRadius: 4 },

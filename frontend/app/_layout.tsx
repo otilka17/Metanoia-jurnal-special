@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, View, StyleSheet } from "react-native";
 import { useFonts } from "expo-font";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import * as Notifications from "expo-notifications";
 import { AuthProvider, useAuth } from "@/src/lib/auth";
 import { storage } from "@/src/utils/storage";
 import { theme } from "@/src/lib/theme";
@@ -33,6 +34,17 @@ function RootNav() {
       router.replace("/(tabs)");
     }
   }, [user, loading, segments, obChecked, obSeen]);
+
+  // Handle notification tap → navigate to the route in notification data
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response?.notification?.request?.content?.data as any;
+      if (data?.route && user) {
+        try { router.push(data.route); } catch (e) { console.warn(e); }
+      }
+    });
+    return () => sub.remove();
+  }, [router, user]);
 
   if (loading || !obChecked) {
     return (
