@@ -39,7 +39,7 @@ CATEGORIES = [
         "title": "Înțelegerea Profilului Neurodivergent",
         "subtitle": "Decalaj, supraexcitabilități și dublă excepționalitate",
         "color": "#7A9E9F",
-        "icon": "brain",
+        "icon": "sparkles",
         "subtopics": [
             {"id": "sub-1-1", "title": "Dezvoltare Asincronă", "points": [
                 "Decalaj vârstă mentală vs. emoțională",
