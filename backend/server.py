@@ -172,6 +172,7 @@ class JournalCreate(BaseModel):
     note: str
     mood: str  # calm, agitat, criza, fericit, ingrijorat
     triggers: Optional[str] = ""
+    category_id: Optional[str] = ""
 
 class JournalEntry(BaseModel):
     id: str
@@ -180,6 +181,7 @@ class JournalEntry(BaseModel):
     note: str
     mood: str
     triggers: str
+    category_id: str
     created_at: datetime
 
 class BookmarkCreate(BaseModel):
@@ -427,10 +429,27 @@ async def create_journal(data: JournalCreate, user: dict = Depends(get_current_u
         "note": data.note,
         "mood": data.mood,
         "triggers": data.triggers or "",
+        "category_id": data.category_id or "",
         "created_at": datetime.now(timezone.utc),
     }
     await db.journal.insert_one(doc.copy())
     return JournalEntry(**doc)
+
+@api_router.get("/journal/stats")
+async def journal_stats(user: dict = Depends(get_current_user)):
+    # last 30 days mood counts + category counts
+    since = datetime.now(timezone.utc) - timedelta(days=30)
+    cursor = db.journal.find({"user_id": user["id"], "created_at": {"$gte": since}}, {"_id": 0})
+    items = await cursor.to_list(1000)
+    mood_counts: dict = {}
+    cat_counts: dict = {}
+    for it in items:
+        mood_counts[it["mood"]] = mood_counts.get(it["mood"], 0) + 1
+        cid = it.get("category_id") or ""
+        if cid:
+            cat_counts[cid] = cat_counts.get(cid, 0) + 1
+    total = len(items)
+    return {"total": total, "moods": mood_counts, "categories": cat_counts}
 
 @api_router.delete("/journal/{entry_id}")
 async def delete_journal(entry_id: str, user: dict = Depends(get_current_user)):

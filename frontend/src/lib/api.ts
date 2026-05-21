@@ -56,8 +56,9 @@ export const api = {
   removeBookmark: (id: string) =>
     request(`/bookmarks/${id}`, { method: "DELETE" }),
   listJournal: () => request("/journal"),
-  createJournal: (entry: { title: string; note: string; mood: string; triggers?: string }) =>
+  createJournal: (entry: { title: string; note: string; mood: string; triggers?: string; category_id?: string }) =>
     request("/journal", { method: "POST", body: entry }),
+  journalStats: () => request("/journal/stats"),
   deleteJournal: (id: string) => request(`/journal/${id}`, { method: "DELETE" }),
   quickExplain: (point: string, subtopic_title: string, category_title: string) =>
     request("/quick-explain", { method: "POST", body: { point, subtopic_title, category_title } }),
