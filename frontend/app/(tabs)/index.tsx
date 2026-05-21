@@ -8,6 +8,46 @@ import { theme } from "@/src/lib/theme";
 
 type Category = { id: string; title: string; subtitle: string; color: string; icon: string; subtopics: { id: string; title: string }[] };
 
+const DAILY_TIPS = [
+  "Conectează-te cu copilul tău înainte de a corecta. Comportamentul este o formă de comunicare.",
+  "Validează emoția copilului înainte de a negocia regula: „Văd că ești supărat. Regula rămâne, dar sentimentul tău contează.”",
+  "Oferă două variante de alegere când vrei cooperare: autonomia reduce opoziționismul.",
+  "Pauzele scurte de mișcare (2-3 minute) cresc concentrarea — nu sunt timp pierdut.",
+  "Laudă efortul și strategia, nu doar rezultatul: „Văd cât te-ai gândit la pasul ăsta.”",
+  "Rămâi calm în momentul de criză. Neuronii oglindă ai copilului învață din reglarea ta.",
+  "Heterocronia este reală: mintea copilului poate fi „adultă”, dar emoțiile rămân de vârsta lui.",
+  "Întrebările incomode sunt curiozitate, nu sfidare. Răspunde cu „hai să aflăm împreună”.",
+  "Rutina nu este rigiditate — este predictibilitate care reduce anxietatea.",
+  "Sensibilitatea profundă nu se „repară”. Se înțelege și se canalizează.",
+  "Time-in, nu time-out: prezența ta este reglator pentru sistemul lui nervos.",
+  "Întrebarea „de ce ai făcut asta?” nu primește răspuns. Întreabă „ce ai simțit înainte?”.",
+  "Plictiseala la școală poate masca supradotarea. Notele mici nu spun toată povestea.",
+  "Idealismul precoce și simțul dreptății sunt trăsături centrale — nu „faze”.",
+  "Energia debordantă nu este ADHD automat. Contextul și adaptabilitatea contează.",
+  "Un mediu stimulant scade agitația la copilul supradotat. La cel cu ADHD persistă.",
+  "Reziliența se învață prin eșecuri mici și sigure, nu prin victorii constante.",
+  "Comunicarea asertivă în familie modelează comunicarea lui în societate.",
+  "Acceptă „spikey profile”: poate fi avansat la unele lucruri și în urmă la altele.",
+  "Evaluarea psihologică nu este o etichetă — este o hartă a resurselor și nevoilor.",
+  "Sare peste recompense materiale pentru lucruri firești. Motivează intrinsec.",
+  "Înainte de meltdown, urmărește semnalele timpurii: oboseală, foame, suprastimulare.",
+  "În meltdown, prioritatea este siguranța — nu lecția. Lecția vine mai târziu, la calm.",
+  "Respirația profundă se exersează la momente bune, nu doar în criză.",
+  "Tehnica „locului fericit” — vizualizarea unui spațiu sigur — ajută la auto-reglare.",
+  "Limbajul tău este modelul lui. Spune ce simți, nu doar ce trebuie făcut.",
+  "Atenția selectivă a copilului supradotat e ca un far. Direcționează-o, nu o opri.",
+  "Timpul special zilnic (15 min, 1-la-1, fără ecrane) construiește încrederea pe termen lung.",
+  "Validează nemulțumirea: „E corect să fii dezamăgit.” Dar nu negocia regula.",
+  "Cel mai bun părinte nu este perfect — este conștient și dispus să repare când greșește.",
+];
+
+function getDailyTip(): string {
+  const start = new Date(2025, 0, 1).getTime();
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const dayIdx = Math.floor((today.getTime() - start) / 86400000);
+  return DAILY_TIPS[((dayIdx % DAILY_TIPS.length) + DAILY_TIPS.length) % DAILY_TIPS.length];
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
@@ -51,7 +91,8 @@ export default function HomeScreen() {
       <View style={styles.heroCard}>
         <Ionicons name="bulb-outline" size={28} color={theme.colors.primary} />
         <Text style={styles.heroTitle}>Sfatul zilei</Text>
-        <Text style={styles.heroText}>Conectează-te cu copilul tău înainte de a corecta. Comportamentul este o formă de comunicare.</Text>
+        <Text style={styles.heroDate}>{new Date().toLocaleDateString("ro-RO", { weekday: "long", day: "numeric", month: "long" })}</Text>
+        <Text style={styles.heroText}>{getDailyTip()}</Text>
       </View>
 
       <Text style={styles.sectionTitle}>Categorii</Text>
@@ -86,7 +127,8 @@ const styles = StyleSheet.create({
   guideTitle: { color: "#fff", fontWeight: "700", fontSize: 15 },
   guideText: { color: "rgba(255,255,255,0.9)", fontSize: 12, marginTop: 2 },
   heroCard: { backgroundColor: theme.colors.surface, borderRadius: 16, padding: 20, marginBottom: 20, borderWidth: 1, borderColor: theme.colors.border },
-  heroTitle: { ...theme.font.h3, color: theme.colors.textPrimary, marginTop: 8, marginBottom: 6 },
+  heroTitle: { ...theme.font.h3, color: theme.colors.textPrimary, marginTop: 8, marginBottom: 2 },
+  heroDate: { fontSize: 11, color: theme.colors.primary, fontWeight: "600", letterSpacing: 0.5, marginBottom: 8, textTransform: "capitalize" },
   heroText: { ...theme.font.body, color: theme.colors.textSecondary },
   sectionTitle: { ...theme.font.h3, color: theme.colors.textPrimary, marginTop: 4, marginBottom: 12 },
   catCard: { flexDirection: "row", alignItems: "center", backgroundColor: theme.colors.surface, borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: theme.colors.border, borderLeftWidth: 4 },
