@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal, Pressable,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -22,6 +22,7 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState<string | null>(null);
   const [tab, setTab] = useState<"article" | "explanation">("article");
+  const [confirmLogout, setConfirmLogout] = useState(false);
 
   const load = async () => {
     try {
@@ -34,11 +35,12 @@ export default function ProfileScreen() {
     (async () => { setLoading(true); await load(); setLoading(false); })();
   }, []));
 
-  const onLogout = () => {
-    Alert.alert("Deconectare", "Sigur vrei să te deconectezi?", [
-      { text: "Anulează", style: "cancel" },
-      { text: "Deconectează", style: "destructive", onPress: logout },
-    ]);
+  const onLogout = () => setConfirmLogout(true);
+
+  const doLogout = async () => {
+    setConfirmLogout(false);
+    await logout();
+    router.replace("/(auth)/login");
   };
 
   const onExport = async (b: Bookmark) => {
@@ -147,6 +149,26 @@ export default function ProfileScreen() {
           <Text style={styles.logoutText}>Deconectare</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <Modal visible={confirmLogout} transparent animationType="fade" onRequestClose={() => setConfirmLogout(false)}>
+        <Pressable style={styles.modalBg} onPress={() => setConfirmLogout(false)}>
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            <View style={[styles.modalIcon, { backgroundColor: theme.colors.error + "22" }]}>
+              <Ionicons name="log-out-outline" size={28} color={theme.colors.error} />
+            </View>
+            <Text style={styles.modalTitle}>Deconectare</Text>
+            <Text style={styles.modalText}>Sigur vrei să te deconectezi din cont?</Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity testID="cancel-logout" style={styles.modalBtnOutline} onPress={() => setConfirmLogout(false)}>
+                <Text style={styles.modalBtnOutlineText}>Anulează</Text>
+              </TouchableOpacity>
+              <TouchableOpacity testID="confirm-logout" style={[styles.modalBtn, { backgroundColor: theme.colors.error }]} onPress={doLogout}>
+                <Text style={styles.modalBtnText}>Deconectează</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -184,4 +206,14 @@ const styles = StyleSheet.create({
   iconBtn: { padding: 8 },
   logoutBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 32, padding: 16, borderRadius: 999, borderWidth: 1.5, borderColor: theme.colors.error },
   logoutText: { color: theme.colors.error, fontSize: 15, fontWeight: "600" },
+  modalBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "center", paddingHorizontal: 28 },
+  modalCard: { backgroundColor: theme.colors.surface, borderRadius: 20, padding: 24, alignItems: "center" },
+  modalIcon: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center", marginBottom: 12 },
+  modalTitle: { ...theme.font.h3, color: theme.colors.textPrimary, marginBottom: 8 },
+  modalText: { ...theme.font.body, color: theme.colors.textSecondary, textAlign: "center", marginBottom: 20 },
+  modalActions: { flexDirection: "row", gap: 10, alignSelf: "stretch" },
+  modalBtn: { flex: 1, paddingVertical: 14, borderRadius: 999, alignItems: "center" },
+  modalBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  modalBtnOutline: { flex: 1, paddingVertical: 14, borderRadius: 999, alignItems: "center", borderWidth: 1.5, borderColor: theme.colors.border },
+  modalBtnOutlineText: { color: theme.colors.textPrimary, fontWeight: "600", fontSize: 14 },
 });
