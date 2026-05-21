@@ -1,0 +1,146 @@
+{
+  "theme": "LIGHT",
+  "archetype": "1 (Organic & Earthy)",
+  "rationale": "For an educational parenting app focused on neurodivergent and hyperactive children, parents need a UI that feels calming, grounded, and reassuring. The user's mind map suggested mint/sage accents on a dark theme, but a Light Organic theme provides a much more therapeutic, accessible, and structured feel for reading dense articles. We are using a Warm Off-White/Sand base with Deep Sage Green and Mint accents to bridge the mind map's concept with optimal UX psychology.",
+  "colors": {
+    "background": {
+      "base": "#F9F8F6",
+      "surface": "#FFFFFF",
+      "surface_elevated": "#F0EFEA"
+    },
+    "primary": {
+      "main": "#5E8B7E",
+      "light": "#A4C3B2",
+      "dark": "#3D5A52",
+      "contrast_text": "#FFFFFF"
+    },
+    "secondary": {
+      "main": "#DE8F6E",
+      "light": "#F2B8A2",
+      "contrast_text": "#FFFFFF"
+    },
+    "text": {
+      "primary": "#2D3A35",
+      "secondary": "#5C6B64",
+      "disabled": "#A0ACA6"
+    },
+    "categories": {
+      "1_neurodivergent": "#7A9E9F",
+      "2_attitude": "#E8C37C",
+      "3_boundaries": "#DE8F6E",
+      "4_energy": "#5E8B7E",
+      "5_crisis": "#B56B6B"
+    },
+    "borders": "#E6E4DD",
+    "status": {
+      "success": "#5E8B7E",
+      "warning": "#E8C37C",
+      "error": "#B56B6B"
+    }
+  },
+  "typography": {
+    "primary_font": "Manrope",
+    "secondary_font": "Work Sans",
+    "hierarchy": {
+      "h1": {
+        "fontFamily": "Manrope-Bold",
+        "fontSize": "32px",
+        "lineHeight": "40px",
+        "letterSpacing": "-1px"
+      },
+      "h2": {
+        "fontFamily": "Manrope-SemiBold",
+        "fontSize": "24px",
+        "lineHeight": "32px",
+        "letterSpacing": "-0.5px"
+      },
+      "h3": {
+        "fontFamily": "Manrope-Medium",
+        "fontSize": "20px",
+        "lineHeight": "28px"
+      },
+      "body_large": {
+        "fontFamily": "WorkSans-Regular",
+        "fontSize": "18px",
+        "lineHeight": "26px"
+      },
+      "body": {
+        "fontFamily": "WorkSans-Regular",
+        "fontSize": "16px",
+        "lineHeight": "24px"
+      },
+      "label": {
+        "fontFamily": "WorkSans-Medium",
+        "fontSize": "12px",
+        "lineHeight": "16px",
+        "textTransform": "uppercase",
+        "letterSpacing": "1px"
+      }
+    }
+  },
+  "spacing_and_layout": {
+    "screen_padding": "24px",
+    "element_gap": "16px",
+    "section_gap": "32px",
+    "border_radius": {
+      "small": "8px",
+      "medium": "16px",
+      "large": "24px",
+      "pill": "999px"
+    },
+    "shadows": {
+      "card": "0px 4px 12px rgba(45, 58, 53, 0.05)",
+      "floating_action": "0px 8px 24px rgba(94, 139, 126, 0.25)"
+    }
+  },
+  "ui_components": {
+    "cards": {
+      "style": "Neumorphic-lite or subtle outline. Background #FFFFFF, border 1px solid #E6E4DD, border-radius 16px, padding 20px.",
+      "shadow": "Subtle ambient shadow (card_shadow)."
+    },
+    "buttons": {
+      "primary": "Background #5E8B7E, Text #FFFFFF, border-radius 999px, padding-vertical 16px, font WorkSans-Medium 16px, aligned center.",
+      "secondary": "Background transparent, Border 2px solid #5E8B7E, Text #5E8B7E, border-radius 999px, padding-vertical 16px, aligned center."
+    },
+    "inputs": {
+      "style": "Background #F0EFEA, border 1px solid transparent, border-radius 12px, padding 16px. On focus: border #5E8B7E."
+    },
+    "bottom_navigation": {
+      "style": "Background #FFFFFF, top border 1px #E6E4DD, icon active tint #5E8B7E, inactive tint #A0ACA6, padding-bottom safe area."
+    }
+  },
+  "screens": {
+    "dashboard": {
+      "header": "Welcome text with primary_font h2. Top right: user profile/avatar icon.",
+      "hero_card": "Contains 'hero_dashboard' image as background or side illustration. Text overlaid with high contrast. CTA to 'Continuă lectura' (Continue reading).",
+      "categories_grid": "Vertical list or bento grid. Each card uses respective category color from the palette, but faded (opacity 10-15%) for background, with the solid color for the icon/heading."
+    },
+    "article_reader": {
+      "layout": "Large title (h1), 'Introducere' in body_large, 'Puncte Cheie' (Key Points) as bulleted list with custom sage green bullet icons, 'Sfaturi Practice' (Practical Tips) in a designated highlighted box (background #E0D4F5 or #F0EFEA).",
+      "actions": "Sticky bottom bar or Floating Action Button (FAB) for Bookmark and Mark as Read."
+    },
+    "journal_tracker": {
+      "layout": "List of entries. Empty state uses 'journal_empty_state' image. FAB (+) to add a new log.",
+      "form": "Toggle buttons for behavior/meltdown severity, text area for notes, save button."
+    }
+  },
+  "media": {
+    "hero_dashboard": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/06495a31-44f4-4a8d-bfbc-5ba64a87df56/images/a81d14ca981d4ce5243003fc423551c42bba705228721eef0de882f84ab5a756.png",
+      "description": "Abstract soft 3D organic clay shapes in sage green and warm sand. Use as the background for the daily tip/hero card on the dashboard."
+    },
+    "journal_empty_state": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/06495a31-44f4-4a8d-bfbc-5ba64a87df56/images/48c091a9e69d83998fe48cedeb08c353271ffbed199cf566c1e9d708a5cca950.png",
+      "description": "Minimalist soft 3D illustration of a floating notebook. Use when the user has no journal or tracker entries yet."
+    },
+    "category_icon_abstract": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/06495a31-44f4-4a8d-bfbc-5ba64a87df56/images/3163869f88d1bfe7575d78015473883fa2f2ea554cb4ec8216c141d2777f7822.png",
+      "description": "Soft 3D geometric shapes in muted terracotta and dusty blue. Use as a placeholder/abstract thumbnail for category cards or specific articles."
+    }
+  },
+  "accessibility_and_testing": {
+    "test_id_rules": "All interactive and key informational elements MUST include a `testID` (for React Native) AND `data-testid` (if supporting web output) attribute. Use kebab-case, role-based naming (e.g., testID='login-submit-button').",
+    "contrast": "Ensure text over colored backgrounds meets at least AA standard."
+  },
+  "instructions_to_main_agent": "1. Build this in React Native / Expo. 2. Implement the 5 exact categories provided in the problem statement, natively in Romanian. 3. Use the provided category colors to distinguish the 5 topics visually. 4. Implement email/password auth flow. 5. Create a behaviour tracker/journaling feature for parents. 6. Integrate search across the educational content. 7. All UI copy must be in Romanian. 8. Strictly apply testID props to components."
+}
