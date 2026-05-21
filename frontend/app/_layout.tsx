@@ -3,6 +3,8 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, View, StyleSheet } from "react-native";
+import { useFonts } from "expo-font";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { AuthProvider, useAuth } from "@/src/lib/auth";
 import { storage } from "@/src/utils/storage";
 import { theme } from "@/src/lib/theme";
@@ -52,6 +54,14 @@ function RootNav() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({ ...Ionicons.font });
+  if (!fontsLoaded && !fontError) {
+    return (
+      <View style={styles.loader}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
   return (
     <SafeAreaProvider>
       <AuthProvider>
