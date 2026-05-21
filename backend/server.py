@@ -351,7 +351,14 @@ Răspunde STRICT în format JSON valid (fără markdown, fără ```json), cu str
         if cleaned.startswith("```"):
             cleaned = re.sub(r"^```(?:json)?\n?", "", cleaned)
             cleaned = re.sub(r"\n?```$", "", cleaned)
-        content = json.loads(cleaned)
+        try:
+            content = json.loads(cleaned)
+        except json.JSONDecodeError:
+            # Fallback: extract first {...} block
+            m = re.search(r"\{[\s\S]*\}", cleaned)
+            if not m:
+                raise
+            content = json.loads(m.group(0))
     except Exception as e:
         logger.exception("LLM generation failed")
         raise HTTPException(status_code=500, detail=f"Nu am putut genera articolul: {str(e)}")
@@ -424,6 +431,41 @@ async def create_journal(data: JournalCreate, user: dict = Depends(get_current_u
 async def delete_journal(entry_id: str, user: dict = Depends(get_current_user)):
     await db.journal.delete_one({"id": entry_id, "user_id": user["id"]})
     return {"ok": True}
+
+
+class QuickExplainRequest(BaseModel):
+    point: str
+    subtopic_title: str
+    category_title: str
+
+@api_router.post("/quick-explain")
+async def quick_explain(data: QuickExplainRequest, user: dict = Depends(get_current_user)):
+    cache_key = f"{data.subtopic_title}::{data.point}"
+    cached = await db.quick_explains.find_one({"key": cache_key}, {"_id": 0})
+    if cached:
+        return {"explanation": cached["explanation"]}
+    system_msg = (
+        "Ești expert în psihologia copilului. Scrii explicații scurte (2-3 propoziții) "
+        "în română, ton cald și practic, pentru părinții copiilor supradotați/hiperactivi."
+    )
+    prompt = (
+        f"Categorie: {data.category_title}\nTemă: {data.subtopic_title}\nConcept: \"{data.point}\"\n\n"
+        f"Explică în 2-3 propoziții ce înseamnă acest concept și de ce contează. "
+        f"Răspunde cu text simplu, fără markdown, fără titluri."
+    )
+    try:
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"qe-{uuid.uuid4()}",
+            system_message=system_msg,
+        ).with_model("anthropic", "claude-sonnet-4-5-20250929")
+        text = await chat.send_message(UserMessage(text=prompt))
+        explanation = text.strip()
+        await db.quick_explains.insert_one({"key": cache_key, "explanation": explanation})
+        return {"explanation": explanation}
+    except Exception as e:
+        logger.exception("quick-explain failed")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @api_router.get("/")

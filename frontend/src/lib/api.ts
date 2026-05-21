@@ -56,4 +56,6 @@ export const api = {
   createJournal: (entry: { title: string; note: string; mood: string; triggers?: string }) =>
     request("/journal", { method: "POST", body: entry }),
   deleteJournal: (id: string) => request(`/journal/${id}`, { method: "DELETE" }),
+  quickExplain: (point: string, subtopic_title: string, category_title: string) =>
+    request("/quick-explain", { method: "POST", body: { point, subtopic_title, category_title } }),
 };
