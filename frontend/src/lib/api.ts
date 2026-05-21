@@ -66,4 +66,21 @@ export const api = {
   askHistory: () => request("/ask/history"),
   askDelete: (id: string) => request(`/ask/${id}`, { method: "DELETE" }),
   journalPatterns: () => request("/journal/patterns"),
+
+  // Forum
+  forumCategories: () => request("/forum/categories", { auth: false }),
+  forumMe: () => request("/forum/me"),
+  forumListPosts: (category?: string) =>
+    request(`/forum/posts${category && category !== "all" ? `?category=${category}` : ""}`),
+  forumGetPost: (id: string) => request(`/forum/posts/${id}`),
+  forumCreatePost: (data: { category: string; title: string; content: string; is_anonymous: boolean }) =>
+    request("/forum/posts", { method: "POST", body: data }),
+  forumDeletePost: (id: string) => request(`/forum/posts/${id}`, { method: "DELETE" }),
+  forumCreateAnswer: (postId: string, content: string, is_anonymous: boolean) =>
+    request(`/forum/posts/${postId}/answers`, { method: "POST", body: { content, is_anonymous } }),
+  forumDeleteAnswer: (id: string) => request(`/forum/answers/${id}`, { method: "DELETE" }),
+  forumLikePost: (id: string) => request(`/forum/posts/${id}/like`, { method: "POST" }),
+  forumLikeAnswer: (id: string) => request(`/forum/answers/${id}/like`, { method: "POST" }),
+  forumFlagPost: (id: string) => request(`/forum/posts/${id}/flag`, { method: "POST" }),
+  forumFlagAnswer: (id: string) => request(`/forum/answers/${id}/flag`, { method: "POST" }),
 };

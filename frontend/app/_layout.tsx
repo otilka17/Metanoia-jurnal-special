@@ -49,6 +49,9 @@ function RootNav() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="category/[id]" />
       <Stack.Screen name="article/[id]" />
+      <Stack.Screen name="forum/index" />
+      <Stack.Screen name="forum/new" />
+      <Stack.Screen name="forum/[id]" />
     </Stack>
   );
 }

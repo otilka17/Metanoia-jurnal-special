@@ -12,6 +12,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 import jwt
 import bcrypt
+import hashlib
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
@@ -191,6 +192,40 @@ class BookmarkCreate(BaseModel):
     type: str = "article"  # "article" or "explanation"
     point: Optional[str] = ""
     explanation: Optional[str] = ""
+
+
+# ============ FORUM MODELS ============
+class ForumPostCreate(BaseModel):
+    category: str
+    title: str
+    content: str
+    is_anonymous: bool = False
+
+class ForumAnswerCreate(BaseModel):
+    content: str
+    is_anonymous: bool = False
+
+
+# Fixed forum categories (parenting topics)
+FORUM_CATEGORIES = [
+    {"id": "somn", "title": "Somn și odihnă", "icon": "moon", "color": "#7A9E9F"},
+    {"id": "disciplina", "title": "Disciplină și limite", "icon": "shield-checkmark", "color": "#DE8F6E"},
+    {"id": "scoala", "title": "Școală și învățare", "icon": "school", "color": "#5E8B7E"},
+    {"id": "emotii", "title": "Emoții și crize", "icon": "thunderstorm", "color": "#B56B6B"},
+    {"id": "relatii", "title": "Relații și frați", "icon": "people", "color": "#E8C37C"},
+    {"id": "sanatate", "title": "Sănătate și nutriție", "icon": "fitness", "color": "#6E8FD8"},
+    {"id": "general", "title": "Discuții generale", "icon": "chatbubbles", "color": "#9B8CC4"},
+]
+
+
+def pseudonym_for(user_id: str) -> str:
+    """Deterministic pseudonym from user_id - consistent across all posts."""
+    h = hashlib.sha256(user_id.encode()).hexdigest().upper()
+    return "Părinte_" + h[:5]
+
+
+def display_name_for(user_id: str, is_anonymous: bool) -> str:
+    return "Anonim" if is_anonymous else pseudonym_for(user_id)
 
 
 # ============ AUTH UTILS ============
@@ -577,6 +612,218 @@ async def journal_patterns(user: dict = Depends(get_current_user)):
 @api_router.get("/")
 async def root():
     return {"message": "Ghid Părinte API"}
+
+
+# ============ FORUM (Comunitate) ============
+@api_router.get("/forum/categories")
+async def forum_categories():
+    return {"categories": FORUM_CATEGORIES}
+
+
+@api_router.get("/forum/me")
+async def forum_me(user: dict = Depends(get_current_user)):
+    """Returns the user's consistent pseudonym."""
+    return {"pseudonym": pseudonym_for(user["id"])}
+
+
+@api_router.get("/forum/posts")
+async def list_posts(category: Optional[str] = None, limit: int = 50, skip: int = 0, user: dict = Depends(get_current_user)):
+    q: dict = {}
+    if category and category != "all":
+        q["category"] = category
+    cursor = db.forum_posts.find(q, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit)
+    items = await cursor.to_list(limit)
+    # Add computed fields per user
+    out = []
+    for it in items:
+        liked_by = it.get("liked_by", [])
+        flagged_by = it.get("flagged_by", [])
+        # Hide if flagged 3+ times (soft moderation) unless it's user's own
+        if len(flagged_by) >= 3 and it.get("user_id") != user["id"]:
+            continue
+        out.append({
+            "id": it["id"],
+            "category": it["category"],
+            "title": it["title"],
+            "content": it["content"],
+            "display_name": it["display_name"],
+            "is_anonymous": it.get("is_anonymous", False),
+            "likes": len(liked_by),
+            "liked_by_me": user["id"] in liked_by,
+            "flagged_by_me": user["id"] in flagged_by,
+            "is_mine": it.get("user_id") == user["id"],
+            "answer_count": it.get("answer_count", 0),
+            "created_at": it["created_at"],
+        })
+    return {"posts": out}
+
+
+@api_router.post("/forum/posts")
+async def create_post(data: ForumPostCreate, user: dict = Depends(get_current_user)):
+    title = data.title.strip()
+    content = data.content.strip()
+    if not title or len(title) < 5:
+        raise HTTPException(status_code=400, detail="Titlul trebuie să aibă minim 5 caractere")
+    if not content or len(content) < 10:
+        raise HTTPException(status_code=400, detail="Conținutul trebuie să aibă minim 10 caractere")
+    if not any(c["id"] == data.category for c in FORUM_CATEGORIES):
+        raise HTTPException(status_code=400, detail="Categorie inexistentă")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "category": data.category,
+        "title": title[:200],
+        "content": content[:5000],
+        "is_anonymous": data.is_anonymous,
+        "display_name": display_name_for(user["id"], data.is_anonymous),
+        "liked_by": [],
+        "flagged_by": [],
+        "answer_count": 0,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.forum_posts.insert_one(doc.copy())
+    doc.pop("_id", None)
+    return {"ok": True, "post": doc}
+
+
+@api_router.get("/forum/posts/{post_id}")
+async def get_post(post_id: str, user: dict = Depends(get_current_user)):
+    post = await db.forum_posts.find_one({"id": post_id}, {"_id": 0})
+    if not post:
+        raise HTTPException(status_code=404, detail="Postare inexistentă")
+    answers_cursor = db.forum_answers.find({"post_id": post_id}, {"_id": 0}).sort("created_at", 1)
+    answers_raw = await answers_cursor.to_list(500)
+    answers = []
+    for a in answers_raw:
+        liked_by = a.get("liked_by", [])
+        flagged_by = a.get("flagged_by", [])
+        if len(flagged_by) >= 3 and a.get("user_id") != user["id"]:
+            continue
+        answers.append({
+            "id": a["id"],
+            "content": a["content"],
+            "display_name": a["display_name"],
+            "is_anonymous": a.get("is_anonymous", False),
+            "likes": len(liked_by),
+            "liked_by_me": user["id"] in liked_by,
+            "flagged_by_me": user["id"] in flagged_by,
+            "is_mine": a.get("user_id") == user["id"],
+            "created_at": a["created_at"],
+        })
+    post_out = {
+        "id": post["id"],
+        "category": post["category"],
+        "title": post["title"],
+        "content": post["content"],
+        "display_name": post["display_name"],
+        "is_anonymous": post.get("is_anonymous", False),
+        "likes": len(post.get("liked_by", [])),
+        "liked_by_me": user["id"] in post.get("liked_by", []),
+        "flagged_by_me": user["id"] in post.get("flagged_by", []),
+        "is_mine": post.get("user_id") == user["id"],
+        "answer_count": len(answers),
+        "created_at": post["created_at"],
+    }
+    return {"post": post_out, "answers": answers}
+
+
+@api_router.post("/forum/posts/{post_id}/answers")
+async def create_answer(post_id: str, data: ForumAnswerCreate, user: dict = Depends(get_current_user)):
+    post = await db.forum_posts.find_one({"id": post_id})
+    if not post:
+        raise HTTPException(status_code=404, detail="Postare inexistentă")
+    content = data.content.strip()
+    if not content or len(content) < 3:
+        raise HTTPException(status_code=400, detail="Răspunsul este prea scurt")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "post_id": post_id,
+        "user_id": user["id"],
+        "content": content[:3000],
+        "is_anonymous": data.is_anonymous,
+        "display_name": display_name_for(user["id"], data.is_anonymous),
+        "liked_by": [],
+        "flagged_by": [],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.forum_answers.insert_one(doc.copy())
+    await db.forum_posts.update_one({"id": post_id}, {"$inc": {"answer_count": 1}})
+    doc.pop("_id", None)
+    return {"ok": True, "answer": doc}
+
+
+@api_router.post("/forum/posts/{post_id}/like")
+async def toggle_post_like(post_id: str, user: dict = Depends(get_current_user)):
+    post = await db.forum_posts.find_one({"id": post_id}, {"_id": 0, "liked_by": 1})
+    if not post:
+        raise HTTPException(status_code=404, detail="Postare inexistentă")
+    liked_by = post.get("liked_by", [])
+    if user["id"] in liked_by:
+        await db.forum_posts.update_one({"id": post_id}, {"$pull": {"liked_by": user["id"]}})
+        liked = False
+    else:
+        await db.forum_posts.update_one({"id": post_id}, {"$addToSet": {"liked_by": user["id"]}})
+        liked = True
+    fresh = await db.forum_posts.find_one({"id": post_id}, {"_id": 0, "liked_by": 1})
+    return {"ok": True, "liked": liked, "likes": len(fresh.get("liked_by", []))}
+
+
+@api_router.post("/forum/answers/{answer_id}/like")
+async def toggle_answer_like(answer_id: str, user: dict = Depends(get_current_user)):
+    a = await db.forum_answers.find_one({"id": answer_id}, {"_id": 0, "liked_by": 1})
+    if not a:
+        raise HTTPException(status_code=404, detail="Răspuns inexistent")
+    liked_by = a.get("liked_by", [])
+    if user["id"] in liked_by:
+        await db.forum_answers.update_one({"id": answer_id}, {"$pull": {"liked_by": user["id"]}})
+        liked = False
+    else:
+        await db.forum_answers.update_one({"id": answer_id}, {"$addToSet": {"liked_by": user["id"]}})
+        liked = True
+    fresh = await db.forum_answers.find_one({"id": answer_id}, {"_id": 0, "liked_by": 1})
+    return {"ok": True, "liked": liked, "likes": len(fresh.get("liked_by", []))}
+
+
+@api_router.post("/forum/posts/{post_id}/flag")
+async def flag_post(post_id: str, user: dict = Depends(get_current_user)):
+    post = await db.forum_posts.find_one({"id": post_id})
+    if not post:
+        raise HTTPException(status_code=404, detail="Postare inexistentă")
+    await db.forum_posts.update_one({"id": post_id}, {"$addToSet": {"flagged_by": user["id"]}})
+    return {"ok": True}
+
+
+@api_router.post("/forum/answers/{answer_id}/flag")
+async def flag_answer(answer_id: str, user: dict = Depends(get_current_user)):
+    a = await db.forum_answers.find_one({"id": answer_id})
+    if not a:
+        raise HTTPException(status_code=404, detail="Răspuns inexistent")
+    await db.forum_answers.update_one({"id": answer_id}, {"$addToSet": {"flagged_by": user["id"]}})
+    return {"ok": True}
+
+
+@api_router.delete("/forum/posts/{post_id}")
+async def delete_post(post_id: str, user: dict = Depends(get_current_user)):
+    post = await db.forum_posts.find_one({"id": post_id})
+    if not post:
+        raise HTTPException(status_code=404, detail="Postare inexistentă")
+    if post.get("user_id") != user["id"]:
+        raise HTTPException(status_code=403, detail="Nu poți șterge postările altor utilizatori")
+    await db.forum_posts.delete_one({"id": post_id})
+    await db.forum_answers.delete_many({"post_id": post_id})
+    return {"ok": True}
+
+
+@api_router.delete("/forum/answers/{answer_id}")
+async def delete_answer(answer_id: str, user: dict = Depends(get_current_user)):
+    a = await db.forum_answers.find_one({"id": answer_id})
+    if not a:
+        raise HTTPException(status_code=404, detail="Răspuns inexistent")
+    if a.get("user_id") != user["id"]:
+        raise HTTPException(status_code=403, detail="Nu poți șterge răspunsurile altor utilizatori")
+    await db.forum_answers.delete_one({"id": answer_id})
+    await db.forum_posts.update_one({"id": a["post_id"]}, {"$inc": {"answer_count": -1}})
+    return {"ok": True}
 
 
 app.include_router(api_router)

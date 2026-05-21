@@ -101,3 +101,141 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "Implementare Forum/Comunitate pentru părinți (P1). Părinții pot pune întrebări și răspunde anonim sau cu pseudonim consistent. Forumul are categorii fixe, butoane like/apreciere și raportare conținut pentru moderare."
+
+backend:
+  - task: "Forum: categorii, pseudonim, listare postări"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added FORUM_CATEGORIES (7 fixed), pseudonym_for() using sha256, GET /api/forum/categories, GET /api/forum/me (returns pseudonym), GET /api/forum/posts?category=X. Soft moderation hides posts with 3+ flags."
+      - working: true
+        agent: "testing"
+        comment: "All endpoints pass. GET /forum/categories returns the 7 expected fixed categories (somn, disciplina, scoala, emotii, relatii, sanatate, general) with id/title/icon/color fields and works without auth. GET /forum/me returns deterministic pseudonym 'Părinte_XXXXX' identical across consecutive calls. GET /forum/posts lists posts with is_mine flag correct and ?category=somn filter only returns matching category. Auth (Bearer) properly required on protected routes (returns 403 without)."
+
+  - task: "Forum: creare, vizualizare, ștergere postări"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "POST /api/forum/posts (cu is_anonymous boolean), GET /api/forum/posts/{id} (returnează post + answers), DELETE /api/forum/posts/{id} (doar autorul). Validare: titlu min 5 caractere, conținut min 10 caractere, categorie validă."
+      - working: true
+        agent: "testing"
+        comment: "All endpoints pass. POST /forum/posts validates: title<5 → 400, content<10 → 400, invalid category → 400. is_anonymous=false sets display_name to user's pseudonym (Părinte_XXXXX); is_anonymous=true sets display_name to 'Anonim'. GET /forum/posts/{id} returns {post, answers} with empty answers array initially and 404 for nonexistent ids. DELETE /forum/posts/{id} returns 403 for non-owners and 200 for the owner; associated answers are also deleted (verified by attempting to like a deleted answer → 404)."
+
+  - task: "Forum: răspunsuri (creare, ștergere)"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "POST /api/forum/posts/{id}/answers și DELETE /api/forum/answers/{id}. Actualizează answer_count în postarea părinte."
+      - working: true
+        agent: "testing"
+        comment: "All endpoints pass. POST /forum/posts/{id}/answers validates content<3 → 400. Created one anonymous answer (display_name='Anonim') and one with pseudonym (Părinte_XXXXX different from post author's pseudonym). After 2 answers, GET /forum/posts/{id} correctly shows answer_count=2 and returns both answers. DELETE /forum/answers/{id} returns 403 for non-owner and 200 for owner."
+
+  - task: "Forum: like (toggle) pentru postări și răspunsuri"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "POST /api/forum/posts/{id}/like și POST /api/forum/answers/{id}/like - toggle bazat pe liked_by array (idempotent)."
+      - working: true
+        agent: "testing"
+        comment: "All endpoints pass. POST /forum/posts/{id}/like first call returns {liked:true, likes:1}, second call returns {liked:false, likes:0}. GET /forum/posts/{id} correctly reports liked_by_me=true for liker and false for non-liker. POST /forum/answers/{id}/like behaves identically (toggle)."
+
+  - task: "Forum: raportare conținut (flag)"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "POST /api/forum/posts/{id}/flag și POST /api/forum/answers/{id}/flag. Folosește $addToSet pentru a evita duplicate flags. 3+ flags ascund postarea din listare pentru alți utilizatori."
+      - working: true
+        agent: "testing"
+        comment: "All endpoints pass. POST /forum/posts/{id}/flag is idempotent ($addToSet) — calling twice from same user still returns 200. After 3 unique flaggers, GET /forum/posts no longer includes the post for any non-author viewer, while the original author still sees it in their listing. Direct GET /forum/posts/{id} still works for both author and non-author even after 3+ flags (only listing is filtered)."
+
+frontend:
+  - task: "Forum UI - lista postări + filtrare categorii"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/forum/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Listă cu pull-to-refresh, chips orizontale pentru filtrare categorii, card-uri cu titlu/conținut preview/like/answer count. Empty state cu CTA. Buton 'Întreabă' în header."
+
+  - task: "Forum UI - creare postare nouă"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/forum/new.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Form cu selector categorie (grid chips), titlu + content cu counter, radio buttons pentru Pseudonim / Anonim. KeyboardAvoidingView, validare client-side."
+
+  - task: "Forum UI - detalii postare + răspunsuri + like + flag"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/forum/[id].tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Vizualizare postare + listă răspunsuri, composer la baza ecranului cu toggle anonim/pseudonim, optimistic UI pentru like. Menu modal (3 puncte) cu Raportare (alții) sau Ștergere (proprii). Pull-to-refresh."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 0
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Forum: categorii, pseudonim, listare postări"
+    - "Forum: creare, vizualizare, ștergere postări"
+    - "Forum: răspunsuri (creare, ștergere)"
+    - "Forum: like (toggle) pentru postări și răspunsuri"
+    - "Forum: raportare conținut (flag)"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "testing"
+    message: "Backend Forum tests COMPLETE — 36/36 tests passed in /app/backend_test.py. All 11 new /api/forum/* endpoints validated against the review request: categories list, deterministic pseudonym, post creation with title/content/category validation, anonymous vs pseudonym display_name, listing + ?category filter + is_mine flag, post detail with answers, answer creation + answer_count increment, like toggle (idempotent) for posts and answers with liked_by_me reflected correctly, flag idempotency ($addToSet), soft moderation (3+ flags hides from non-authors in listing but author still sees it and direct GET by id still works for everyone), owner-only delete (non-owner → 403; owner → 200; associated answers deleted with post), and JWT requirement on all protected routes (returns 403 without Bearer). No bugs found. Main agent can summarize and finish the Forum backend work."
+  - agent: "main"
+    message: "Implemented full Forum (Comunitate) feature P1. 11 new endpoints added under /api/forum/*. Test credentials: test@test.com / test123 (in /app/memory/test_credentials.md). Please test: (1) GET /api/forum/categories returns 7 fixed categories; (2) GET /api/forum/me returns pseudonym 'Părinte_XXXXX' (consistent for same user); (3) POST /api/forum/posts validates title>=5, content>=10, valid category; both is_anonymous=true/false should work; (4) GET /api/forum/posts (with and without category filter); (5) GET /api/forum/posts/{id} returns post + answers; (6) POST /api/forum/posts/{id}/answers creates answer and increments answer_count; (7) Like toggle endpoints are idempotent - calling twice should return same state; (8) Flag endpoints work and posts with 3+ flags should be hidden when listed by OTHER users (still visible to author); (9) DELETE /api/forum/posts/{id} should only work for owner (403 otherwise); same for answers. Use multiple test accounts if needed to verify flag visibility behavior."
