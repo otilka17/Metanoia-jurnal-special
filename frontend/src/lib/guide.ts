@@ -170,4 +170,195 @@ export const GUIDE: GuideSection[] = [
       },
     ],
   },
+  // ===== Ghidul Avansat =====
+  {
+    id: "s9",
+    number: 9,
+    title: "Fundamentele Supradotării: Definiții și Paradigme",
+    content: [
+      "Supradotarea este o manifestare umană multidimensională, definită prin intersecția dintre potențialul biologic și mediul favorizant. Paradigmele actuale depășesc viziunea pur academică:",
+    ],
+    bullets: [
+      {
+        items: [
+          "Modelul J.S. Renzulli (1990): interacțiunea dintre interese/aptitudini peste medie, angajament în sarcină și creativitate.",
+          "Perspectiva E. Landau (1991): sistem de influențe corelative; stimulii exteriori generează „curajul de a-și încerca șansele”.",
+          "Abordarea Ontario (1984): experiențe de învățare diferențiate prin volum și profunzime.",
+          "Raportul Maryland: capacitate intelectuală generală, academică specifică, gândire creativă, leadership, arte, aptitudini psihomotorii.",
+          "Constructul Carmen Crețu: conceptul de „Succes Global” pe scara ontogenezei (motivațional + afectiv + recunoaștere socială).",
+        ],
+      },
+    ],
+  },
+  {
+    id: "s10",
+    number: 10,
+    title: "Elevul Strălucitor vs. Elevul Supradotat",
+    content: [
+      "Erorile de diagnostic pedagogic apar adesea din confundarea conformismului academic cu supradotarea:",
+    ],
+    bullets: [
+      {
+        title: "Elevul Strălucitor (Înzestrat)",
+        items: [
+          "Memorie bună și vocabular extensiv.",
+          "Abilități bune de rezolvare a problemelor.",
+          "Manifestă compasiune, se adaptează sistemului.",
+          "Oferă răspunsurile așteptate.",
+        ],
+      },
+      {
+        title: "Elevul Supradotat",
+        items: [
+          "Interes intens pentru a experimenta și face diferit.",
+          "Poate părea neatent (daydreamer) — procesează planuri paralele.",
+          "Pune întrebări de sondare incomode.",
+          "Respinge manualele depășite.",
+        ],
+      },
+    ],
+  },
+  {
+    id: "s11",
+    number: 11,
+    title: "Tipologia Supradotării (Betts & Neihart)",
+    content: [
+      "Cele 6 profiluri psihologice și nevoile lor specifice:",
+    ],
+    bullets: [
+      {
+        items: [
+          "Tip I — Câștigătorul: bine adaptat, dependent de aprobare. Nevoie: provocări cu risc de eșec, reziliență.",
+          "Tip II — Provocatorul: creativ, în conflict cu autoritatea. Nevoie: validarea ideilor nonconformiste.",
+          "Tip III — Supradotatul Ascuns: își neagă abilitățile (frecvent la fete). Nevoie: siguranță și modele.",
+          "Tip IV — Cei în eșec/Abandon: stimă de sine scăzută, risc de abandon. Nevoie: consiliere intensă.",
+          "Tip V — Dublu-etichetat (2e): supradotare + dizabilitate. Nevoie: accent pe punctele tari.",
+          "Tip VI — Elevul Autonom: independent, autoreglat. Nevoie: mentorat și libertate.",
+        ],
+      },
+    ],
+  },
+  {
+    id: "s12",
+    number: 12,
+    title: "Diagnostic Diferențial: Activ, Supradotat sau ADHD?",
+    content: [
+      "Diferența cheie rezidă în capacitatea de autoreglare și adaptabilitate la context:",
+    ],
+    table: {
+      headers: ["Copil Activ / Supradotat", "Copil cu ADHD"],
+      rows: [
+        ["Atenție: concentrare profundă în activități de interes.", "Atenție: dificultăți chiar în activitățile preferate."],
+        ["Memorie de lucru excelentă.", "Memorie de lucru slabă."],
+        ["Se adaptează în medii calme/stimulante.", "Incapacitate de autoreglare indiferent de context."],
+        ["Agitația dispare în medii stimulante.", "Simptome în 2+ medii (acasă, școală)."],
+        ["Situativă (ex: plictiseală).", "Simptome constante de cel puțin 6 luni."],
+      ],
+    },
+  },
+  {
+    id: "s13",
+    number: 13,
+    title: "Riscuri Specifice și Dezvoltarea Asincronă",
+    content: [
+      "Conceptul de heterocronie explică decalajul dintre cognitivul avansat și motorul/emoționalul rămas în urmă. Riscurile majore:",
+    ],
+    bullets: [
+      {
+        items: [
+          "Inhibiția intelectuală: temporară („scăderea tensiunii”) sau definitivă („lumina care se stinge”), ca mecanism de apărare.",
+          "Depresia succesului și risc de suicid: apare la cei obișnuiți doar cu victoria, fără mecanisme de coping pentru eșec.",
+          "Izolarea socială: vocabular și interese discrepante duc la însingurare sau ostilitate din partea egalilor.",
+          "Subrealizarea școlară: lipsa motivației într-un mediu standardizat neadecvat.",
+        ],
+      },
+    ],
+  },
+  {
+    id: "s14",
+    number: 14,
+    title: "Strategii de Intervenție și Management Educațional",
+    content: [
+      "Trei categorii de soluții pentru personalizarea parcursului educațional:",
+    ],
+    bullets: [
+      {
+        title: "Soluții Structurale",
+        items: [
+          "Accelerarea studiilor — parcurgerea rapidă a programei.",
+          "Clase separate — gruparea pe abilități în școli obișnuite.",
+          "Homeschooling — personalizare maximă a ritmului.",
+        ],
+      },
+      {
+        title: "Soluții Funcționale",
+        items: [
+          "Gruparea pe abilități — interacțiunea cu egali intelectuali.",
+          "Îmbogățirea (Enrichment) — experiențe suplimentare în profunzime și volum.",
+        ],
+      },
+      {
+        title: "Diferențierea Curriculară",
+        items: [
+          "Nivel ridicat de abstractizare și complexitate.",
+          "Focalizare pe gândire critică și rezolvare de probleme.",
+          "Ritm individualizat.",
+        ],
+      },
+    ],
+  },
+  {
+    id: "s15",
+    number: 15,
+    title: "Clubul de Origami (6-10 ani)",
+    content: [
+      "Modelul „Clubului de Origami” este o strategie experiențială care folosește rigoarea pliului pentru a accesa „alfabetul emoțiilor”.",
+    ],
+    bullets: [
+      {
+        title: "Activități specifice",
+        items: [
+          "Povestea fetiței de la Hiroșima și a cocorilor — empatie și reziliență.",
+          "Dansul emoțiilor — identificarea trăirilor corporale.",
+          "Lupta cu furtuna / Avioane de salvare — managementul stresului și cooperare.",
+          "Vrăjitoarea trebuie să moară — procesarea fricilor și conflictelor interioare.",
+          "Drumul printre planete — explorarea identității și locului în lume.",
+        ],
+      },
+      {
+        title: "Obiective practice",
+        items: [
+          "Managementul frustrării (acceptarea încercărilor repetate).",
+          "Comunicarea asertivă în grup.",
+          "Dezvoltarea răbdării secvențiale.",
+        ],
+      },
+    ],
+  },
+  {
+    id: "s16",
+    number: 16,
+    title: "Ghid de Îndrumare pentru Părinți — FAQ",
+    content: [
+      "Părinții trebuie să fie observatori, nu evaluatori. Evaluarea psihologică nu este o etichetă, ci o sursă de claritate pentru a oferi sprijinul adecvat.",
+    ],
+    bullets: [
+      {
+        items: [
+          "Copilul meu are note mici, poate fi supradotat? Da — plictiseala sau viteza minții ce depășește viteza scrierii pot duce la subrealizare.",
+          "De ce este atât de sensibil la nedreptate? Idealismul precoce este o trăsătură centrală; procesează probleme globale înainte de a avea maturitatea emoțională.",
+          "Ar trebui să îi spun că este supradotat? Accentul cade pe înțelegerea modului său unic de a gândi. Specialistul prezintă rezultatele ca pe o hartă a resurselor.",
+        ],
+      },
+    ],
+  },
+  {
+    id: "s17",
+    number: 17,
+    title: "Concluzii: Dincolo de Performanță",
+    content: [
+      "Supradotarea este o invitație la răbdare și conectare reală. Copiii cu abilități înalte nu sunt „proiecte de succes”, ci ființe complexe care au nevoie să fie văzute în întregul lor — cu tot potențialul fantastic, dar și cu vulnerabilitățile lor profunde.",
+      "Rolul nostru, ca părinți și profesori, este de a fi parteneri într-un proces de maturizare care să îi facă nu doar performanți, ci, mai presus de toate, fericiți.",
+    ],
+  },
 ];

@@ -25,12 +25,9 @@ function RootNav() {
   useEffect(() => {
     if (loading || !obChecked) return;
     const inAuth = segments[0] === "(auth)";
-    const inOnboarding = segments[0] === "onboarding";
-    if (!obSeen && !inOnboarding) {
-      router.replace("/onboarding");
-    } else if (obSeen && !user && !inAuth) {
+    if (!user && !inAuth) {
       router.replace("/(auth)/login");
-    } else if (user && (inAuth || inOnboarding)) {
+    } else if (user && inAuth) {
       router.replace("/(tabs)");
     }
   }, [user, loading, segments, obChecked, obSeen]);
