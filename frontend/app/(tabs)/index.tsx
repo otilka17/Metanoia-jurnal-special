@@ -39,6 +39,15 @@ export default function HomeScreen() {
         <Ionicons name="chevron-forward" size={22} color="#fff" />
       </TouchableOpacity>
 
+      <TouchableOpacity testID="open-guide" style={styles.guideCard} onPress={() => router.push("/(tabs)/guide")}>
+        <View style={styles.guideIcon}><Ionicons name="library" size={22} color="#fff" /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.guideTitle}>Ghidul Specialistului</Text>
+          <Text style={styles.guideText}>"Navigând Lumea Copilului Supradotat" — 8 capitole</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={22} color="#fff" />
+      </TouchableOpacity>
+
       <View style={styles.heroCard}>
         <Ionicons name="bulb-outline" size={28} color={theme.colors.primary} />
         <Text style={styles.heroTitle}>Sfatul zilei</Text>
@@ -68,10 +77,14 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
   greet: { ...theme.font.h2, color: theme.colors.textPrimary },
   subgreet: { ...theme.font.body, color: theme.colors.textSecondary, marginTop: 4 },
-  mmCard: { flexDirection: "row", alignItems: "center", gap: 14, backgroundColor: theme.colors.primary, borderRadius: 16, padding: 16, marginBottom: 16 },
+  mmCard: { flexDirection: "row", alignItems: "center", gap: 14, backgroundColor: theme.colors.primary, borderRadius: 16, padding: 16, marginBottom: 12 },
   mmIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
   mmTitle: { color: "#fff", fontWeight: "700", fontSize: 15 },
   mmText: { color: "rgba(255,255,255,0.85)", fontSize: 12, marginTop: 2 },
+  guideCard: { flexDirection: "row", alignItems: "center", gap: 14, backgroundColor: "#DE8F6E", borderRadius: 16, padding: 16, marginBottom: 16 },
+  guideIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.22)", alignItems: "center", justifyContent: "center" },
+  guideTitle: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  guideText: { color: "rgba(255,255,255,0.9)", fontSize: 12, marginTop: 2 },
   heroCard: { backgroundColor: theme.colors.surface, borderRadius: 16, padding: 20, marginBottom: 20, borderWidth: 1, borderColor: theme.colors.border },
   heroTitle: { ...theme.font.h3, color: theme.colors.textPrimary, marginTop: 8, marginBottom: 6 },
   heroText: { ...theme.font.body, color: theme.colors.textSecondary },

@@ -16,7 +16,7 @@ function RootNav() {
 
   useEffect(() => {
     (async () => {
-      const seen = await storage.get("onboarding_seen", "");
+      const seen = await storage.getItem("onboarding_seen", "");
       setObSeen(!!seen);
       setObChecked(true);
     })();

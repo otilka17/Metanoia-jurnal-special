@@ -35,7 +35,7 @@ export default function Onboarding() {
   const listRef = useRef<FlatList>(null);
 
   const finish = async () => {
-    await storage.set("onboarding_seen", "1");
+    await storage.setItem("onboarding_seen", "1");
     router.replace("/(auth)/login");
   };
 
