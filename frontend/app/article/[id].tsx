@@ -54,7 +54,7 @@ export default function ArticleScreen() {
         await api.removeBookmark(id);
         setBookmarked(false);
       } else {
-        await api.addBookmark(id, article.title, article.category_id);
+        await api.addBookmark({ subtopic_id: id, title: article.title, category_id: article.category_id });
         setBookmarked(true);
       }
     } catch (e: any) {

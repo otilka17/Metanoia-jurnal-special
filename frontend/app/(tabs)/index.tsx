@@ -200,7 +200,29 @@ export default function MindMapScreen() {
                 <Text style={styles.modalLoadingText}>Generăm explicația...</Text>
               </View>
             ) : (
-              <Text style={styles.modalText}>{leafText}</Text>
+              <>
+                <Text style={styles.modalText}>{leafText}</Text>
+                <TouchableOpacity
+                  testID="bookmark-leaf-button"
+                  style={[styles.bookmarkLeafBtn, { borderColor: leafModal?.color || NODE_LEAF }]}
+                  onPress={async () => {
+                    if (!leafModal) return;
+                    try {
+                      const sub = cats.flatMap(c => c.subtopics.map(s => ({ s, c }))).find(x => x.s.title === leafModal.subtopicTitle);
+                      if (!sub) return;
+                      await api.addBookmark({
+                        subtopic_id: sub.s.id, title: leafModal.subtopicTitle,
+                        category_id: sub.c.id, type: "explanation",
+                        point: leafModal.point, explanation: leafText,
+                      });
+                      setLeafModal(null);
+                    } catch (e) { console.warn(e); }
+                  }}
+                >
+                  <Ionicons name="bookmark-outline" size={14} color={leafModal?.color || NODE_LEAF} />
+                  <Text style={[styles.bookmarkLeafText, { color: leafModal?.color || NODE_LEAF }]}>Salvează explicația</Text>
+                </TouchableOpacity>
+              </>
             )}
           </Pressable>
         </Pressable>
@@ -286,4 +308,11 @@ const styles = StyleSheet.create({
   modalDivider: { height: 1, backgroundColor: "#2A3A33", marginVertical: 14 },
   modalText: { color: "#C5D4CD", fontSize: 14, lineHeight: 21 },
   modalLoadingText: { color: "#8FA09A", fontSize: 13, marginTop: 10 },
+  bookmarkLeafBtn: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    alignSelf: "flex-start", marginTop: 16,
+    paddingHorizontal: 12, paddingVertical: 8,
+    borderRadius: 999, borderWidth: 1.5,
+  },
+  bookmarkLeafText: { fontSize: 12, fontWeight: "600" },
 });

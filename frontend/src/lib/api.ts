@@ -46,12 +46,15 @@ export const api = {
   getCategories: () => request("/categories", { auth: false }),
   getCategory: (id: string) => request(`/categories/${id}`, { auth: false }),
   getArticle: (subtopicId: string) => request(`/article/${subtopicId}`),
-  search: (q: string) => request(`/search?q=${encodeURIComponent(q)}`, { auth: false }),
+  search: (q: string, category_id?: string) =>
+    request(`/search?q=${encodeURIComponent(q)}${category_id ? `&category_id=${category_id}` : ""}`, { auth: false }),
   listBookmarks: () => request("/bookmarks"),
-  addBookmark: (subtopic_id: string, title: string, category_id: string) =>
-    request("/bookmarks", { method: "POST", body: { subtopic_id, title, category_id } }),
-  removeBookmark: (subtopic_id: string) =>
-    request(`/bookmarks/${subtopic_id}`, { method: "DELETE" }),
+  addBookmark: (data: {
+    subtopic_id: string; title: string; category_id: string;
+    type?: "article" | "explanation"; point?: string; explanation?: string;
+  }) => request("/bookmarks", { method: "POST", body: data }),
+  removeBookmark: (id: string) =>
+    request(`/bookmarks/${id}`, { method: "DELETE" }),
   listJournal: () => request("/journal"),
   createJournal: (entry: { title: string; note: string; mood: string; triggers?: string }) =>
     request("/journal", { method: "POST", body: entry }),

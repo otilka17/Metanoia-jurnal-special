@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, ActivityIndicator,
 } from "react-native";
@@ -17,6 +17,7 @@ type Result = {
   category_title?: string;
   color: string;
 };
+type Cat = { id: string; title: string; color: string };
 
 export default function SearchScreen() {
   const router = useRouter();
@@ -24,27 +25,38 @@ export default function SearchScreen() {
   const [results, setResults] = useState<Result[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [cats, setCats] = useState<Cat[]>([]);
+  const [filterCat, setFilterCat] = useState<string | null>(null);
 
-  const onSearch = async () => {
-    if (!q.trim()) return;
-    setLoading(true);
-    setSearched(true);
+  useEffect(() => {
+    (async () => {
+      try {
+        const res: any = await api.getCategories();
+        setCats(res.categories.map((c: any) => ({ id: c.id, title: c.title, color: c.color })));
+      } catch {}
+    })();
+  }, []);
+
+  const doSearch = async (text: string, cat: string | null) => {
+    if (!text.trim()) { setResults([]); setSearched(false); return; }
+    setLoading(true); setSearched(true);
     try {
-      const res: any = await api.search(q.trim());
+      const res: any = await api.search(text.trim(), cat || undefined);
       setResults(res.results);
-    } catch (e) {
-      console.warn(e);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { console.warn(e); }
+    finally { setLoading(false); }
+  };
+
+  const onSearch = () => doSearch(q, filterCat);
+  const toggleFilter = (id: string) => {
+    const next = filterCat === id ? null : id;
+    setFilterCat(next);
+    if (q.trim()) doSearch(q, next);
   };
 
   const openResult = (r: Result) => {
-    if (r.type === "subtopic" && r.subtopic_id) {
-      router.push(`/article/${r.subtopic_id}`);
-    } else {
-      router.push(`/category/${r.category_id}`);
-    }
+    if (r.type === "subtopic" && r.subtopic_id) router.push(`/article/${r.subtopic_id}`);
+    else router.push(`/category/${r.category_id}`);
   };
 
   return (
@@ -71,45 +83,52 @@ export default function SearchScreen() {
           )}
         </View>
 
+        <ScrollView
+          horizontal showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 4, gap: 8 }}
+          style={{ marginBottom: 12, maxHeight: 40 }}
+        >
+          {cats.map((c) => {
+            const active = filterCat === c.id;
+            return (
+              <TouchableOpacity
+                key={c.id}
+                testID={`filter-${c.id}`}
+                onPress={() => toggleFilter(c.id)}
+                style={[styles.chip, { borderColor: c.color }, active && { backgroundColor: c.color }]}
+              >
+                <View style={[styles.dot, { backgroundColor: active ? "#fff" : c.color }]} />
+                <Text style={[styles.chipText, active && { color: "#fff", fontWeight: "600" }]} numberOfLines={1}>
+                  {c.title.length > 22 ? c.title.slice(0, 22) + "…" : c.title}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
         <ScrollView contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
           {loading && <ActivityIndicator color={theme.colors.primary} style={{ marginTop: 24 }} />}
-
           {!loading && searched && results.length === 0 && (
             <View style={styles.empty}>
               <Ionicons name="leaf-outline" size={48} color={theme.colors.textDisabled} />
-              <Text style={styles.emptyText}>Niciun rezultat. Încearcă alte cuvinte cheie.</Text>
+              <Text style={styles.emptyText}>Niciun rezultat{filterCat ? " în această categorie" : ""}.</Text>
             </View>
           )}
-
           {!loading && !searched && (
             <View style={styles.empty}>
               <Ionicons name="search-outline" size={48} color={theme.colors.textDisabled} />
-              <Text style={styles.emptyText}>Introdu un cuvânt cheie pentru a căuta prin ghid.</Text>
-              <View style={styles.suggestRow}>
-                {["meltdown", "rutină", "emoții", "școală", "limite"].map((s) => (
-                  <TouchableOpacity
-                    key={s}
-                    testID={`suggest-${s}`}
-                    style={styles.suggestChip}
-                    onPress={() => { setQ(s); }}
-                  >
-                    <Text style={styles.suggestText}>{s}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <Text style={styles.emptyText}>Introdu un cuvânt cheie. Poți filtra după categorie.</Text>
             </View>
           )}
-
           {results.map((r, i) => (
             <TouchableOpacity
               key={`${r.type}-${i}`}
               testID={`search-result-${i}`}
               style={[styles.result, { borderLeftColor: r.color }]}
               onPress={() => openResult(r)}
-              activeOpacity={0.7}
             >
               <View style={{ flex: 1 }}>
-                <Text style={styles.resultBadge}>
+                <Text style={[styles.resultBadge, { color: r.color }]}>
                   {r.type === "category" ? "CATEGORIE" : r.category_title?.toUpperCase()}
                 </Text>
                 <Text style={styles.resultTitle}>{r.title}</Text>
@@ -131,18 +150,18 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center",
     backgroundColor: theme.colors.surfaceElevated,
     borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
-    gap: 10, marginBottom: 16,
+    gap: 10, marginBottom: 12,
   },
   input: { flex: 1, fontSize: 15, color: theme.colors.textPrimary },
+  chip: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999,
+    borderWidth: 1.5, backgroundColor: theme.colors.surface,
+  },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  chipText: { fontSize: 12, color: theme.colors.textPrimary, maxWidth: 180 },
   empty: { alignItems: "center", marginTop: 40, paddingHorizontal: 16 },
   emptyText: { ...theme.font.body, color: theme.colors.textSecondary, marginTop: 12, textAlign: "center" },
-  suggestRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8, marginTop: 16 },
-  suggestChip: {
-    backgroundColor: theme.colors.surface, borderRadius: 999,
-    paddingHorizontal: 14, paddingVertical: 8,
-    borderWidth: 1, borderColor: theme.colors.border,
-  },
-  suggestText: { fontSize: 13, color: theme.colors.textPrimary },
   result: {
     flexDirection: "row", alignItems: "center",
     backgroundColor: theme.colors.surface, padding: 16,
@@ -150,6 +169,6 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: theme.colors.border,
     borderLeftWidth: 4,
   },
-  resultBadge: { fontSize: 10, fontWeight: "600", color: theme.colors.textSecondary, letterSpacing: 1, marginBottom: 4 },
+  resultBadge: { fontSize: 10, fontWeight: "700", letterSpacing: 1, marginBottom: 4 },
   resultTitle: { fontSize: 15, fontWeight: "500", color: theme.colors.textPrimary },
 });

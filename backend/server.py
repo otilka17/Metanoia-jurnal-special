@@ -186,6 +186,9 @@ class BookmarkCreate(BaseModel):
     subtopic_id: str
     title: str
     category_id: str
+    type: str = "article"  # "article" or "explanation"
+    point: Optional[str] = ""
+    explanation: Optional[str] = ""
 
 
 # ============ AUTH UTILS ============
@@ -269,12 +272,14 @@ async def get_category(category_id: str):
     raise HTTPException(status_code=404, detail="Categorie inexistentă")
 
 @api_router.get("/search")
-async def search(q: str):
+async def search(q: str, category_id: Optional[str] = None):
     q_low = q.lower().strip()
     if not q_low:
         return {"results": []}
     results = []
     for cat in CATEGORIES:
+        if category_id and cat["id"] != category_id:
+            continue
         if q_low in cat["title"].lower() or q_low in cat["subtitle"].lower():
             results.append({"type": "category", "category_id": cat["id"], "title": cat["title"], "subtitle": cat["subtitle"], "color": cat["color"]})
         for sub in cat["subtopics"]:
