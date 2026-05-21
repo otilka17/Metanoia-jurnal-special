@@ -183,7 +183,7 @@ backend:
 frontend:
   - task: "Forum UI - lista postări + filtrare categorii"
     implemented: true
-    working: "NA"
+    working: true
     file: "frontend/app/forum/index.tsx"
     stuck_count: 0
     priority: "high"
@@ -192,10 +192,13 @@ frontend:
       - working: "NA"
         agent: "main"
         comment: "Listă cu pull-to-refresh, chips orizontale pentru filtrare categorii, card-uri cu titlu/conținut preview/like/answer count. Empty state cu CTA. Buton 'Întreabă' în header."
+      - working: true
+        agent: "testing"
+        comment: "E2E PASS at 390x844. Home shows purple 'Comunitate' card (testID open-forum) → navigates to /forum. Header 'Comunitate' + subtitle 'Întreabă și răspunde anonim' + 'Întreabă' button render correctly. All 8 chips visible (Toate + 7 categories with proper Romanian diacritics). Empty state with 'Nicio postare încă' + 'Pune o întrebare' CTA shown initially. After creating a post, filtering by 'Emoții și crize' chip shows the newly created post; 'Toate' chip filters all. Back navigation works. Minor: after applying a filter for a category positioned later in the horizontal strip, the 'Toate' chip scrolls off-screen — user just needs to swipe right, working as designed for a horizontal chips bar."
 
   - task: "Forum UI - creare postare nouă"
     implemented: true
-    working: "NA"
+    working: true
     file: "frontend/app/forum/new.tsx"
     stuck_count: 0
     priority: "high"
@@ -204,10 +207,13 @@ frontend:
       - working: "NA"
         agent: "main"
         comment: "Form cu selector categorie (grid chips), titlu + content cu counter, radio buttons pentru Pseudonim / Anonim. KeyboardAvoidingView, validare client-side."
+      - working: true
+        agent: "testing"
+        comment: "E2E PASS. /forum/new screen shows 'Întrebare nouă' header + close (X) + 'Publică' button. All 7 category chips (cat-somn, cat-disciplina, cat-scoala, cat-emotii, cat-relatii, cat-sanatate, cat-general) are clickable and update selection. Title input + Detalii multiline work; counters update (e.g. 31/200, 143/5000). Identity radio toggles between Pseudonim (default, showing Părinte_39336) and Total anonim correctly. After filling category=emotii, title='Cum gestionez crizele de furie?', content '…', tapping 'Publică' navigates via router.replace to /forum/{id}. KeyboardAvoidingView and Romanian diacritics render correctly."
 
   - task: "Forum UI - detalii postare + răspunsuri + like + flag"
     implemented: true
-    working: "NA"
+    working: true
     file: "frontend/app/forum/[id].tsx"
     stuck_count: 0
     priority: "high"
@@ -216,6 +222,9 @@ frontend:
       - working: "NA"
         agent: "main"
         comment: "Vizualizare postare + listă răspunsuri, composer la baza ecranului cu toggle anonim/pseudonim, optimistic UI pentru like. Menu modal (3 puncte) cu Raportare (alții) sau Ștergere (proprii). Pull-to-refresh."
+      - working: true
+        agent: "testing"
+        comment: "E2E PASS. Post detail shows category badge (Emoții și crize), title, content, author 'Părinte_39336 (tu)' and time 'acum'. Heart icon (testID like-post) toggles optimistically — increments to 1 and turns red on tap, decrements back to 0 on second tap. 3-dot menu opens bottom-sheet modal with 'Șterge' option for owner (and Anulează); modal closes via outer Pressable. Reply composer: anonim/pseudonim toggle (testID reply-anon-toggle) flips between 'Anonim' and 'Părinte_39336' labels; sending a reply via testID send-reply appends it to the answers list and updates count to '1 răspuns'. Reply like (testID like-ans-{id}) toggles correctly. No console errors during the full flow."
 
 metadata:
   created_by: "main_agent"
@@ -238,4 +247,6 @@ agent_communication:
   - agent: "testing"
     message: "Backend Forum tests COMPLETE — 36/36 tests passed in /app/backend_test.py. All 11 new /api/forum/* endpoints validated against the review request: categories list, deterministic pseudonym, post creation with title/content/category validation, anonymous vs pseudonym display_name, listing + ?category filter + is_mine flag, post detail with answers, answer creation + answer_count increment, like toggle (idempotent) for posts and answers with liked_by_me reflected correctly, flag idempotency ($addToSet), soft moderation (3+ flags hides from non-authors in listing but author still sees it and direct GET by id still works for everyone), owner-only delete (non-owner → 403; owner → 200; associated answers deleted with post), and JWT requirement on all protected routes (returns 403 without Bearer). No bugs found. Main agent can summarize and finish the Forum backend work."
   - agent: "main"
-    message: "Implemented full Forum (Comunitate) feature P1. 11 new endpoints added under /api/forum/*. Test credentials: test@test.com / test123 (in /app/memory/test_credentials.md). Please test: (1) GET /api/forum/categories returns 7 fixed categories; (2) GET /api/forum/me returns pseudonym 'Părinte_XXXXX' (consistent for same user); (3) POST /api/forum/posts validates title>=5, content>=10, valid category; both is_anonymous=true/false should work; (4) GET /api/forum/posts (with and without category filter); (5) GET /api/forum/posts/{id} returns post + answers; (6) POST /api/forum/posts/{id}/answers creates answer and increments answer_count; (7) Like toggle endpoints are idempotent - calling twice should return same state; (8) Flag endpoints work and posts with 3+ flags should be hidden when listed by OTHER users (still visible to author); (9) DELETE /api/forum/posts/{id} should only work for owner (403 otherwise); same for answers. Use multiple test accounts if needed to verify flag visibility behavior."
+    message: "Implemented full Forum (Comunitate) feature P1. 11 new endpoints added under /api/forum/*. Test credentials: test@test.com / test123 (in /app/memory/test_credentials.md). Please test all UI flows next."
+  - agent: "testing"
+    message: "Frontend Forum E2E COMPLETE at 390x844 with test@test.com/test123. All three Forum UI tasks PASS: (1) Home → purple 'Comunitate' card → /forum, header + 8 chips render, filtering by Emoții și crize works, Toate works, pull-to-refresh available, empty state with CTA. (2) /forum/new — all 7 category chips clickable, title/content inputs + character counters work, Pseudonim/Anonim radio toggles default to Pseudonim showing 'Părinte_39336', submission navigates via router.replace to /forum/{id}. (3) /forum/{id} — title/content/category badge/author render; heart-icon like is optimistic (0→1 red, 1→0); 3-dot menu opens bottom-sheet modal with 'Șterge' for owner; reply composer with anonim/pseudonim switcher works; sent reply appears in the answers list and count updates to '1 răspuns'; reply like toggles. Romanian diacritics render correctly. No console errors. Backend API logs confirm correct sequencing (GET categories, GET posts, POST posts, GET post/{id}, POST like x2 toggle, POST answers, GET posts?category=emotii). Forum feature is production-ready."
