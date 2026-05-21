@@ -27,6 +27,15 @@ export default function JournalScreen() {
   const [saving, setSaving] = useState(false);
   const [filterMood, setFilterMood] = useState<string | null>(null);
   const [filterCat, setFilterCat] = useState<string | null>(null);
+  const [patternsText, setPatternsText] = useState<string>("");
+  const [patternsLoading, setPatternsLoading] = useState(false);
+
+  const fetchPatterns = async () => {
+    setPatternsLoading(true);
+    try { const r: any = await api.journalPatterns(); setPatternsText(r.insight); }
+    catch (e: any) { setPatternsText("Eroare: " + (e.message || "")); }
+    finally { setPatternsLoading(false); }
+  };
 
   useEffect(() => {
     (async () => {
@@ -195,6 +204,22 @@ export default function JournalScreen() {
                 </View>
               );
             })}
+
+            <Text style={styles.statSection}>🔍 Analiză AI de tipare</Text>
+            {!patternsText && !patternsLoading && (
+              <TouchableOpacity testID="patterns-btn" style={styles.primaryBtn} onPress={fetchPatterns}>
+                <Text style={styles.primaryBtnText}>Generează analiză</Text>
+              </TouchableOpacity>
+            )}
+            {patternsLoading && <ActivityIndicator color={theme.colors.primary} style={{ marginVertical: 12 }} />}
+            {!!patternsText && (
+              <View style={styles.patternsBox}>
+                <Text style={styles.patternsText}>{patternsText}</Text>
+                <TouchableOpacity onPress={fetchPatterns} style={{ alignSelf: "flex-start", marginTop: 8 }}>
+                  <Text style={{ color: theme.colors.primary, fontWeight: "600", fontSize: 12 }}>↻ Regenerează</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </ScrollView>
         </SafeAreaView>
       </Modal>
@@ -293,4 +318,6 @@ const styles = StyleSheet.create({
   catStatRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
   catStatTitle: { flex: 1, fontSize: 13, color: theme.colors.textPrimary },
   catStatVal: { fontSize: 14, fontWeight: "700" },
+  patternsBox: { backgroundColor: theme.colors.primary + "11", padding: 14, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: theme.colors.primary },
+  patternsText: { fontSize: 13, color: theme.colors.textPrimary, lineHeight: 20 },
 });

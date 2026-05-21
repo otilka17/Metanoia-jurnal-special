@@ -62,4 +62,8 @@ export const api = {
   deleteJournal: (id: string) => request(`/journal/${id}`, { method: "DELETE" }),
   quickExplain: (point: string, subtopic_title: string, category_title: string) =>
     request("/quick-explain", { method: "POST", body: { point, subtopic_title, category_title } }),
+  ask: (question: string) => request("/ask", { method: "POST", body: { question } }),
+  askHistory: () => request("/ask/history"),
+  askDelete: (id: string) => request(`/ask/${id}`, { method: "DELETE" }),
+  journalPatterns: () => request("/journal/patterns"),
 };

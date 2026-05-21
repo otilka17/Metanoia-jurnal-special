@@ -492,6 +492,88 @@ async def quick_explain(data: QuickExplainRequest, user: dict = Depends(get_curr
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class AskRequest(BaseModel):
+    question: str
+
+@api_router.post("/ask")
+async def ask_specialist(data: AskRequest, user: dict = Depends(get_current_user)):
+    if not data.question.strip():
+        raise HTTPException(status_code=400, detail="Întrebarea este goală")
+    system_msg = (
+        "Ești un psiholog specializat în copii supradotați și hiperactivi (ADHD/2e). "
+        "Răspunzi în română, cald, empatic, practic. Răspunsuri 3-5 paragrafe scurte. "
+        "Dacă întrebarea cere diagnostic, sugerezi consult psihologic profesional. "
+        "Eviți să dai sfaturi medicale specifice."
+    )
+    try:
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"ask-{uuid.uuid4()}",
+            system_message=system_msg,
+        ).with_model("anthropic", "claude-sonnet-4-5-20250929")
+        answer = await chat.send_message(UserMessage(text=data.question))
+    except Exception as e:
+        logger.exception("ask failed")
+        raise HTTPException(status_code=500, detail=str(e))
+    doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "question": data.question.strip(),
+        "answer": answer.strip(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.ask_history.insert_one(doc.copy())
+    doc.pop("_id", None)
+    return doc
+
+@api_router.get("/ask/history")
+async def ask_history(user: dict = Depends(get_current_user)):
+    items = await db.ask_history.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return {"items": items}
+
+@api_router.delete("/ask/{ask_id}")
+async def delete_ask(ask_id: str, user: dict = Depends(get_current_user)):
+    await db.ask_history.delete_one({"id": ask_id, "user_id": user["id"]})
+    return {"ok": True}
+
+@api_router.get("/journal/patterns")
+async def journal_patterns(user: dict = Depends(get_current_user)):
+    since = datetime.now(timezone.utc) - timedelta(days=30)
+    cursor = db.journal.find({"user_id": user["id"], "created_at": {"$gte": since}}, {"_id": 0}).sort("created_at", 1)
+    items = await cursor.to_list(500)
+    if len(items) < 3:
+        return {"insight": "Adaugă cel puțin 3 însemnări în jurnal pentru a primi o analiză AI a tiparelor.", "count": len(items)}
+
+    summary_lines = []
+    for it in items:
+        date_str = it["created_at"].strftime("%d %b") if hasattr(it["created_at"], "strftime") else str(it["created_at"])[:10]
+        weekday = it["created_at"].strftime("%A") if hasattr(it["created_at"], "strftime") else ""
+        summary_lines.append(f"{date_str} ({weekday}) - stare: {it['mood']}, titlu: {it['title'][:80]}, declanșatori: {it.get('triggers','-')}")
+    summary = "\n".join(summary_lines)
+
+    system_msg = (
+        "Ești psiholog specializat în copii supradotați/hiperactivi. Analizezi jurnalul unui părinte "
+        "din ultimele 30 zile și identifici tipare comportamentale. Răspunzi în română, empatic și practic."
+    )
+    prompt = (
+        f"Iată ultimele {len(items)} însemnări din jurnalul părintelui:\n\n{summary}\n\n"
+        f"Analizează și identifică 3-5 tipare importante (zile/momente cu crize, declanșatori repetitivi, "
+        f"perioade calme). Răspunde scurt (3-4 paragrafe), cu observații concrete și 2 sfaturi practice. "
+        f"Nu folosi markdown."
+    )
+    try:
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"patterns-{user['id']}-{datetime.now(timezone.utc).strftime('%Y%m%d')}",
+            system_message=system_msg,
+        ).with_model("anthropic", "claude-sonnet-4-5-20250929")
+        text = await chat.send_message(UserMessage(text=prompt))
+    except Exception as e:
+        logger.exception("patterns failed")
+        raise HTTPException(status_code=500, detail=str(e))
+    return {"insight": text.strip(), "count": len(items)}
+
+
 @api_router.get("/")
 async def root():
     return {"message": "Ghid Părinte API"}
