@@ -122,6 +122,15 @@ export default function HomeScreen() {
         <Ionicons name="chevron-forward" size={22} color="#fff" />
       </TouchableOpacity>
 
+      <TouchableOpacity testID="open-compare" style={styles.compareCard} onPress={() => router.push("/compare")}>
+        <View style={styles.compareIcon}><Ionicons name="grid" size={22} color="#fff" /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.compareTitle}>Tabele comparative</Text>
+          <Text style={styles.compareText}>ADHD la fete, ticuri vs hiperkinezie, și 8 comparări</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={22} color="#fff" />
+      </TouchableOpacity>
+
       <View style={styles.heroCard}>
         <Ionicons name="bulb-outline" size={28} color={theme.colors.primary} />
         <Text style={styles.heroTitle}>Sfatul zilei</Text>
@@ -189,6 +198,10 @@ const styles = StyleSheet.create({
   familyIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.22)", alignItems: "center", justifyContent: "center" },
   familyTitle: { color: "#fff", fontWeight: "700", fontSize: 15 },
   familyText: { color: "rgba(255,255,255,0.9)", fontSize: 12, marginTop: 2 },
+  compareCard: { flexDirection: "row", alignItems: "center", gap: 14, backgroundColor: "#7A9E9F", borderRadius: 16, padding: 16, marginBottom: 16 },
+  compareIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.22)", alignItems: "center", justifyContent: "center" },
+  compareTitle: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  compareText: { color: "rgba(255,255,255,0.9)", fontSize: 12, marginTop: 2 },
   heroCard: { backgroundColor: theme.colors.surface, borderRadius: 16, padding: 20, marginBottom: 20, borderWidth: 1, borderColor: theme.colors.border },
   heroTitle: { ...theme.font.h3, color: theme.colors.textPrimary, marginTop: 8, marginBottom: 2 },
   heroDate: { fontSize: 11, color: theme.colors.primary, fontWeight: "600", letterSpacing: 0.5, marginBottom: 8, textTransform: "capitalize" },

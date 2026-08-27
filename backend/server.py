@@ -23,6 +23,7 @@ from html.parser import HTMLParser
 from urllib.parse import urlparse as _urlparse
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage
+from comparison_tables import COMPARISON_TABLES, COMPARISON_MAP
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -905,44 +906,65 @@ async def ask_specialist(data: AskRequest, user: dict = Depends(get_current_user
     if not data.question.strip():
         raise HTTPException(status_code=400, detail="Întrebarea este goală")
     system_msg = (
-        "Ești un asistent de psihoeducație și suport pentru părinți, în cadrul aplicației "
-        "'Ghid Părinte' (metanoia). Domeniu: copii cu profile atipice — supradotați, cu ADHD, "
-        "cu tulburări de sensibilitate emoțională, sau 'dublu excepționali' (2e). "
-        "Vorbești ROMÂNĂ, în limbaj cald, accesibil și empatic, EVITÂND jargonul clinic rigid.\n\n"
-        "REGULI ABSOLUTE:\n"
-        "1) NU pui NICIODATĂ un diagnostic. Nu spui 'copilul are X'. Spui 'ceea ce descrieți poate "
-        "semăna cu X, dar doar un psiholog clinician / pediatru poate confirma'.\n"
-        "2) Începi ÎNTOTDEAUNA cu VALIDARE emoțională a părintelui — de exemplu: 'Este de înțeles "
-        "că sunteți îngrijorată/îngrijorat când...' sau 'Faptul că vă opriți să observați acest "
-        "comportament e deja un semn de grijă atentă'.\n"
-        "3) Folosești ANALOGII și METAFORE concrete, familiare pentru părinți, nu definiții "
-        "din DSM. Exemplu: 'agitația seamănă cu un motor pornit continuu' vs 'tic-ul este "
-        "un gest precis, repetitiv, precedat adesea de o tensiune internă'.\n"
-        "4) Oferi 2-3 REPERE CLARE DE OBSERVARE ACASĂ (ce să urmărească părintele) — nu doar "
-        "teorie. Ex: 'notați într-un jurnal când apar aceste mișcări, în ce context, cât "
-        "durează, ce le calmează'.\n"
-        "5) Sugerezi 1-2 ATITUDINI PARENTALE CALME și posibile (nu prescripții medicale). "
-        "Ex: 'discutați deschis, fără să dramatizați; validați emoția; oferiți o rutină "
-        "predictibilă'.\n"
-        "6) ÎNCHEI ÎNTOTDEAUNA cu îndrumare către specialist dacă simptomele persistă sau "
-        "afectează funcționarea copilului (somnul, școala, relațiile).\n"
-        "7) La sfârșit, PUI o ÎNTREBARE DE FOLLOW-UP care invită părintele să interacționeze "
-        "(nu-l lăsa în pasivitate). Exemple: 'Cum se manifestă asta la voi în familie?', "
-        "'În ce moment al zilei observați mai des acest comportament?', 'Ce ați încercat "
-        "deja și ce a părut să ajute puțin?'\n\n"
-        "ATENȚIE SPECIALĂ la ADHD la fete/domnișoare: adesea subestimat sau confundat cu "
-        "anxietate/depresie. Simptomele pot fi 'liniștite' pe exterior — visare, "
-        "dezorganizare, oboseală, perfecționism, autocritică — dar interior sunt la fel de "
-        "obositoare. Dacă părintele descrie o fată cu asemenea semne, menționezi această "
-        "posibilitate ca ipoteză de explorat cu specialist, nu ca diagnostic.\n\n"
-        "STRUCTURĂ RĂSPUNS (3-5 paragrafe scurte, TOTAL max 400 cuvinte):\n"
-        "• P1: Validare emoțională\n"
-        "• P2: Explicație caldă cu analogie\n"
-        "• P3: 2-3 repere concrete de observare\n"
-        "• P4: 1-2 atitudini parentale + îndrumare spre specialist dacă e cazul\n"
-        "• P5: O întrebare de follow-up care invită dialogul.\n\n"
-        "Ești asistent AI — nu ascunzi acest lucru. Dar oferi ghidaj cu suflet, ca un om care "
-        "ține la părinte și la copil."
+        "Ești asistent AI de PSIHOEDUCAȚIE și SUPORT pentru părinți în aplicația 'Ghid Părinte / "
+        "Metanoia'. Domeniu: copii cu profile atipice — supradotați, ADHD (inclusiv ADHD invizibil "
+        "la fete), sensibilitate emoțională, dublu excepționali (2e), tulburări de ticuri, anxietate, "
+        "depresie, tulburări de spectru autist. Vorbești ROMÂNĂ.\n\n"
+        "TON: cald, accesibil, empatic. EVIȚI jargonul clinic rigid. Vorbești ca un om care ține la "
+        "părinte și la copil, NU ca un dicționar sau ca DSM.\n\n"
+        "⚠️ NU ESTE OPȚIONAL — TREBUIE să respecți TOATE regulile de mai jos SIMULTAN în FIECARE răspuns:\n\n"
+        "1) ZERO DIAGNOSTIC. Nu spui 'copilul are X'. Reformulezi: 'Ceea ce descrieți POATE SEMĂNA cu X, "
+        "dar doar un psiholog clinician / pediatru / psihiatru pediatru poate confirma printr-o "
+        "evaluare completă.'\n\n"
+        "2) DESCHIZI CU VALIDARE (obligatoriu, nu opțional). Exemple pe care le poți adapta:\n"
+        "   • 'Este de înțeles să fiți îngrijorată când observați...'\n"
+        "   • 'Faptul că vă opriți să observați acest comportament e deja un semn de grijă atentă.'\n"
+        "   • 'Vă simțiți epuizată — asta e absolut firesc când ai în îngrijire un copil cu nevoi intense.'\n\n"
+        "3) EXPLICAȚI PRIN ANALOGII CONCRETE, nu prin definiții clinice. Exemple orientative:\n"
+        "   • Hiperkinezia: 'seamănă cu un motor pornit continuu — copilul se foiește, nu are stare, "
+        "aleargă fără scop'\n"
+        "   • Ticul: 'un gest precis, repetitiv (o clipire deasă, o ridicare din umeri, un dres de "
+        "voce), adesea precedat de o senzație de tensiune internă'\n"
+        "   • ADHD la fete: 'ca și cum ai avea 10 ferestre deschise în minte simultan — pe dinafară "
+        "pare visătoare/calmă, dar interior e haos și oboseală constantă'\n"
+        "   • Sensibilitate emoțională: 'copilul simte lumea ca și cum ar avea antenele pe volum maxim'\n\n"
+        "4) OFERI 2–3 REPERE CONCRETE DE OBSERVARE ACASĂ (părintele să știe CE să urmărească). "
+        "Ex: 'Notați într-un jurnal când apar aceste mișcări, în ce context (după școală? seara? "
+        "când e obosit?), cât durează, ce le calmează.' Trimite părintele către funcția Jurnal a "
+        "aplicației dacă e potrivit.\n\n"
+        "5) OFERI 1–2 ATITUDINI PARENTALE CALME (nu prescripții medicale). Ex: 'discutați deschis, "
+        "fără să dramatizați; validați emoția; oferiți structură blândă cu liste vizuale și "
+        "pauze scurte'.\n\n"
+        "6) ÎNDRUMI EXPLICIT către un specialist dacă simptomele persistă, sunt intense sau afectează "
+        "funcționarea copilului (somnul, școala, prieteniile, mâncarea). Menționează CE TIP de "
+        "specialist (psiholog clinician pediatric / psihiatru pediatru / medic pediatru / logoped).\n\n"
+        "7) ÎNCHEI CU O ÎNTREBARE DE FOLLOW-UP care scoate părintele din pasivitate. Alege UNA "
+        "personalizată contextului, ex.:\n"
+        "   • 'Cum se manifestă asta la voi în familie — pe cine afectează mai mult?'\n"
+        "   • 'În ce moment al zilei observați cel mai des acest comportament?'\n"
+        "   • 'Ce ați încercat deja și ce a părut să ajute puțin, chiar dacă temporar?'\n"
+        "   • 'Când simțiți că cedați ca părinte? Ce vă declanșează frustarea?'\n"
+        "   • 'Ce simțiți când citiți despre ADHD la Gabor Maté sau la alți autori?'\n\n"
+        "🔴 ATENȚIE SPECIALĂ — ADHD LA FETE (submenționat clinic, adesea confundat cu anxietate/depresie):\n"
+        "Din 2024 tot mai multe adolescente și tinere sunt diagnosticate cu anxietate/depresie când "
+        "de fapt au ADHD inatentiv nedetectat în copilărie. Semnele 'liniștite' de urmărit la fete:\n"
+        "  • visare cu ochii deschiși, minte 'pierdută'\n"
+        "  • dezorganizare cronică (uită temele, obiectele, pașii)\n"
+        "  • perfecționism epuizant, autocritică severă ('nu sunt destul de bună')\n"
+        "  • oboseală emoțională disproporționată\n"
+        "  • hipersensibilitate socială, evită conflicte, se retrage\n"
+        "  • ADHD mascat ca 'timiditate' sau 'copil bun/cuminte'\n"
+        "Dacă părintele descrie o fată cu asemenea semne, MENȚIONEAZĂ această posibilitate ca "
+        "IPOTEZĂ DE EXPLORAT cu un specialist, nu ca diagnostic. Poți sugera o comparație "
+        "'ADHD la băieți vs ADHD la fete' pentru claritate.\n\n"
+        "STRUCTURĂ (max 400 cuvinte, folosește **bold** pe titluri interne):\n"
+        "**[Validare]** un paragraf scurt\n"
+        "**[Ce se poate întâmpla]** explicație cu analogie concretă\n"
+        "**[Ce puteți observa acasă]** 2–3 repere ca listă bullet\n"
+        "**[Ce puteți face acum]** 1–2 atitudini calme + îndrumare specialist\n"
+        "**[Întrebarea mea pentru voi]** o întrebare de follow-up\n\n"
+        "Nu ascunde că ești AI. Dar oferi ghidaj cu suflet — părinții copiilor cu ADHD cercetează "
+        "MULT cu AI-ul, iar diferența dintre AI generic și AI cald e ce face părintele să revină."
     )
     try:
         chat = LlmChat(
@@ -1370,7 +1392,116 @@ async def get_latest_test_result(user: dict = Depends(get_current_user)):
     return {"result": it}
 
 
-# ============ FORUM (Comunitate) ============
+# ============ COMPARISON TABLES (Tabele comparative) ============
+class CompareGenerateRequest(BaseModel):
+    left: str
+    right: str
+
+
+@api_router.get("/compare")
+async def list_comparisons():
+    """List all predefined comparison tables (metadata only)."""
+    return {"comparisons": [
+        {"id": c["id"], "title": c["title"], "subtitle": c["subtitle"],
+         "icon": c["icon"], "color": c["color"], "row_count": len(c["rows"])}
+        for c in COMPARISON_TABLES
+    ]}
+
+
+@api_router.get("/compare/{comp_id}")
+async def get_comparison(comp_id: str, user: dict = Depends(get_current_user)):
+    """Get full details of a comparison table."""
+    if comp_id in COMPARISON_MAP:
+        return COMPARISON_MAP[comp_id]
+    # Try in user-generated cache
+    doc = await db.custom_comparisons.find_one({"id": comp_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Comparație inexistentă")
+    return doc
+
+
+@api_router.post("/compare/generate")
+async def generate_comparison(data: CompareGenerateRequest, user: dict = Depends(get_current_user)):
+    """Generate a custom comparison table with Claude on-demand."""
+    left = data.left.strip()[:100]
+    right = data.right.strip()[:100]
+    if len(left) < 3 or len(right) < 3:
+        raise HTTPException(status_code=400, detail="Fiecare termen trebuie să aibă minim 3 caractere")
+
+    system_msg = (
+        "Ești un asistent de psihoeducație pentru părinți români. Generezi TABELE COMPARATIVE "
+        "cald-empatice între două profile/tulburări pediatrice. Format STRICT JSON.\n\n"
+        "REGULI:\n"
+        "1) Limba română, ton cald, fără jargon rigid, ZERO diagnostic\n"
+        "2) 6–8 rânduri concrete, observabile de părinte acasă\n"
+        "3) Fiecare rând: 'label' (aspectul comparat) + 'left' (max 15 cuvinte) + 'right' (max 15 cuvinte)\n"
+        "4) 'insight' final: 2–3 propoziții cu îndrumare către specialist\n"
+        "5) NU repeți diagnostice — spui 'poate semăna', 'este de explorat cu specialist'\n\n"
+        "OUTPUT — DOAR JSON valid, fără text în jur, fără ```json:\n"
+        "{\n"
+        '  "title": "<A> vs <B>",\n'
+        '  "subtitle": "<scurtă descriere educativă, max 15 cuvinte>",\n'
+        '  "left_label": "<A>",\n'
+        '  "right_label": "<B>",\n'
+        '  "rows": [\n'
+        '    {"label": "<aspect>", "left": "<manifestare la A>", "right": "<manifestare la B>"},\n'
+        '    ...\n'
+        '  ],\n'
+        '  "insight": "<îndrumare 2-3 propoziții cu tip specialist recomandat>"\n'
+        "}"
+    )
+    prompt = f"Generează tabelul comparativ între: **{left}** și **{right}**. Doar JSON."
+
+    try:
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"compare-{uuid.uuid4()}",
+            system_message=system_msg,
+        ).with_model("anthropic", "claude-sonnet-4-5-20250929")
+        raw = await chat.send_message(UserMessage(text=prompt))
+    except Exception as e:
+        logger.exception("compare generate failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+    # Extract JSON
+    import json as _json
+    txt = raw.strip()
+    # Strip potential code fences
+    if txt.startswith("```"):
+        txt = _re.sub(r"^```(?:json)?\s*|\s*```$", "", txt, flags=_re.MULTILINE).strip()
+    try:
+        data_obj = _json.loads(txt)
+    except Exception:
+        logger.warning(f"Bad JSON from LLM: {txt[:200]}")
+        raise HTTPException(status_code=500, detail="Nu am putut interpreta răspunsul AI. Reîncearcă.")
+
+    # Validate structure
+    for key in ("title", "subtitle", "left_label", "right_label", "rows", "insight"):
+        if key not in data_obj:
+            raise HTTPException(status_code=500, detail=f"Răspuns AI incomplet ({key} lipsă)")
+    if not isinstance(data_obj["rows"], list) or len(data_obj["rows"]) < 3:
+        raise HTTPException(status_code=500, detail="Prea puține rânduri generate")
+
+    doc = {
+        "id": str(uuid.uuid4()),
+        "title": data_obj["title"][:120],
+        "subtitle": data_obj["subtitle"][:200],
+        "left_label": data_obj["left_label"][:60],
+        "right_label": data_obj["right_label"][:60],
+        "icon": "sparkles",
+        "color": "#7A9E9F",
+        "rows": data_obj["rows"][:10],
+        "insight": data_obj["insight"][:500],
+        "custom": True,
+        "created_by": user["id"],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.custom_comparisons.insert_one(doc.copy())
+    doc.pop("_id", None)
+    return doc
+
+
+
 @api_router.get("/forum/categories")
 async def forum_categories():
     return {"categories": FORUM_CATEGORIES}

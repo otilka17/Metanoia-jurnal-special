@@ -113,4 +113,10 @@ export const api = {
     request("/auth/forgot-password", { method: "POST", body: { email }, auth: false }),
   resetPassword: (email: string, code: string, new_password: string) =>
     request("/auth/reset-password", { method: "POST", body: { email, code, new_password }, auth: false }),
+
+  // Comparison tables
+  listComparisons: () => request("/compare"),
+  getComparison: (id: string) => request(`/compare/${id}`),
+  generateComparison: (left: string, right: string) =>
+    request("/compare/generate", { method: "POST", body: { left, right } }),
 };
