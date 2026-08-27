@@ -61,7 +61,7 @@ export default function LoginScreen() {
               <View style={styles.featuresList}>
                 <View style={styles.featureRow}>
                   <Ionicons name="library" size={18} color={theme.colors.primary} />
-                  <Text style={styles.featureText}>17 capitole de la specialiști</Text>
+                  <Text style={styles.featureText}>19 capitole de la specialiști</Text>
                 </View>
                 <View style={styles.featureRow}>
                   <Ionicons name="git-network" size={18} color={theme.colors.primary} />

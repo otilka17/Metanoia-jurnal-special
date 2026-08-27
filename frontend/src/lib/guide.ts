@@ -72,8 +72,86 @@ export const GUIDE: GuideSection[] = [
     ],
   },
   {
-    id: "s4",
+    id: "s-adhd",
     number: 4,
+    title: "ADHD — Profilul Complet: Subtipuri, Simptome și Realitatea la Fete",
+    content: [
+      "ADHD (Tulburarea de Deficit de Atenție/Hiperactivitate) este o afecțiune de neurodezvoltare, nu o problemă de caracter sau de disciplină. Creierul unui copil cu ADHD procesează diferit funcțiile executive — planificarea, memoria de lucru, autoreglarea impulsurilor și a atenției — indiferent cât de motivat sau inteligent este copilul.",
+      "DSM-5 descrie trei tipare de bază, care pot apărea separat sau combinate:",
+    ],
+    bullets: [
+      {
+        title: "Cele trei subtipuri",
+        items: [
+          "Predominant neatent: uită frecvent lucruri, pierde obiecte, pare „în lună”, are dificultăți la organizarea sarcinilor — fără agitație vizibilă.",
+          "Predominant hiperactiv-impulsiv: neastâmpăr motor, vorbește excesiv, întrerupe, are dificultăți să aștepte rândul.",
+          "Combinat: prezintă ambele tipare simultan — cea mai frecventă formă diagnosticată la băieți.",
+        ],
+      },
+      {
+        title: "ADHD-ul „invizibil” la fete",
+        items: [
+          "Visare cu ochii deschiși, minte „pierdută” — confundată adesea cu neatenția obișnuită sau cu timiditatea.",
+          "Dezorganizare cronică: uită temele, obiectele personale, pașii unei sarcini.",
+          "Perfecționism epuizant și autocritică severă („nu sunt destul de bună”), care maschează dificultatea reală de autoreglare.",
+          "Oboseală emoțională disproporționată față de efortul depus vizibil.",
+          "Hipersensibilitate socială — evită conflictul, se retrage, e etichetată „copil bun/cuminte”.",
+        ],
+      },
+      {
+        title: "Comorbidități frecvente",
+        items: [
+          "Anxietate și tulburări de dispoziție — apar la o proporție semnificativă a copiilor cu ADHD.",
+          "Dificultăți specifice de învățare (dislexie, discalculie) — necesită evaluare separată.",
+          "Tulburări de somn — adormire dificilă, somn agitat.",
+          "Comportament opozant — reacție secundară la frustrarea cronică, nu trăsătură de bază.",
+        ],
+      },
+    ],
+  },
+  {
+    id: "s-autism",
+    number: 5,
+    title: "Tulburarea de Spectru Autist (TSA): Trăsături, Forțe și Sprijin Practic",
+    content: [
+      "Spectrul autist descrie o gamă largă de moduri de a percepe, procesa și relaționa cu lumea — de aceea „dacă ai cunoscut un copil cu autism, ai cunoscut UN copil cu autism”. Nu există un singur tipar; profilul senzorial, de comunicare și social variază enorm de la un copil la altul.",
+      "TSA se poate suprapune cu supradotarea sau cu ADHD (profil „AuDHD”), ceea ce complică adesea identificarea — trăsăturile unei condiții pot masca sau fi confundate cu ale celeilalte.",
+    ],
+    bullets: [
+      {
+        title: "Trăsături frecvente",
+        items: [
+          "Procesare senzorială diferită: hipersensibilitate (zgomot, texturi, lumini) sau hiposensibilitate la anumiți stimuli.",
+          "Nevoie de predictibilitate și rutină — schimbările neanunțate pot genera stres intens.",
+          "Interese intense și focalizate, adesea aprofundate până la nivel de expertiză.",
+          "Comunicare socială diferită: limbaj literal, dificultate în a „citi” indicii sociale nescrise, contact vizual inconfortabil.",
+          "Autoreglare prin mișcări repetitive (stimming) — un mecanism de calmare, nu un comportament de eliminat.",
+        ],
+      },
+      {
+        title: "Puncte forte adesea neobservate",
+        items: [
+          "Onestitate și directețe — spun exact ce gândesc, fără jocuri sociale ascunse.",
+          "Recunoașterea tiparelor și atenția excepțională la detalii.",
+          "Loialitate profundă și memorie foarte bună pentru domeniile de interes.",
+          "Gândire „în afara cutiei” — soluții neconvenționale la probleme.",
+        ],
+      },
+      {
+        title: "Strategii practice pentru părinți",
+        items: [
+          "Folosește programe vizuale pentru rutina zilnică — reduce anxietatea legată de necunoscut.",
+          "Anunță din timp tranzițiile („mai sunt 5 minute până plecăm”) în loc de schimbări bruște.",
+          "Respectă nevoile senzoriale — nu forța contactul vizual sau tolerarea unui stimul deranjant.",
+          "Folosește interesul special al copilului ca punte de conectare și motivație pentru învățare.",
+          "Vorbește direct și concret; evită sarcasmul sau instrucțiunile ambigue.",
+        ],
+      },
+    ],
+  },
+  {
+    id: "s4",
+    number: 6,
     title: "ADHD versus Energie Normală și Supradotare",
     content: [
       "Diferențierea corectă între un temperament activ, specific supradotării, și tulburarea de hiperactivitate cu deficit de atenție (ADHD) este vitală pentru a evita etichetarea eronată. Conform criteriilor „Rei Alternative Center”, diagnosticul de ADHD necesită persistența simptomelor în cel puțin două contexte diferite (de exemplu, atât acasă, cât și la școală).",
@@ -90,7 +168,7 @@ export const GUIDE: GuideSection[] = [
   },
   {
     id: "s5",
-    number: 5,
+    number: 7,
     title: "Profiluri Tipologice ale Copiilor Supradotați",
     content: [
       "Înțelegerea modului în care acești copii se raportează la sistemul educațional ne ajută să personalizăm sprijinul oferit:",
@@ -110,7 +188,7 @@ export const GUIDE: GuideSection[] = [
   },
   {
     id: "s6",
-    number: 6,
+    number: 8,
     title: "Gestionarea Emoțiilor și Riscurile Specifice",
     content: [
       "Identificarea tardivă sau absența unui suport adecvat expune copilul la riscuri psihosociale majore:",
@@ -128,7 +206,7 @@ export const GUIDE: GuideSection[] = [
   },
   {
     id: "s7",
-    number: 7,
+    number: 9,
     title: "Strategii Practice pentru Părinți: Disciplină și Comunicare",
     content: [
       "Rolul părintelui trebuie să evolueze de la cel de „judecător” la cel de „observator asertiv”. Disciplina în cazul copilului supradotat funcționează cel mai bine atunci când este colaborativă, nu punitivă.",
@@ -147,7 +225,7 @@ export const GUIDE: GuideSection[] = [
   },
   {
     id: "s8",
-    number: 8,
+    number: 10,
     title: "Identificarea și Evaluarea: Primii Pași spre Succes",
     content: [
       "Identificarea timpurie este esențială pentru a preveni pierderea disponibilităților aptitudinale. Un proces de evaluare riguros este multidimensional și include:",
@@ -173,7 +251,7 @@ export const GUIDE: GuideSection[] = [
   // ===== Ghidul Avansat =====
   {
     id: "s9",
-    number: 9,
+    number: 11,
     title: "Fundamentele Supradotării: Definiții și Paradigme",
     content: [
       "Supradotarea este o manifestare umană multidimensională, definită prin intersecția dintre potențialul biologic și mediul favorizant. Paradigmele actuale depășesc viziunea pur academică:",
@@ -192,7 +270,7 @@ export const GUIDE: GuideSection[] = [
   },
   {
     id: "s10",
-    number: 10,
+    number: 12,
     title: "Elevul Strălucitor vs. Elevul Supradotat",
     content: [
       "Erorile de diagnostic pedagogic apar adesea din confundarea conformismului academic cu supradotarea:",
@@ -220,7 +298,7 @@ export const GUIDE: GuideSection[] = [
   },
   {
     id: "s11",
-    number: 11,
+    number: 13,
     title: "Tipologia Supradotării (Betts & Neihart)",
     content: [
       "Cele 6 profiluri psihologice și nevoile lor specifice:",
@@ -240,7 +318,7 @@ export const GUIDE: GuideSection[] = [
   },
   {
     id: "s12",
-    number: 12,
+    number: 14,
     title: "Diagnostic Diferențial: Activ, Supradotat sau ADHD?",
     content: [
       "Diferența cheie rezidă în capacitatea de autoreglare și adaptabilitate la context:",
@@ -258,7 +336,7 @@ export const GUIDE: GuideSection[] = [
   },
   {
     id: "s13",
-    number: 13,
+    number: 15,
     title: "Riscuri Specifice și Dezvoltarea Asincronă",
     content: [
       "Conceptul de heterocronie explică decalajul dintre cognitivul avansat și motorul/emoționalul rămas în urmă. Riscurile majore:",
@@ -276,7 +354,7 @@ export const GUIDE: GuideSection[] = [
   },
   {
     id: "s14",
-    number: 14,
+    number: 16,
     title: "Strategii de Intervenție și Management Educațional",
     content: [
       "Trei categorii de soluții pentru personalizarea parcursului educațional:",
@@ -309,7 +387,7 @@ export const GUIDE: GuideSection[] = [
   },
   {
     id: "s15",
-    number: 15,
+    number: 17,
     title: "Clubul de Origami (6-10 ani)",
     content: [
       "Modelul „Clubului de Origami” este o strategie experiențială care folosește rigoarea pliului pentru a accesa „alfabetul emoțiilor”.",
@@ -337,7 +415,7 @@ export const GUIDE: GuideSection[] = [
   },
   {
     id: "s16",
-    number: 16,
+    number: 18,
     title: "Ghid de Îndrumare pentru Părinți — FAQ",
     content: [
       "Părinții trebuie să fie observatori, nu evaluatori. Evaluarea psihologică nu este o etichetă, ci o sursă de claritate pentru a oferi sprijinul adecvat.",
@@ -354,7 +432,7 @@ export const GUIDE: GuideSection[] = [
   },
   {
     id: "s17",
-    number: 17,
+    number: 19,
     title: "Concluzii: Dincolo de Performanță",
     content: [
       "Supradotarea este o invitație la răbdare și conectare reală. Copiii cu abilități înalte nu sunt „proiecte de succes”, ci ființe complexe care au nevoie să fie văzute în întregul lor — cu tot potențialul fantastic, dar și cu vulnerabilitățile lor profunde.",

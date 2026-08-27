@@ -11,7 +11,7 @@ import { GUIDE, GUIDE_INTRO, GUIDE_SUBTITLE, GUIDE_TITLE } from "@/src/lib/guide
 import { GUIDES, GuideMeta } from "@/src/lib/guides_extra";
 
 const READ_KEY = "guide_read_ids";
-const ADVANCED_START = 9;
+const ADVANCED_START = 11;
 
 // Build unified list: supradotare first, then extras
 const ALL_GUIDES: GuideMeta[] = [
