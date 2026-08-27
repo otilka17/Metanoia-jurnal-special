@@ -9,7 +9,8 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "app.emergent.applayoutdesigner61a7a04f"
     },
     "android": {
       "adaptiveIcon": {
@@ -20,7 +21,8 @@
       "permissions": [
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.SCHEDULE_EXACT_ALARM"
-      ]
+      ],
+      "package": "app.emergent.applayoutdesignerc369fe88"
     },
     "web": {
       "bundler": "metro",
