@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Share, Modal, Pressable } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Share, Modal, Pressable } from "react-native";
+import { Alert } from "@/src/lib/alert";
 import { Ionicons } from "@expo/vector-icons";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";

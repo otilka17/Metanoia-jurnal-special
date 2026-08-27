@@ -1,8 +1,18 @@
 import { useState, useCallback } from "react";
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal, Pressable,
-  TextInput, KeyboardAvoidingView, Platform,
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform
 } from "react-native";
+import { Alert } from "@/src/lib/alert";
 import { useRouter, useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";

@@ -3,6 +3,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo.errors import DuplicateKeyError
 import os
 import asyncio
 import logging
@@ -159,7 +160,7 @@ CATEGORIES = [
 # ============ MODELS ============
 class UserRegister(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(min_length=6)
     name: str
 
 class UserLogin(BaseModel):
@@ -493,7 +494,10 @@ async def register(data: UserRegister):
         "created_at": datetime.now(timezone.utc),
         "is_admin": email_lc == SUPER_ADMIN_EMAIL,
     }
-    await db.users.insert_one(user_doc)
+    try:
+        await db.users.insert_one(user_doc)
+    except DuplicateKeyError:
+        raise HTTPException(status_code=400, detail="Email deja înregistrat")
     # Fire-and-forget welcome email
     try:
         asyncio.create_task(send_welcome_email(user_doc["email"], user_doc["name"]))
@@ -1720,16 +1724,23 @@ async def delete_answer(answer_id: str, user: dict = Depends(get_current_user)):
 
 app.include_router(api_router)
 
+_cors_origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=["*"],
+    allow_credentials=bool(_cors_origins),
+    allow_origins=_cors_origins or ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+
+@app.on_event("startup")
+async def create_indexes():
+    await db.users.create_index("email", unique=True)
 
 
 @app.on_event("shutdown")

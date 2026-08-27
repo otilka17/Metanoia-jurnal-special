@@ -1,8 +1,17 @@
 import { useEffect, useState } from "react";
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator,
-  KeyboardAvoidingView, Platform, Alert, Share,
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Share
 } from "react-native";
+import { Alert } from "@/src/lib/alert";
 import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
