@@ -162,6 +162,7 @@ class UserOut(BaseModel):
     email: str
     name: str
     created_at: datetime
+    is_admin: bool = False
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -281,6 +282,19 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise HTTPException(status_code=401, detail="Token invalid")
 
 
+SUPER_ADMIN_EMAIL = "otilia.ioana96@gmail.com"
+
+
+def is_super_admin(user: dict) -> bool:
+    return bool(user.get("is_admin")) or (user.get("email", "").lower() == SUPER_ADMIN_EMAIL)
+
+
+async def require_admin(user: dict = Depends(get_current_user)) -> dict:
+    if not is_super_admin(user):
+        raise HTTPException(status_code=403, detail="Doar administratorii au acces")
+    return user
+
+
 # ============ AUTH ROUTES ============
 @api_router.post("/auth/register", response_model=TokenResponse)
 async def register(data: UserRegister):
@@ -288,18 +302,20 @@ async def register(data: UserRegister):
     if existing:
         raise HTTPException(status_code=400, detail="Email deja înregistrat")
     user_id = str(uuid.uuid4())
+    email_lc = data.email.lower()
     user_doc = {
         "id": user_id,
-        "email": data.email.lower(),
+        "email": email_lc,
         "name": data.name.strip(),
         "password": hash_password(data.password),
         "created_at": datetime.now(timezone.utc),
+        "is_admin": email_lc == SUPER_ADMIN_EMAIL,
     }
     await db.users.insert_one(user_doc)
     token = create_token(user_id)
     return TokenResponse(
         access_token=token,
-        user=UserOut(id=user_id, email=user_doc["email"], name=user_doc["name"], created_at=user_doc["created_at"]),
+        user=UserOut(id=user_id, email=user_doc["email"], name=user_doc["name"], created_at=user_doc["created_at"], is_admin=user_doc["is_admin"]),
     )
 
 @api_router.post("/auth/login", response_model=TokenResponse)
@@ -307,15 +323,19 @@ async def login(data: UserLogin):
     user = await db.users.find_one({"email": data.email.lower()})
     if not user or not verify_password(data.password, user["password"]):
         raise HTTPException(status_code=401, detail="Email sau parolă incorecte")
+    # Ensure super admin flag is set (idempotent) for the configured email
+    if user.get("email", "").lower() == SUPER_ADMIN_EMAIL and not user.get("is_admin"):
+        await db.users.update_one({"id": user["id"]}, {"$set": {"is_admin": True}})
+        user["is_admin"] = True
     token = create_token(user["id"])
     return TokenResponse(
         access_token=token,
-        user=UserOut(id=user["id"], email=user["email"], name=user["name"], created_at=user["created_at"]),
+        user=UserOut(id=user["id"], email=user["email"], name=user["name"], created_at=user["created_at"], is_admin=bool(user.get("is_admin"))),
     )
 
 @api_router.get("/auth/me", response_model=UserOut)
 async def me(user: dict = Depends(get_current_user)):
-    return UserOut(**user)
+    return UserOut(id=user["id"], email=user["email"], name=user["name"], created_at=user["created_at"], is_admin=is_super_admin(user))
 
 
 # ============ CATEGORIES & SEARCH ============
@@ -657,6 +677,212 @@ async def journal_patterns(user: dict = Depends(get_current_user)):
 @api_router.get("/")
 async def root():
     return {"message": "Ghid Părinte API"}
+
+
+# ============ USER OWN STATS ============
+@api_router.get("/me/stats")
+async def my_stats(user: dict = Depends(get_current_user)):
+    """Personal dashboard stats for the current user."""
+    uid = user["id"]
+    now = datetime.now(timezone.utc)
+    since_30 = now - timedelta(days=30)
+    since_7 = now - timedelta(days=7)
+
+    # Journal
+    journal_total = await db.journal.count_documents({"user_id": uid})
+    journal_30 = await db.journal.count_documents({"user_id": uid, "created_at": {"$gte": since_30}})
+    journal_7 = await db.journal.count_documents({"user_id": uid, "created_at": {"$gte": since_7}})
+
+    # Bookmarks
+    bookmarks_total = await db.bookmarks.count_documents({"user_id": uid})
+
+    # Ask AI
+    ask_total = await db.ask_history.count_documents({"user_id": uid})
+    ask_30 = await db.ask_history.count_documents({"user_id": uid, "created_at": {"$gte": since_30.isoformat()}})
+
+    # Forum
+    forum_posts = await db.forum_posts.count_documents({"user_id": uid})
+    forum_answers = await db.forum_answers.count_documents({"user_id": uid})
+
+    # Test result
+    latest_test = await db.test_results.find_one({"user_id": uid}, {"_id": 0, "profile_title": 1, "created_at": 1}, sort=[("created_at", -1)])
+
+    # Family
+    fam = await db.families.find_one({"member_ids": uid}, {"_id": 0, "code": 1, "member_ids": 1})
+    family_info = None
+    if fam:
+        family_info = {"code": fam["code"], "member_count": len(fam.get("member_ids", []))}
+
+    # Guide progress
+    gp = await db.guide_progress.find_one({"user_id": uid}, {"_id": 0, "read_chapters": 1}) or {}
+    read_chapters = len(gp.get("read_chapters", []))
+
+    return {
+        "journal": {"total": journal_total, "last_30_days": journal_30, "last_7_days": journal_7},
+        "bookmarks_total": bookmarks_total,
+        "ask_ai": {"total": ask_total, "last_30_days": ask_30},
+        "forum": {"posts": forum_posts, "answers": forum_answers},
+        "test_result": latest_test,
+        "family": family_info,
+        "guide_read_chapters": read_chapters,
+        "member_since": user.get("created_at"),
+    }
+
+
+# ============ SUPER ADMIN ============
+@api_router.get("/admin/stats")
+async def admin_stats(admin: dict = Depends(require_admin)):
+    """Global stats for the super admin."""
+    now = datetime.now(timezone.utc)
+    since_1 = now - timedelta(days=1)
+    since_7 = now - timedelta(days=7)
+    since_30 = now - timedelta(days=30)
+
+    users_total = await db.users.count_documents({})
+    users_new_7 = await db.users.count_documents({"created_at": {"$gte": since_7}})
+    users_new_30 = await db.users.count_documents({"created_at": {"$gte": since_30}})
+
+    # Active users (posted anything in last 7 days) — approximate via journal or forum
+    active_uids_7 = set()
+    async for j in db.journal.find({"created_at": {"$gte": since_7}}, {"_id": 0, "user_id": 1}):
+        active_uids_7.add(j["user_id"])
+    async for a in db.ask_history.find({"created_at": {"$gte": since_7.isoformat()}}, {"_id": 0, "user_id": 1}):
+        active_uids_7.add(a["user_id"])
+
+    journal_total = await db.journal.count_documents({})
+    journal_1 = await db.journal.count_documents({"created_at": {"$gte": since_1}})
+
+    ask_total = await db.ask_history.count_documents({})
+    ask_1 = await db.ask_history.count_documents({"created_at": {"$gte": since_1.isoformat()}})
+
+    tests_total = await db.test_results.count_documents({})
+    families_total = await db.families.count_documents({})
+    forum_posts_total = await db.forum_posts.count_documents({})
+    forum_answers_total = await db.forum_answers.count_documents({})
+    flagged_posts = await db.forum_posts.count_documents({"flagged_by.0": {"$exists": True}})
+
+    # Distribution of profile titles from tests
+    profile_dist: dict = {}
+    async for t in db.test_results.find({}, {"_id": 0, "profile_title": 1}):
+        pt = t.get("profile_title", "Necunoscut")
+        profile_dist[pt] = profile_dist.get(pt, 0) + 1
+
+    return {
+        "users": {"total": users_total, "new_last_7_days": users_new_7, "new_last_30_days": users_new_30, "active_last_7_days": len(active_uids_7)},
+        "journal": {"total": journal_total, "last_24h": journal_1},
+        "ask_ai": {"total": ask_total, "last_24h": ask_1},
+        "tests": {"total": tests_total, "profile_distribution": profile_dist},
+        "families_total": families_total,
+        "forum": {"posts_total": forum_posts_total, "answers_total": forum_answers_total, "flagged_posts": flagged_posts},
+    }
+
+
+@api_router.get("/admin/users")
+async def admin_list_users(limit: int = 200, skip: int = 0, q: Optional[str] = None, admin: dict = Depends(require_admin)):
+    """List all users with per-user activity counts."""
+    query: dict = {}
+    if q:
+        query["$or"] = [
+            {"email": {"$regex": q, "$options": "i"}},
+            {"name": {"$regex": q, "$options": "i"}},
+        ]
+    cursor = db.users.find(query, {"_id": 0, "password": 0}).sort("created_at", -1).skip(skip).limit(limit)
+    users = await cursor.to_list(limit)
+    out = []
+    for u in users:
+        uid = u["id"]
+        journal_count = await db.journal.count_documents({"user_id": uid})
+        ask_count = await db.ask_history.count_documents({"user_id": uid})
+        forum_count = await db.forum_posts.count_documents({"user_id": uid})
+        last_j = await db.journal.find_one({"user_id": uid}, {"_id": 0, "created_at": 1}, sort=[("created_at", -1)])
+        out.append({
+            "id": u["id"],
+            "email": u.get("email"),
+            "name": u.get("name"),
+            "created_at": u.get("created_at"),
+            "is_admin": bool(u.get("is_admin")) or (u.get("email", "").lower() == SUPER_ADMIN_EMAIL),
+            "journal_count": journal_count,
+            "ask_count": ask_count,
+            "forum_count": forum_count,
+            "last_activity": last_j.get("created_at") if last_j else None,
+        })
+    return {"users": out, "total": await db.users.count_documents(query)}
+
+
+@api_router.delete("/admin/users/{user_id}")
+async def admin_delete_user(user_id: str, admin: dict = Depends(require_admin)):
+    if user_id == admin["id"]:
+        raise HTTPException(status_code=400, detail="Nu poți șterge propriul cont din admin")
+    target = await db.users.find_one({"id": user_id})
+    if not target:
+        raise HTTPException(status_code=404, detail="Utilizator inexistent")
+    # Cascade delete
+    await db.users.delete_one({"id": user_id})
+    await db.journal.delete_many({"user_id": user_id})
+    await db.bookmarks.delete_many({"user_id": user_id})
+    await db.ask_history.delete_many({"user_id": user_id})
+    await db.test_results.delete_many({"user_id": user_id})
+    await db.forum_posts.delete_many({"user_id": user_id})
+    await db.forum_answers.delete_many({"user_id": user_id})
+    await db.guide_progress.delete_many({"user_id": user_id})
+    # Remove from family
+    await db.families.update_many({"member_ids": user_id}, {"$pull": {"member_ids": user_id}})
+    # Delete empty families
+    await db.families.delete_many({"member_ids": {"$size": 0}})
+    return {"ok": True}
+
+
+@api_router.post("/admin/users/{user_id}/toggle-admin")
+async def admin_toggle_admin(user_id: str, admin: dict = Depends(require_admin)):
+    target = await db.users.find_one({"id": user_id})
+    if not target:
+        raise HTTPException(status_code=404, detail="Utilizator inexistent")
+    if target.get("email", "").lower() == SUPER_ADMIN_EMAIL:
+        raise HTTPException(status_code=400, detail="Super-adminul nu poate fi modificat")
+    new_val = not bool(target.get("is_admin"))
+    await db.users.update_one({"id": user_id}, {"$set": {"is_admin": new_val}})
+    return {"ok": True, "is_admin": new_val}
+
+
+@api_router.get("/admin/forum/flagged")
+async def admin_list_flagged(admin: dict = Depends(require_admin)):
+    """List forum posts and answers that have been flagged at least once."""
+    posts_cursor = db.forum_posts.find({"flagged_by.0": {"$exists": True}}, {"_id": 0}).sort("created_at", -1).limit(100)
+    posts = await posts_cursor.to_list(100)
+    posts_out = [{
+        "id": p["id"], "category": p["category"], "title": p["title"], "content": p["content"],
+        "display_name": p["display_name"], "flag_count": len(p.get("flagged_by", [])),
+        "created_at": p["created_at"],
+    } for p in posts]
+
+    answers_cursor = db.forum_answers.find({"flagged_by.0": {"$exists": True}}, {"_id": 0}).sort("created_at", -1).limit(100)
+    answers = await answers_cursor.to_list(100)
+    answers_out = [{
+        "id": a["id"], "post_id": a["post_id"], "content": a["content"],
+        "display_name": a["display_name"], "flag_count": len(a.get("flagged_by", [])),
+        "created_at": a["created_at"],
+    } for a in answers]
+
+    return {"flagged_posts": posts_out, "flagged_answers": answers_out}
+
+
+@api_router.delete("/admin/forum/posts/{post_id}")
+async def admin_delete_forum_post(post_id: str, admin: dict = Depends(require_admin)):
+    result = await db.forum_posts.delete_one({"id": post_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Postare inexistentă")
+    await db.forum_answers.delete_many({"post_id": post_id})
+    return {"ok": True}
+
+
+@api_router.delete("/admin/forum/answers/{answer_id}")
+async def admin_delete_forum_answer(answer_id: str, admin: dict = Depends(require_admin)):
+    a = await db.forum_answers.find_one({"id": answer_id})
+    if not a:
+        raise HTTPException(status_code=404, detail="Răspuns inexistent")
+    await db.forum_answers.delete_one({"id": answer_id})
+    await db.forum_posts.update_one({"id": a["post_id"]}, {"$inc": {"answer_count": -1}})
+    return {"ok": True}
 
 
 # ============ FAMILY (Share with partner) ============

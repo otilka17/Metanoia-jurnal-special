@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { storage } from "@/src/utils/storage";
 import { api, TOKEN_KEY } from "@/src/lib/api";
 
-type User = { id: string; email: string; name: string };
+type User = { id: string; email: string; name: string; is_admin?: boolean };
 
 type AuthContextType = {
   user: User | null;
@@ -24,7 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (token) {
         try {
           const me: any = await api.me();
-          setUser({ id: me.id, email: me.email, name: me.name });
+          setUser({ id: me.id, email: me.email, name: me.name, is_admin: me.is_admin });
         } catch {
           await storage.secureRemove(TOKEN_KEY);
         }

@@ -93,4 +93,16 @@ export const api = {
   // Test result
   saveTestResult: (data: any) => request("/test/result", { method: "POST", body: data }),
   getLatestTestResult: () => request("/test/result"),
+
+  // Personal stats
+  myStats: () => request("/me/stats"),
+
+  // Admin
+  adminStats: () => request("/admin/stats"),
+  adminUsers: (q?: string) => request(`/admin/users${q ? `?q=${encodeURIComponent(q)}` : ""}`),
+  adminDeleteUser: (id: string) => request(`/admin/users/${id}`, { method: "DELETE" }),
+  adminToggleAdmin: (id: string) => request(`/admin/users/${id}/toggle-admin`, { method: "POST" }),
+  adminFlagged: () => request("/admin/forum/flagged"),
+  adminDeleteForumPost: (id: string) => request(`/admin/forum/posts/${id}`, { method: "DELETE" }),
+  adminDeleteForumAnswer: (id: string) => request(`/admin/forum/answers/${id}`, { method: "DELETE" }),
 };

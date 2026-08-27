@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable } from "reac
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "@/src/lib/theme";
+import { useAuth } from "@/src/lib/auth";
 
 const MENU = [
   { label: "Acasă", route: "/(tabs)", icon: "home" as const },
@@ -17,6 +18,8 @@ const MENU = [
   { label: "Jurnal", route: "/(tabs)/journal", icon: "book" as const },
   { label: "Profil", route: "/(tabs)/profile", icon: "person" as const },
 ];
+
+const ADMIN_ITEM = { label: "Admin", route: "/admin", icon: "shield-checkmark" as const };
 
 function HeaderBar({ onMenu }: { onMenu: () => void }) {
   return (
@@ -51,8 +54,11 @@ function BottomNav() {
 export default function TabsLayout() {
   const router = useRouter();
   const pathname = usePathname();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const go = (r: string) => { setOpen(false); router.push(r as any); };
+
+  const menuItems = user?.is_admin ? [...MENU, ADMIN_ITEM] : MENU;
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.bg }}>
@@ -74,12 +80,13 @@ export default function TabsLayout() {
                 <Text style={styles.drawerBrand}>Meniu</Text>
                 <TouchableOpacity onPress={() => setOpen(false)}><Ionicons name="close" size={24} color={theme.colors.textPrimary} /></TouchableOpacity>
               </View>
-              {MENU.map((m) => {
+              {menuItems.map((m) => {
                 const active = pathname === m.route || (m.route === "/(tabs)" && pathname === "/");
+                const isAdmin = m.route === "/admin";
                 return (
-                  <TouchableOpacity key={m.route} testID={`menu-${m.icon}`} style={[styles.menuItem, active && styles.menuItemActive]} onPress={() => go(m.route)}>
-                    <Ionicons name={m.icon} size={20} color={active ? theme.colors.primary : theme.colors.textPrimary} />
-                    <Text style={[styles.menuText, active && { color: theme.colors.primary, fontWeight: "700" }]}>{m.label}</Text>
+                  <TouchableOpacity key={m.route} testID={`menu-${m.icon}`} style={[styles.menuItem, active && styles.menuItemActive, isAdmin && { borderTopWidth: 1, borderTopColor: theme.colors.border, marginTop: 8 }]} onPress={() => go(m.route)}>
+                    <Ionicons name={m.icon} size={20} color={active ? theme.colors.primary : (isAdmin ? "#B56B6B" : theme.colors.textPrimary)} />
+                    <Text style={[styles.menuText, active && { color: theme.colors.primary, fontWeight: "700" }, isAdmin && !active && { color: "#B56B6B", fontWeight: "600" }]}>{m.label}</Text>
                   </TouchableOpacity>
                 );
               })}

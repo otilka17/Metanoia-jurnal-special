@@ -15,10 +15,22 @@ type Bookmark = {
   type?: string; point?: string; explanation?: string;
 };
 
+function StatCard({ icon, value, label, sub, color }: { icon: any; value: number; label: string; sub?: string; color: string }) {
+  return (
+    <View style={[styles.statCardBox, { borderLeftColor: color }]}>
+      <Ionicons name={icon} size={16} color={color} style={styles.statCardIcon} />
+      <Text style={[styles.statCardValue, { color }]}>{value}</Text>
+      <Text style={styles.statCardLabel} numberOfLines={1}>{label}</Text>
+      {sub ? <Text style={styles.statCardSub} numberOfLines={1}>{sub}</Text> : null}
+    </View>
+  );
+}
+
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  const [myStats, setMyStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState<string | null>(null);
   const [tab, setTab] = useState<"article" | "explanation">("article");
@@ -26,8 +38,9 @@ export default function ProfileScreen() {
 
   const load = async () => {
     try {
-      const res: any = await api.listBookmarks();
+      const [res, stats]: any = await Promise.all([api.listBookmarks(), api.myStats()]);
       setBookmarks(res.bookmarks);
+      setMyStats(stats);
     } catch {}
   };
 
@@ -68,7 +81,44 @@ export default function ProfileScreen() {
           <View style={styles.avatar}><Text style={styles.avatarText}>{(user?.name || "P")[0].toUpperCase()}</Text></View>
           <Text style={styles.name}>{user?.name}</Text>
           <Text style={styles.email}>{user?.email}</Text>
+          {user?.is_admin && (
+            <View style={styles.adminBadge}>
+              <Ionicons name="shield-checkmark" size={12} color="#fff" />
+              <Text style={styles.adminBadgeText}>ADMINISTRATOR</Text>
+            </View>
+          )}
         </View>
+
+        {user?.is_admin && (
+          <TouchableOpacity testID="open-admin" onPress={() => router.push("/admin")} style={styles.adminCard}>
+            <View style={styles.adminIcon}><Ionicons name="shield-checkmark" size={22} color="#fff" /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.adminTitle}>Panou Admin</Text>
+              <Text style={styles.adminText}>Gestionează utilizatori, statistici globale, moderare</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={22} color="#fff" />
+          </TouchableOpacity>
+        )}
+
+        {myStats && (
+          <>
+            <Text style={styles.sectionTitle}>Activitatea mea</Text>
+            <View style={styles.statsGrid}>
+              <StatCard icon="book" value={myStats.journal?.total || 0} label="Însemnări" sub={`${myStats.journal?.last_7_days || 0} săpt.`} color="#7A9E9F" />
+              <StatCard icon="chatbubbles" value={myStats.ask_ai?.total || 0} label="Întrebări AI" sub={`${myStats.ask_ai?.last_30_days || 0} lună`} color="#DE8F6E" />
+              <StatCard icon="bookmark" value={myStats.bookmarks_total || 0} label="Bookmarks" color="#E8C37C" />
+              <StatCard icon="library" value={myStats.guide_read_chapters || 0} label="Capitole citite" color="#5E8B7E" />
+              <StatCard icon="chatbubble-ellipses" value={(myStats.forum?.posts || 0) + (myStats.forum?.answers || 0)} label="Postări forum" sub={`${myStats.forum?.posts || 0} întrebări`} color="#9B8CC4" />
+              <StatCard icon="clipboard" value={myStats.test_result ? 1 : 0} label="Test profil" sub={myStats.test_result?.profile_title ? myStats.test_result.profile_title.slice(0, 20) + '…' : "Nefăcut"} color="#6E8FD8" />
+            </View>
+            {myStats.family && (
+              <View style={styles.famBanner}>
+                <Ionicons name="people-circle" size={20} color={theme.colors.primary} />
+                <Text style={styles.famBannerText}>În familie · Cod <Text style={{ fontWeight: "700", color: theme.colors.primary }}>{myStats.family.code}</Text> · {myStats.family.member_count} membri</Text>
+              </View>
+            )}
+          </>
+        )}
 
         <Text style={styles.sectionTitle}>Articole salvate</Text>
 
@@ -178,14 +228,28 @@ const styles = StyleSheet.create({
   title: { ...theme.font.h1, color: theme.colors.textPrimary, marginTop: 8, marginBottom: 16 },
   userCard: {
     alignItems: "center", backgroundColor: theme.colors.surface,
-    borderRadius: 16, padding: 24, marginBottom: 24,
+    borderRadius: 16, padding: 24, marginBottom: 16,
     borderWidth: 1, borderColor: theme.colors.border,
   },
+  adminBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#B56B6B", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, marginTop: 8 },
+  adminBadgeText: { color: "#fff", fontSize: 10, fontWeight: "700", letterSpacing: 0.5 },
+  adminCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#B56B6B", borderRadius: 16, padding: 14, marginBottom: 16 },
+  adminIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.22)", alignItems: "center", justifyContent: "center" },
+  adminTitle: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  adminText: { color: "rgba(255,255,255,0.9)", fontSize: 12, marginTop: 2 },
+  statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
+  statCardBox: { width: "31.5%", backgroundColor: theme.colors.surface, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: theme.colors.border, borderLeftWidth: 3 },
+  statCardIcon: { marginBottom: 4 },
+  statCardValue: { fontSize: 20, fontWeight: "700" },
+  statCardLabel: { fontSize: 10, color: theme.colors.textSecondary, marginTop: 2, fontWeight: "500" },
+  statCardSub: { fontSize: 9, color: theme.colors.textDisabled, marginTop: 1 },
+  famBanner: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: theme.colors.primary + "11", borderRadius: 12, padding: 12, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: theme.colors.primary },
+  famBannerText: { flex: 1, fontSize: 12, color: theme.colors.textPrimary },
   avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: theme.colors.primary, alignItems: "center", justifyContent: "center", marginBottom: 12 },
   avatarText: { color: "#fff", fontSize: 28, fontWeight: "600" },
   name: { ...theme.font.h3, color: theme.colors.textPrimary },
   email: { ...theme.font.body, color: theme.colors.textSecondary, marginTop: 4 },
-  sectionTitle: { ...theme.font.h3, color: theme.colors.textPrimary, marginBottom: 12 },
+  sectionTitle: { ...theme.font.h3, color: theme.colors.textPrimary, marginBottom: 12, marginTop: 8 },
   tabs: { flexDirection: "row", gap: 8, marginBottom: 12 },
   tab: { flex: 1, paddingVertical: 10, borderRadius: 999, alignItems: "center", borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface },
   tabActive: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
