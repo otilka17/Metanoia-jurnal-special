@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 },
   newBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: theme.colors.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, marginRight: 8 },
   newBtnText: { color: "#fff", fontWeight: "700", fontSize: 13 },
-  chipsRow: { maxHeight: 56, flexGrow: 0, backgroundColor: theme.colors.surface, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
+  chipsRow: { maxHeight: 56, flexGrow: 0, flexShrink: 0, backgroundColor: theme.colors.surface, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
   chip: { flexDirection: "row", alignItems: "center", flexShrink: 0, gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.bg },
   chipText: { fontSize: 12, color: theme.colors.textPrimary, fontWeight: "500" },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, paddingTop: 60 },

@@ -139,7 +139,7 @@ export default function AdminScreen() {
           </View>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 10, gap: 8 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexShrink: 0 }} contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 10, gap: 8 }}>
           {(["overview", "users", "flagged"] as Tab[]).map(t => (
             <TouchableOpacity key={t} testID={`tab-${t}`} onPress={() => setTab(t)} style={[styles.tab, tab === t && styles.tabActive]}>
               <Ionicons name={t === "overview" ? "stats-chart" : t === "users" ? "people" : "flag"} size={14} color={tab === t ? "#fff" : theme.colors.textPrimary} />

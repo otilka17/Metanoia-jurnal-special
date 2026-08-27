@@ -209,7 +209,7 @@ export default function JournalScreen() {
       </View>
 
       {/* Filters */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 40, marginBottom: 4 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 40, flexShrink: 0, marginBottom: 4 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}>
         {moods.map((m) => {
           const active = filterMood === m.key;
           return (
@@ -220,7 +220,7 @@ export default function JournalScreen() {
           );
         })}
       </ScrollView>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 40, marginBottom: 8 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 40, flexShrink: 0, marginBottom: 8 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}>
         {cats.map((c) => {
           const active = filterCat === c.id;
           return (

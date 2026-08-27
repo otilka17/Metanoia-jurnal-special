@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
   progressText: { fontSize: 11, color: theme.colors.textSecondary, marginTop: 4 },
   pdfBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: theme.colors.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999 },
   pdfBtnText: { color: "#fff", fontWeight: "700", fontSize: 12 },
-  nav: { height: 48, maxHeight: 48, borderBottomWidth: 1, borderBottomColor: theme.colors.border, backgroundColor: theme.colors.surface },
+  nav: { height: 48, maxHeight: 48, flexShrink: 0, borderBottomWidth: 1, borderBottomColor: theme.colors.border, backgroundColor: theme.colors.surface },
   navChip: { width: 34, height: 34, flexShrink: 0, borderRadius: 17, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: theme.colors.border, backgroundColor: theme.colors.bg, position: "relative" },
   navChipActive: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
   navChipRead: { borderColor: theme.colors.primary, backgroundColor: theme.colors.primary + "11" },
