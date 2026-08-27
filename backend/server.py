@@ -43,6 +43,19 @@ app = FastAPI()
 api_router = APIRouter(prefix="/api")
 security = HTTPBearer()
 
+# Shared instruction appended to every AI system prompt: LLMs default to English
+# capitalization habits (Title Case in headings, capitalized days/months/languages)
+# which read as errors in Romanian, where only sentence-start and proper nouns take
+# a capital letter.
+RO_CAPITALIZATION_RULE = (
+    "\n\nCAPITALIZARE: scrii în română, NU aplica regulile de capitalizare din engleză. "
+    "În română se scrie cu literă mică: zilele săptămânii (luni, marți...), lunile "
+    "(ianuarie, februarie...), limbile și naționalitățile (română, românesc, englez), "
+    "precum și titlurile sau subtitlurile — NU folosi Title Case (scrii 'Ce se poate "
+    "întâmpla', nu 'Ce Se Poate Întâmpla'). Majusculă doar la începutul propoziției și "
+    "la nume proprii."
+)
+
 # ============ CATEGORIES (MIND MAP STRUCTURE) ============
 CATEGORIES = [
     {
@@ -709,7 +722,7 @@ async def get_article(subtopic_id: str, user: dict = Depends(get_current_user)):
         "Ești un expert în psihologia copilului, specializat în copii supradotați și hiperactivi (ADHD/2e). "
         "Scrii articole educaționale pentru părinți români. Folosești limba română corectă, ton cald, empatic și practic. "
         "Răspunzi strict în format JSON valid, fără text suplimentar."
-    )
+    ) + RO_CAPITALIZATION_RULE
     prompt = f"""Scrie un articol educațional pentru părinți despre tema: "{sub['title']}" 
 (din categoria "{cat['title']}").
 
@@ -881,7 +894,7 @@ async def quick_explain(data: QuickExplainRequest, user: dict = Depends(get_curr
     system_msg = (
         "Ești expert în psihologia copilului. Scrii explicații scurte (2-3 propoziții) "
         "în română, ton cald și practic, pentru părinții copiilor supradotați/hiperactivi."
-    )
+    ) + RO_CAPITALIZATION_RULE
     prompt = (
         f"Categorie: {data.category_title}\nTemă: {data.subtopic_title}\nConcept: \"{data.point}\"\n\n"
         f"Explică în 2-3 propoziții ce înseamnă acest concept și de ce contează. "
@@ -979,7 +992,7 @@ async def ask_specialist(data: AskRequest, user: dict = Depends(get_current_user
         "direct întrebarea, dar FĂRĂ să scrii 'Întrebarea mea pentru voi:')\n\n"
         "Nu ascunde că ești AI. Dar oferi ghidaj cu suflet — părinții copiilor cu ADHD cercetează "
         "MULT cu AI-ul, iar diferența dintre AI generic și AI cald e ce face părintele să revină."
-    )
+    ) + RO_CAPITALIZATION_RULE
     try:
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
@@ -1029,7 +1042,7 @@ async def journal_patterns(user: dict = Depends(get_current_user)):
     system_msg = (
         "Ești psiholog specializat în copii supradotați/hiperactivi. Analizezi jurnalul unui părinte "
         "din ultimele 30 zile și identifici tipare comportamentale. Răspunzi în română, empatic și practic."
-    )
+    ) + RO_CAPITALIZATION_RULE
     prompt = (
         f"Iată ultimele {len(items)} însemnări din jurnalul părintelui:\n\n{summary}\n\n"
         f"Analizează și identifică 3-5 tipare importante (zile/momente cu crize, declanșatori repetitivi, "
@@ -1463,7 +1476,7 @@ async def generate_comparison(data: CompareGenerateRequest, user: dict = Depends
         '  ],\n'
         '  "insight": "<îndrumare 2-3 propoziții cu tip specialist recomandat>"\n'
         "}"
-    )
+    ) + RO_CAPITALIZATION_RULE
     prompt = f"Generează tabelul comparativ între: **{left}** și **{right}**. Doar JSON."
 
     try:
