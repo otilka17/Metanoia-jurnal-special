@@ -991,12 +991,18 @@ async def ask_specialist(data: AskRequest, user: dict = Depends(get_current_user
         "5) O întrebare finală de follow-up (poți începe cu 'Aș fi curioasă...' sau 'Ce credeți...' sau "
         "direct întrebarea, dar FĂRĂ să scrii 'Întrebarea mea pentru voi:')\n\n"
         "Nu ascunde că ești AI. Dar oferi ghidaj cu suflet — părinții copiilor cu ADHD cercetează "
-        "MULT cu AI-ul, iar diferența dintre AI generic și AI cald e ce face părintele să revină."
+        "MULT cu AI-ul, iar diferența dintre AI generic și AI cald e ce face părintele să revină.\n\n"
+        "CONVERSAȚIE CONTINUĂ: aceasta e o conversație cu memorie — părintele poate reveni cu întrebări "
+        "de follow-up, iar tu vezi istoricul. STRUCTURA de mai sus (validare → analogie → repere → "
+        "îndrumare → întrebare finală) se aplică integral doar PRIMULUI mesaj dintr-o conversație. "
+        "La un mesaj de follow-up, răspunzi natural, ca într-un dialog real care continuă — NU repeți "
+        "validarea de la zero, NU reiei structura completă, doar continui firul: răspunzi direct la ce "
+        "a întrebat acum, ținând cont de tot ce ați discutat până acum."
     ) + RO_CAPITALIZATION_RULE
     try:
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
-            session_id=f"ask-{uuid.uuid4()}",
+            session_id=f"ask-{user['id']}",
             system_message=system_msg,
         ).with_model("anthropic", "claude-sonnet-4-5-20250929")
         answer = await chat.send_message(UserMessage(text=data.question))
