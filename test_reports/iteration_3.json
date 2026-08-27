@@ -1,0 +1,64 @@
+{
+  "summary": "Backend-only testing for Change Password + Forgot Password + Reset Password flows (Romanian UI strings, Emergent-managed Resend email). Added /app/backend/tests/test_password_flows.py with 15 pytest tests covering all 15 items in the review request. Result: 15/15 PASS. Key coverage: (1) change-password: no-auth→403, wrong old→401 'Parola actuală este incorectă', short new→400 'minim 6 caractere', same-as-old→400 'diferită de cea veche', happy-path→200 + old login fails + new login works. (2) forgot-password: non-existent email returns generic 200 with 'Dacă emailul există...' AND creates NO db row (no user enumeration), existing user creates a password_reset_codes row with 64-char sha256 code_hash, attempts=0, used=false, expires_at set. (3) reset-password: non-6-digit code→400 'Cod invalid — trebuie 6 cifre', short new_password→400 'minim 6 caractere', no code record→400 'Cod inexistent sau expirat', wrong code→400 'Cod incorect' + attempts incremented in Mongo, expired code (expires_at in past)→400 'Cod expirat', attempts>=5→400 'Prea multe încercări', happy-path (seeded known code 123456 via direct Mongo insert with sha256 hash)→200 + old pwd fails + new pwd logs in, code cannot be reused after successful reset (deleted). (4) Verified backend does NOT crash when email send fails — endpoint returns generic 200 either way. IMPORTANT BUG DISCOVERED: The rate-limit check in forgot-password is effectively DEAD CODE — see backend_issues.critical. test@test.com/test123 credentials are preserved (restored via bcrypt if any test broke them).",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/auth/forgot-password",
+        "issue": "Rate-limit check is dead code. The endpoint calls `count_documents({email, created_at>=15min})` BEFORE `delete_many({email})`. Since delete_many wipes previous records before every insert, only 1 code record ever exists at a time, so `recent` never reaches 3. Effect: an attacker can call /forgot-password unlimited times per email, generating unlimited emails. Fix: either (a) do NOT delete_many previous codes (append + let expiry handle cleanup + count-based rate limit works), or (b) track requests in a separate collection (e.g. password_reset_requests) that is NOT deleted between calls. Reference: /app/backend/server.py:485-506. Requirement says '4th should silently not send, max 3 codes stored' — currently 4th (and 400th) still triggers an email send.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "POST /api/auth/forgot-password",
+        "issue": "Response body is identical for existent vs non-existent user (good, prevents enumeration), but the DB write side-effect timing differs (existing user waits on httpx email send up to 30s; non-existent user returns instantly). A timing side-channel could still leak enumeration. Consider firing send_email as a background task (BackgroundTasks or asyncio.create_task) so response latency is uniform."
+      },
+      {
+        "endpoint": "POST /api/auth/reset-password",
+        "issue": "After a failed attempt that maxes out attempts to 5, the NEXT call deletes the record (line 556) — good. But the CURRENT call that pushed attempts from 4→5 still returns 'Cod incorect' rather than 'Prea multe încercări'. Ordering nit: check `attempts >= 5` after the increment so the user is told immediately they've been locked out. Non-blocking."
+      },
+      {
+        "endpoint": "POST /api/auth/reset-password",
+        "issue": "No password-history / same-password check on reset (unlike /change-password which blocks same-as-old). Users can reset to their existing password. Non-blocking but inconsistent."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_password_flows.py",
+    "/app/test_reports/pytest/password_flows_results.xml"
+  ],
+  "action_items": [
+    "HIGH: Fix the dead-code rate-limit in POST /api/auth/forgot-password so that after 3 requests within 15 min the 4th silently no-ops. Simplest fix: use a persistent counter that is NOT wiped by delete_many — e.g. keep a `password_reset_requests` collection with just {email, created_at} that is only cleaned by TTL, then count from there. Alternatively remove the leading delete_many and let the reset flow tolerate multiple pending codes (find the newest matching code_hash).",
+    "Optional: run the email send as a BackgroundTask so the endpoint latency is uniform for enumeration-hardening.",
+    "Optional: on reset-password, when incrementing attempts to 5, return 'Prea multe încercări' instead of 'Cod incorect'.",
+    "Optional: block reusing the current password on /reset-password (parity with /change-password)."
+  ],
+  "critical_code_review_comments": [
+    "server.py is now 1484 lines — still well past the recommended 700-line threshold. Split into routers/{auth,forum,admin,journal,article,family,password}.py.",
+    "Password reset code is stored as sha256 (unsalted). For a 6-digit numeric code (only 1e6 possibilities) sha256 with no salt is trivially brute-forceable if the DB is dumped. Consider bcrypt/argon2 for code_hash, or at least prefix with a per-record salt.",
+    "EMAIL_KEY (EMERGENT_EMAIL_KEY) is read from env — good. EMAIL_FROM_NAME defaults to 'Ghid Părinte' — good.",
+    "_assert_safe_email is a nice defense-in-depth validator (blocks forms, credential-asking text, non-https links, shorteners, host mismatches) — well done.",
+    "logger is defined at the BOTTOM of server.py (line 1478) but used inside send_email (line 397) and get_article (line 682). At import time this works because the module is loaded top-to-bottom before any request handler runs, but move logger init to the top of the file for clarity.",
+    "New password endpoints properly use Pydantic (ChangePasswordRequest, ForgotPasswordRequest, ResetPasswordRequest) with EmailStr validation — good.",
+    "change-password correctly invalidates any pending reset codes on success (line 471) — nice defense against post-change resets."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_password_flows.py (created)",
+    "/app/test_reports/pytest/password_flows_results.xml (generated)"
+  ],
+  "success_rate": {
+    "backend": "100% (15/15 password-flow tests)",
+    "frontend": "n/a — backend-only testing per review request"
+  },
+  "seed_data_creation": "Per-test temporary users prefixed 'TEST_chpwd_', 'TEST_reset_*' are created via /api/auth/register, exercised, and DELETED at the end of each test (both db.users and db.password_reset_codes). test@test.com/test123 was verified/restored at end of run — password remains 'test123'. No permanent test data left behind.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Password-flow regression lives in /app/backend/tests/test_password_flows.py. The rate-limit bug (see backend_issues.critical) requires an implementation change and re-test. The test test_forgot_password_rate_limit_3_codes currently only asserts the endpoint returns 200 on the 4th call (which is per-spec) but PRINTs the observed count — after the fix, the test should be tightened to assert `db.password_reset_requests.count_documents({email})` <= 3 or that no email was sent on the 4th. Super admin creds unchanged: otilia.ioana96@gmail.com / Admin123!.",
+  "rca_of_issue": "Rate-limit dead-code RCA: in /api/auth/forgot-password (server.py:475-526) the sequence is (1) count_documents on password_reset_codes filtered by email+15min, (2) if <3 proceed, (3) delete_many({email}), (4) insert_one(new_code). Because step (3) wipes prior codes before every new insert, at most one row for a given email ever exists, so step (1)'s count is 0 or 1 — never 3. Reproduce: POST /api/auth/forgot-password 4 times for test@test.com within 1 second → 4 emails would be attempted (or 4 email-send calls, verify via httpx mock or MailPit). Mitigation: keep a separate persistent counter/log collection that is not deleted between requests."
+}

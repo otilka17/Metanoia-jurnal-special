@@ -1,0 +1,62 @@
+{
+  "summary": "Retest of the rate-limit fix on POST /api/auth/forgot-password. Fix verified: server.py now uses a separate `password_reset_requests` collection as an audit log for rate-limit checks (counted BEFORE any delete_many). Wrote /app/backend/tests/test_forgot_password_rate_limit.py with 5 dedicated pytest tests + updated the outdated rate-limit test in /app/backend/tests/test_password_flows.py. Full regression: 20/20 PASS (15 previous + 5 new). Key coverage: (1) 4 rapid calls for test@test.com → first 3 create codes, 4th silently no-ops (same code doc id, no new email side-effects); (2) db.password_reset_requests contains exactly 4 audit entries after 4 calls; (3) db.password_reset_codes has exactly 1 entry (most recent); (4) rate limit ALSO applies to non-existent emails (4 audit entries, 0 code entries — anti-enumeration confirmed); (5) old (>15min ago) entries in password_reset_requests do NOT count — fresh request after simulated aging creates a new code and only 1 recent entry is within the window; (6) mixed boundary case (2 old + 3 new → 3rd allowed, 4th silently skipped). test@test.com password confirmed unchanged post-run (login 200 with test123). All temp data cleaned.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/auth/forgot-password",
+        "issue": "Response body still identical for existent vs non-existent user (good), but the DB write side-effect timing still differs (existing user path executes send_email inline via httpx). Recommend `BackgroundTasks` to make latency uniform for anti-enumeration hardening. Not blocking."
+      },
+      {
+        "endpoint": "POST /api/auth/forgot-password",
+        "issue": "The audit-log collection `password_reset_requests` will grow unboundedly. Recommend a MongoDB TTL index on `created_at` (e.g. 24h or 1h) to auto-expire old entries — this also makes the 15-min window check cheaper. Suggested: `db.password_reset_requests.create_index([('created_at', 1)], expireAfterSeconds=3600)`. Not blocking but should be added before production."
+      },
+      {
+        "endpoint": "POST /api/auth/reset-password",
+        "issue": "(carried over from iteration_3) When attempts hit 5 on the current call, response still says 'Cod incorect' instead of 'Prea multe încercări'. Order the check after the increment. Non-blocking."
+      },
+      {
+        "endpoint": "POST /api/auth/reset-password",
+        "issue": "(carried over from iteration_3) No same-password check on reset (unlike /change-password). Non-blocking but inconsistent."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_forgot_password_rate_limit.py",
+    "/app/backend/tests/test_password_flows.py",
+    "/app/test_reports/pytest/password_flows_results.xml",
+    "/app/test_reports/pytest/forgot_password_rate_limit_results.xml"
+  ],
+  "action_items": [
+    "Optional: add a TTL index on db.password_reset_requests.created_at (expireAfterSeconds=3600 or similar) to bound audit-log growth.",
+    "Optional: run send_email via FastAPI BackgroundTasks so timing is uniform for existent vs non-existent emails.",
+    "Optional: reset-password should return 'Prea multe încercări' when the current attempt pushes counter to 5.",
+    "Optional: reset-password should reject same-as-current password for parity with change-password."
+  ],
+  "critical_code_review_comments": [
+    "Fix is correct and minimal: rate-limit counts `password_reset_requests` (audit log, never deleted mid-flow) instead of `password_reset_codes` (which is delete_many'd every call). The insert of the audit entry happens BEFORE the early-return, so the 4th (and beyond) attempt is still counted for future 15-min windows — good.",
+    "The audit-log insert happens for BOTH existent and non-existent emails (server.py:486 before the `if not user` check at :490) — this correctly prevents enumeration via 'no code sent' behaviour.",
+    "server.py is now 1487 lines — still well past the recommended 700-line threshold. Split into routers/{auth,forum,admin,journal,article,family,password}.py."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_forgot_password_rate_limit.py (created — 5 new tests)",
+    "/app/backend/tests/test_password_flows.py (updated test_forgot_password_rate_limit_3_codes to assert fix)",
+    "/app/test_reports/pytest/password_flows_results.xml (regenerated)",
+    "/app/test_reports/pytest/forgot_password_rate_limit_results.xml (generated)"
+  ],
+  "success_rate": {
+    "backend": "100% (20/20 tests — 15 regression + 5 new rate-limit)",
+    "frontend": "n/a — backend-only per review request"
+  },
+  "seed_data_creation": "Per-test temp users prefixed TEST_chpwd_/TEST_reset_* created via /api/auth/register and deleted after each test. New tests also cleaned db.password_reset_requests and db.password_reset_codes for test@test.com and the TEST_nx_* non-existent email. Final cleanup pass confirmed 1 leftover audit entry removed. test@test.com/test123 login verified 200 at end.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Rate-limit is now correctly enforced. Test suites live at /app/backend/tests/test_password_flows.py and /app/backend/tests/test_forgot_password_rate_limit.py. Both use fixture cleanup so no manual teardown needed between runs. If main agent adds the recommended TTL index on password_reset_requests.created_at, the tests will still pass (they seed with datetime timestamps that fall outside a 15-min or larger TTL). Super admin creds unchanged: otilia.ioana96@gmail.com / Admin123!.",
+  "rca_of_issue": "The previous dead-code bug (delete_many wiping the rows before count) was resolved by introducing a NEW MongoDB collection `password_reset_requests` used purely as an audit-log. Sequence in the fixed endpoint (server.py:481-488): compute `since = now - 15min` → `recent = count_documents({email, created_at>=since})` on password_reset_requests → `insert_one({email, created_at:now})` (always, even for bad emails) → if recent >= 3 return generic 200 (no email, no code). Because the insert is on a distinct collection that is never deleted mid-flow, the counter correctly reflects all attempts in the window. Reproduction of the fix: 4 rapid POSTs to /api/auth/forgot-password with test@test.com → verified db.password_reset_requests == 4 && db.password_reset_codes == 1 && the code doc id is unchanged between the 3rd and 4th response — all assertions PASS."
+}

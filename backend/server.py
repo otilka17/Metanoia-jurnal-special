@@ -13,6 +13,13 @@ from datetime import datetime, timedelta, timezone
 import jwt
 import bcrypt
 import hashlib
+import secrets as py_secrets
+import re as _re
+import ipaddress as _ipaddress
+import httpx
+from html import escape as html_escape
+from html.parser import HTMLParser
+from urllib.parse import urlparse as _urlparse
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
@@ -222,6 +229,21 @@ class TestResultCreate(BaseModel):
     profile_icon: Optional[str] = ""
 
 
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    code: str
+    new_password: str
+
+
 def generate_family_code(length: int = 6) -> str:
     """Generate a friendly 6-char alphanumeric code (no confusing chars)."""
     import secrets
@@ -284,6 +306,103 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
 SUPER_ADMIN_EMAIL = "otilia.ioana96@gmail.com"
 
+# ============ EMAIL (Emergent-managed Resend) ============
+EMAIL_BASE_URL = "https://integrations.emergentagent.com"
+EMAIL_KEY = os.environ.get("EMERGENT_EMAIL_KEY", "")
+EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "Ghid Părinte")
+
+_SHORTENERS = ("bit.ly", "tinyurl.com", "t.co", "is.gd", "cutt.ly", "goo.gl", "rebrand.ly")
+_CRED_ASK = ("reply with your password", "reply with the code", "send your password", "cvv",
+             "send us your password", "enter your password below", "confirm your card number",
+             "your full card number", "seed phrase", "recovery phrase", "verify your card",
+             "social security number", "confirm your bank details",
+             "trimite parola", "trimite-ne parola", "răspunde cu parola")
+_HOSTISH = _re.compile(r"\b(?:https?://)?((?:[a-z0-9-]+\.)+[a-z]{2,})", _re.I)
+
+
+def _host_ok(host: str) -> bool:
+    if not host or "xn--" in host:
+        return False
+    try:
+        _ipaddress.ip_address(host)
+        return False
+    except ValueError:
+        pass
+    return not any(host == s or host.endswith("." + s) for s in _SHORTENERS)
+
+
+def _same_site(shown: str, real: str) -> bool:
+    return shown == real or real.endswith("." + shown) or shown.endswith("." + real)
+
+
+class _EmailScan(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.tags, self.urls, self.anchors = set(), [], []
+        self._href, self._text = None, []
+    def handle_starttag(self, tag, attrs):
+        self.tags.add(tag.lower())
+        self.urls += [v for k, v in attrs if k.lower() in ("href", "src") and v]
+        if tag.lower() == "a":
+            self._href = dict((k.lower(), v) for k, v in attrs).get("href")
+            self._text = []
+    def handle_data(self, data):
+        if self._href is not None:
+            self._text.append(data)
+    def handle_endtag(self, tag):
+        if tag.lower() == "a" and self._href is not None:
+            self.anchors.append((self._href, "".join(self._text)))
+            self._href, self._text = None, []
+
+
+def _assert_safe_email(subject: str, html: str) -> None:
+    scan = _EmailScan(); scan.feed(html)
+    if scan.tags & {"form", "input", "textarea", "select"}:
+        raise ValueError("No forms or input fields in email (G2)")
+    body = f"{subject}\n{html}".lower()
+    for p in _CRED_ASK:
+        if p in body:
+            raise ValueError(f"Email asks the recipient for credentials: {p!r} (G2)")
+    for url in scan.urls:
+        low = url.strip().lower()
+        if low.startswith(("mailto:", "tel:", "cid:", "#")):
+            continue
+        if not low.startswith("https://"):
+            raise ValueError(f"Email links/assets must be absolute https: {url!r} (G3)")
+        host = _urlparse(low).hostname or ""
+        if not _host_ok(host) or _urlparse(low).username is not None:
+            raise ValueError(f"Shortened, numeric-host or credential-bearing URL: {url!r} (G3)")
+    for href, text in scan.anchors:
+        real = _urlparse(href.strip().lower()).hostname or ""
+        if not real:
+            continue
+        for m in _HOSTISH.finditer(text):
+            if not _same_site(m.group(1).lower(), real):
+                raise ValueError(f"Anchor text {m.group(1)!r} ≠ real link host {real!r} (G3)")
+
+
+async def send_email(*, to: str, subject: str, html: str) -> Optional[str]:
+    _assert_safe_email(subject, html)
+    payload = {"to": [to], "subject": subject, "html": html, "from_name": EMAIL_FROM_NAME}
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                f"{EMAIL_BASE_URL}/api/v1/email/send",
+                headers={"X-Email-Key": EMAIL_KEY},
+                json=payload,
+            )
+        resp.raise_for_status()
+        return resp.json().get("id")
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Email send failed: {e.response.status_code} {e.response.text}")
+        return None
+    except Exception as e:
+        logger.error(f"Email send error: {str(e)}")
+        return None
+
+
+
+
 
 def is_super_admin(user: dict) -> bool:
     return bool(user.get("is_admin")) or (user.get("email", "").lower() == SUPER_ADMIN_EMAIL)
@@ -336,6 +455,125 @@ async def login(data: UserLogin):
 @api_router.get("/auth/me", response_model=UserOut)
 async def me(user: dict = Depends(get_current_user)):
     return UserOut(id=user["id"], email=user["email"], name=user["name"], created_at=user["created_at"], is_admin=is_super_admin(user))
+
+
+@api_router.post("/auth/change-password")
+async def change_password(data: ChangePasswordRequest, user: dict = Depends(get_current_user)):
+    if len(data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Parola nouă trebuie să aibă minim 6 caractere")
+    fresh = await db.users.find_one({"id": user["id"]})
+    if not fresh or not verify_password(data.old_password, fresh["password"]):
+        raise HTTPException(status_code=401, detail="Parola actuală este incorectă")
+    if data.old_password == data.new_password:
+        raise HTTPException(status_code=400, detail="Parola nouă trebuie să fie diferită de cea veche")
+    await db.users.update_one({"id": user["id"]}, {"$set": {"password": hash_password(data.new_password)}})
+    # Invalidate any pending reset codes for this user
+    await db.password_reset_codes.delete_many({"email": user["email"]})
+    return {"ok": True, "message": "Parola a fost schimbată cu succes"}
+
+
+@api_router.post("/auth/forgot-password")
+async def forgot_password(data: ForgotPasswordRequest):
+    """Send a 6-digit reset code to the email. Always returns generic OK to avoid user enumeration."""
+    email_lc = data.email.lower()
+    generic_response = {"ok": True, "message": "Dacă emailul există, vei primi în scurt timp un cod de resetare."}
+
+    # Rate limit BEFORE any DB writes: use a separate audit log that is never cleaned mid-flow
+    now = datetime.now(timezone.utc)
+    since = now - timedelta(minutes=15)
+    recent = await db.password_reset_requests.count_documents({"email": email_lc, "created_at": {"$gte": since}})
+    # Always record the attempt (rate-limit audit) — even for non-existent emails, to prevent enumeration via timing
+    await db.password_reset_requests.insert_one({"email": email_lc, "created_at": now})
+    if recent >= 3:
+        return generic_response
+
+    user = await db.users.find_one({"email": email_lc})
+    if not user:
+        return generic_response
+
+    # Generate 6-digit code
+    code = f"{py_secrets.randbelow(1000000):06d}"
+    code_hash = hashlib.sha256(code.encode()).hexdigest()
+    expires_at = now + timedelta(minutes=15)
+
+    # Invalidate previous codes and insert new one
+    await db.password_reset_codes.delete_many({"email": email_lc})
+    await db.password_reset_codes.insert_one({
+        "id": str(uuid.uuid4()),
+        "email": email_lc,
+        "code_hash": code_hash,
+        "created_at": now,
+        "expires_at": expires_at,
+        "used": False,
+        "attempts": 0,
+    })
+
+    # Send email (Romanian). Server-side template; no user-supplied HTML.
+    safe_name = html_escape(user.get("name", "Părinte"))
+    html = (
+        f'<table role="presentation" width="100%" style="background:#f7f5f0"><tr><td align="center" style="padding:24px">'
+        f'<table role="presentation" width="480" style="background:#ffffff;border-radius:12px;font-family:Arial,sans-serif;color:#2f2f33">'
+        f'<tr><td style="padding:28px 32px">'
+        f'<h1 style="margin:0 0 8px;color:#7A9E9F;font-size:22px">Resetare parolă</h1>'
+        f'<p style="margin:0 0 16px;font-size:14px">Bună, {safe_name}!</p>'
+        f'<p style="margin:0 0 20px;font-size:14px;line-height:20px">Ai solicitat resetarea parolei pentru contul tău {html_escape(EMAIL_FROM_NAME)}. Codul tău de resetare este:</p>'
+        f'<div style="text-align:center;background:#f7f5f0;padding:20px;border-radius:8px;margin:0 0 20px">'
+        f'<div style="font-size:36px;font-weight:800;letter-spacing:10px;color:#7A9E9F">{code}</div></div>'
+        f'<p style="margin:0 0 12px;font-size:13px;color:#666">Codul expiră în 15 minute. Deschide aplicația și introdu codul pe ecranul de resetare.</p>'
+        f'<p style="margin:0 0 12px;font-size:13px;color:#666">Dacă nu ai solicitat această resetare, poți ignora acest email — parola ta rămâne neschimbată.</p>'
+        f'<hr style="border:none;border-top:1px solid #eee;margin:24px 0">'
+        f'<p style="margin:0;font-size:11px;color:#999">Acest mesaj a fost trimis de {html_escape(EMAIL_FROM_NAME)}. Nu vom cere niciodată parola sau codul prin email.</p>'
+        f'</td></tr></table></td></tr></table>'
+    )
+    await send_email(to=email_lc, subject=f"Cod de resetare parolă — {EMAIL_FROM_NAME}", html=html)
+    return generic_response
+
+
+@api_router.post("/auth/reset-password")
+async def reset_password(data: ResetPasswordRequest):
+    if len(data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Parola nouă trebuie să aibă minim 6 caractere")
+    email_lc = data.email.lower()
+    code = data.code.strip()
+    if not _re.fullmatch(r"\d{6}", code):
+        raise HTTPException(status_code=400, detail="Cod invalid — trebuie 6 cifre")
+    code_hash = hashlib.sha256(code.encode()).hexdigest()
+
+    record = await db.password_reset_codes.find_one({"email": email_lc, "used": False})
+    if not record:
+        raise HTTPException(status_code=400, detail="Cod inexistent sau expirat")
+
+    # Check expiry (support both aware & naive datetimes in Mongo)
+    exp = record.get("expires_at")
+    if isinstance(exp, datetime):
+        exp_aware = exp if exp.tzinfo else exp.replace(tzinfo=timezone.utc)
+    else:
+        exp_aware = datetime.now(timezone.utc) - timedelta(seconds=1)
+    if datetime.now(timezone.utc) > exp_aware:
+        await db.password_reset_codes.delete_one({"id": record["id"]})
+        raise HTTPException(status_code=400, detail="Cod expirat. Te rog cere un cod nou.")
+
+    # Track attempts (max 5)
+    attempts = int(record.get("attempts", 0))
+    if attempts >= 5:
+        await db.password_reset_codes.delete_one({"id": record["id"]})
+        raise HTTPException(status_code=400, detail="Prea multe încercări. Te rog cere un cod nou.")
+
+    if record["code_hash"] != code_hash:
+        await db.password_reset_codes.update_one({"id": record["id"]}, {"$inc": {"attempts": 1}})
+        raise HTTPException(status_code=400, detail="Cod incorect")
+
+    user = await db.users.find_one({"email": email_lc})
+    if not user:
+        # very unlikely — was deleted between forgot & reset
+        await db.password_reset_codes.delete_one({"id": record["id"]})
+        raise HTTPException(status_code=400, detail="Cont inexistent")
+
+    await db.users.update_one({"id": user["id"]}, {"$set": {"password": hash_password(data.new_password)}})
+    await db.password_reset_codes.update_one({"id": record["id"]}, {"$set": {"used": True}})
+    # Cleanup
+    await db.password_reset_codes.delete_many({"email": email_lc})
+    return {"ok": True, "message": "Parola a fost resetată. Te poți autentifica cu noua parolă."}
 
 
 # ============ CATEGORIES & SEARCH ============

@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal, Pressable,
+  TextInput, KeyboardAvoidingView, Platform,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -35,6 +36,29 @@ export default function ProfileScreen() {
   const [exporting, setExporting] = useState<string | null>(null);
   const [tab, setTab] = useState<"article" | "explanation">("article");
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const [showChangePw, setShowChangePw] = useState(false);
+  const [oldPass, setOldPass] = useState("");
+  const [newPass, setNewPass] = useState("");
+  const [confirmPass, setConfirmPass] = useState("");
+  const [pwSaving, setPwSaving] = useState(false);
+  const [showPass, setShowPass] = useState(false);
+
+  const submitChangePassword = async () => {
+    if (newPass.length < 6) { Alert.alert("Parolă prea scurtă", "Parola nouă trebuie să aibă minim 6 caractere."); return; }
+    if (newPass !== confirmPass) { Alert.alert("Neconcordanță", "Parolele nu se potrivesc."); return; }
+    if (oldPass === newPass) { Alert.alert("Atenție", "Parola nouă trebuie să fie diferită de cea veche."); return; }
+    setPwSaving(true);
+    try {
+      await api.changePassword(oldPass, newPass);
+      Alert.alert("Succes ✓", "Parola a fost schimbată.");
+      setShowChangePw(false);
+      setOldPass(""); setNewPass(""); setConfirmPass(""); setShowPass(false);
+    } catch (e: any) {
+      Alert.alert("Eroare", e.message || "Nu am putut schimba parola");
+    } finally {
+      setPwSaving(false);
+    }
+  };
 
   const load = async () => {
     try {
@@ -194,11 +218,61 @@ export default function ProfileScreen() {
           ))
         )}
 
+        <TouchableOpacity testID="change-password-button" style={styles.pwBtn} onPress={() => setShowChangePw(true)}>
+          <Ionicons name="key-outline" size={20} color={theme.colors.primary} />
+          <Text style={styles.pwBtnText}>Schimbă parola</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity testID="logout-button" style={styles.logoutBtn} onPress={onLogout}>
           <Ionicons name="log-out-outline" size={20} color={theme.colors.error} />
           <Text style={styles.logoutText}>Deconectare</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <Modal visible={showChangePw} animationType="slide" transparent onRequestClose={() => setShowChangePw(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <Pressable style={styles.sheetBg} onPress={() => !pwSaving && setShowChangePw(false)}>
+            <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+              <View style={styles.sheetHandle} />
+              <View style={[styles.modalIcon, { backgroundColor: theme.colors.primary + "22", alignSelf: "center" }]}>
+                <Ionicons name="key" size={28} color={theme.colors.primary} />
+              </View>
+              <Text style={[styles.modalTitle, { textAlign: "center" }]}>Schimbă parola</Text>
+              <Text style={[styles.modalText, { textAlign: "center", marginBottom: 20 }]}>Confirmă parola actuală și alege una nouă.</Text>
+
+              <Text style={styles.pwLabel}>PAROLĂ ACTUALĂ</Text>
+              <View style={styles.pwRow}>
+                <TextInput testID="cp-old" secureTextEntry={!showPass} value={oldPass} onChangeText={setOldPass}
+                  placeholder="Parola actuală" placeholderTextColor={theme.colors.textDisabled} style={styles.pwInput} />
+                <TouchableOpacity onPress={() => setShowPass(v => !v)} style={styles.eyeBtn}>
+                  <Ionicons name={showPass ? "eye-off" : "eye"} size={20} color={theme.colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.pwLabel}>PAROLĂ NOUĂ</Text>
+              <TextInput testID="cp-new" secureTextEntry={!showPass} value={newPass} onChangeText={setNewPass}
+                placeholder="Minim 6 caractere" placeholderTextColor={theme.colors.textDisabled} style={styles.pwInput} />
+
+              <Text style={styles.pwLabel}>CONFIRMĂ PAROLA</Text>
+              <TextInput testID="cp-confirm" secureTextEntry={!showPass} value={confirmPass} onChangeText={setConfirmPass}
+                placeholder="Repetă parola nouă" placeholderTextColor={theme.colors.textDisabled} style={styles.pwInput} />
+
+              <TouchableOpacity testID="cp-forgot" onPress={() => { setShowChangePw(false); router.push("/(auth)/forgot-password"); }} style={{ paddingVertical: 8, alignItems: "center" }}>
+                <Text style={{ color: theme.colors.primary, fontSize: 13, fontWeight: "600" }}>Am uitat parola actuală</Text>
+              </TouchableOpacity>
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity testID="cp-cancel" style={styles.modalBtnOutline} onPress={() => { if (!pwSaving) setShowChangePw(false); }} disabled={pwSaving}>
+                  <Text style={styles.modalBtnOutlineText}>Anulează</Text>
+                </TouchableOpacity>
+                <TouchableOpacity testID="cp-submit" style={[styles.modalBtn, pwSaving && { opacity: 0.5 }]} onPress={submitChangePassword} disabled={pwSaving}>
+                  {pwSaving ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalBtnText}>Salvează</Text>}
+                </TouchableOpacity>
+              </View>
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
 
       <Modal visible={confirmLogout} transparent animationType="fade" onRequestClose={() => setConfirmLogout(false)}>
         <Pressable style={styles.modalBg} onPress={() => setConfirmLogout(false)}>
@@ -270,6 +344,15 @@ const styles = StyleSheet.create({
   iconBtn: { padding: 8 },
   logoutBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 32, padding: 16, borderRadius: 999, borderWidth: 1.5, borderColor: theme.colors.error },
   logoutText: { color: theme.colors.error, fontSize: 15, fontWeight: "600" },
+  pwBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, padding: 16, borderRadius: 999, borderWidth: 1, borderColor: theme.colors.border, marginTop: 24, backgroundColor: theme.colors.surface },
+  pwBtnText: { color: theme.colors.primary, fontWeight: "700", fontSize: 15 },
+  sheetBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  sheet: { backgroundColor: theme.colors.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36 },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: theme.colors.border, alignSelf: "center", marginBottom: 12 },
+  pwLabel: { fontSize: 11, color: theme.colors.textSecondary, fontWeight: "700", letterSpacing: 1, marginTop: 12, marginBottom: 6 },
+  pwRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  pwInput: { flex: 1, backgroundColor: theme.colors.surface, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: theme.colors.textPrimary, borderWidth: 1, borderColor: theme.colors.border },
+  eyeBtn: { padding: 12 },
   modalBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "center", paddingHorizontal: 28 },
   modalCard: { backgroundColor: theme.colors.surface, borderRadius: 20, padding: 24, alignItems: "center" },
   modalIcon: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center", marginBottom: 12 },

@@ -105,4 +105,12 @@ export const api = {
   adminFlagged: () => request("/admin/forum/flagged"),
   adminDeleteForumPost: (id: string) => request(`/admin/forum/posts/${id}`, { method: "DELETE" }),
   adminDeleteForumAnswer: (id: string) => request(`/admin/forum/answers/${id}`, { method: "DELETE" }),
+
+  // Password
+  changePassword: (old_password: string, new_password: string) =>
+    request("/auth/change-password", { method: "POST", body: { old_password, new_password } }),
+  forgotPassword: (email: string) =>
+    request("/auth/forgot-password", { method: "POST", body: { email }, auth: false }),
+  resetPassword: (email: string, code: string, new_password: string) =>
+    request("/auth/reset-password", { method: "POST", body: { email, code, new_password }, auth: false }),
 };

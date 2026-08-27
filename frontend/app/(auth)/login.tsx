@@ -132,6 +132,10 @@ export default function LoginScreen() {
                   Nu ai cont? <Text style={{ color: theme.colors.primary, fontWeight: "600" }}>Creează unul</Text>
                 </Text>
               </TouchableOpacity>
+
+              <TouchableOpacity testID="forgot-password-link" style={styles.linkBtn} onPress={() => router.push("/(auth)/forgot-password")}>
+                <Text style={[styles.linkText, { color: theme.colors.primary, fontWeight: "600" }]}>Am uitat parola</Text>
+              </TouchableOpacity>
             </>
           )}
         </ScrollView>
