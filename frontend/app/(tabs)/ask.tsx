@@ -4,6 +4,7 @@ import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/src/lib/api";
 import { theme } from "@/src/lib/theme";
+import { Markdown } from "@/src/lib/Markdown";
 
 type Item = { id: string; question: string; answer: string; created_at: string };
 
@@ -75,7 +76,7 @@ export default function AskScreen() {
                 <Ionicons name="sparkles" size={14} color={theme.colors.primary} />
                 <Text style={styles.aLabel}>RĂSPUNS SPECIALIST</Text>
               </View>
-              <Text style={styles.aText}>{it.answer}</Text>
+              <Markdown text={it.answer} />
               <Text style={styles.date}>{new Date(it.created_at).toLocaleString("ro-RO", { dateStyle: "medium", timeStyle: "short" })}</Text>
             </View>
           ))}
