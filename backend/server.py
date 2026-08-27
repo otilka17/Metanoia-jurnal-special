@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
+import asyncio
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr
@@ -401,6 +402,67 @@ async def send_email(*, to: str, subject: str, html: str) -> Optional[str]:
         return None
 
 
+def _email_shell(inner_html: str) -> str:
+    """Wraps content in the standard branded email shell."""
+    return (
+        f'<table role="presentation" width="100%" style="background:#f7f5f0"><tr><td align="center" style="padding:24px">'
+        f'<table role="presentation" width="480" style="background:#ffffff;border-radius:12px;font-family:Arial,sans-serif;color:#2f2f33">'
+        f'<tr><td style="padding:28px 32px">'
+        f'{inner_html}'
+        f'<hr style="border:none;border-top:1px solid #eee;margin:24px 0">'
+        f'<p style="margin:0;font-size:11px;color:#999">Acest mesaj a fost trimis de {html_escape(EMAIL_FROM_NAME)}. Nu vom cere niciodată parola sau codul prin email.</p>'
+        f'</td></tr></table></td></tr></table>'
+    )
+
+
+async def send_welcome_email(to: str, name: str) -> None:
+    safe_name = html_escape(name or "Părinte")
+    inner = (
+        f'<h1 style="margin:0 0 8px;color:#7A9E9F;font-size:22px">Bun venit, {safe_name}! 🌱</h1>'
+        f'<p style="margin:0 0 16px;font-size:14px;line-height:20px">Ne bucurăm că te alături comunității <strong>{html_escape(EMAIL_FROM_NAME)}</strong> — un ghid practic pentru părinții copiilor supradotați, hiperactivi sau sensibili emoțional.</p>'
+        f'<p style="margin:0 0 12px;font-size:14px;line-height:20px">Iată ce poți descoperi în aplicație:</p>'
+        f'<ul style="margin:0 0 20px;padding-left:20px;font-size:13px;color:#555;line-height:22px">'
+        f'<li>📖 <strong>Ghidul Specialistului</strong> — 17 capitole practice</li>'
+        f'<li>🧠 <strong>Mind Map interactiv</strong> — teme cheie ale parentingului</li>'
+        f'<li>📝 <strong>Jurnal cu analiză AI</strong> — descoperă tipare</li>'
+        f'<li>🧩 <strong>Test profil copil</strong> — 12 întrebări → recomandări</li>'
+        f'<li>💬 <strong>Comunitate anonimă</strong> — întreabă alți părinți</li>'
+        f'<li>👨‍👩‍👧 <strong>Familie partajată</strong> — cu partenerul tău</li>'
+        f'</ul>'
+        f'<p style="margin:0 0 8px;font-size:13px;color:#666;line-height:19px">Deschide aplicația și începe cu <strong>Testul profil copil</strong> — durează 3 minute și îți oferă direcție.</p>'
+        f'<p style="margin:0;font-size:13px;color:#666">Cu drag,<br>Echipa {html_escape(EMAIL_FROM_NAME)}</p>'
+    )
+    await send_email(to=to, subject=f"Bun venit la {EMAIL_FROM_NAME}! 🌱", html=_email_shell(inner))
+
+
+async def send_family_join_notice(to: str, addressee_name: str, other_name: str, code: str, kind: str) -> None:
+    """kind = 'joined' (I joined a family) or 'partner_joined' (someone joined MY family)."""
+    safe_addressee = html_escape(addressee_name or "Părinte")
+    safe_other = html_escape(other_name or "Partenerul tău")
+    safe_code = html_escape(code)
+    if kind == "joined":
+        title = "Te-ai alăturat familiei! 👨‍👩‍👧"
+        body = (
+            f'<p style="margin:0 0 16px;font-size:14px;line-height:20px">Salut, {safe_addressee}!</p>'
+            f'<p style="margin:0 0 16px;font-size:14px;line-height:20px">Te-ai alăturat cu succes familiei lui <strong>{safe_other}</strong> (cod <strong>{safe_code}</strong>) în {html_escape(EMAIL_FROM_NAME)}.</p>'
+            f'<p style="margin:0 0 16px;font-size:14px;line-height:20px">De acum, vedeți împreună:</p>'
+            f'<ul style="margin:0 0 20px;padding-left:20px;font-size:13px;color:#555;line-height:22px">'
+            f'<li>📝 Toate însemnările din <strong>Jurnal</strong> (cu autorul vizibil)</li>'
+            f'<li>🧩 Cel mai recent <strong>Test profil copil</strong></li>'
+            f'<li>📊 <strong>Statistici lunare</strong> combinate</li>'
+            f'</ul>'
+        )
+    else:  # partner_joined
+        title = "Un partener s-a alăturat familiei tale 👨‍👩‍👧"
+        body = (
+            f'<p style="margin:0 0 16px;font-size:14px;line-height:20px">Salut, {safe_addressee}!</p>'
+            f'<p style="margin:0 0 16px;font-size:14px;line-height:20px"><strong>{safe_other}</strong> tocmai a intrat în familia ta (cod <strong>{safe_code}</strong>) în {html_escape(EMAIL_FROM_NAME)}.</p>'
+            f'<p style="margin:0 0 16px;font-size:14px;line-height:20px">De acum, partenerul tău poate vedea Jurnalul, Testul profil copil și statisticile — la fel cum tu vezi observațiile lui/ei.</p>'
+        )
+    inner = f'<h1 style="margin:0 0 12px;color:#7A9E9F;font-size:20px">{title}</h1>{body}'
+    await send_email(to=to, subject=title, html=_email_shell(inner))
+
+
 
 
 
@@ -431,6 +493,11 @@ async def register(data: UserRegister):
         "is_admin": email_lc == SUPER_ADMIN_EMAIL,
     }
     await db.users.insert_one(user_doc)
+    # Fire-and-forget welcome email
+    try:
+        asyncio.create_task(send_welcome_email(user_doc["email"], user_doc["name"]))
+    except Exception as e:
+        logger.warning(f"welcome email schedule failed: {e}")
     token = create_token(user_id)
     return TokenResponse(
         access_token=token,
@@ -1203,7 +1270,21 @@ async def family_join(data: FamilyJoinRequest, user: dict = Depends(get_current_
         raise HTTPException(status_code=400, detail="Familia are deja numărul maxim de membri")
     await db.families.update_one({"id": fam["id"]}, {"$addToSet": {"member_ids": user["id"]}})
     fresh = await db.families.find_one({"id": fam["id"]}, {"_id": 0})
-    return {"family": await _enrich_family(fresh, user["id"])}
+    enriched = await _enrich_family(fresh, user["id"])
+
+    # Notify: joiner + existing members (fire and forget)
+    try:
+        existing_members = [m for m in enriched["members"] if not m["is_me"]]
+        partner_name = existing_members[0]["name"] if existing_members else "partenerul tău"
+        # Email to the joiner
+        asyncio.create_task(send_family_join_notice(user["email"], user["name"], partner_name, fam["code"], "joined"))
+        # Emails to existing members
+        for m in existing_members:
+            asyncio.create_task(send_family_join_notice(m["email"], m["name"], user.get("name", "Un părinte"), fam["code"], "partner_joined"))
+    except Exception as e:
+        logger.warning(f"family notify schedule failed: {e}")
+
+    return {"family": enriched}
 
 
 @api_router.delete("/family/leave")

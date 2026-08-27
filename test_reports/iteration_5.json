@@ -1,0 +1,64 @@
+{
+  "summary": "Backend-only verification of fire-and-forget transactional emails on POST /api/auth/register (welcome) and POST /api/family/join (joiner + partner-joined). Wrote /app/backend/tests/test_email_triggers.py with 9 tests covering: (a) fresh register returns 200 in <3s, (b) duplicate register → 400, (c) super-admin flag preserved for otilia (login 200 + is_admin=true), (d) 3 back-to-back registers all return 200<3s even while Resend is 429-rate-limiting (confirms fire-and-forget doesn't propagate email errors), (e) family creation + user B join returns 200<3s with 2 members and B.is_me=true, (f) already-in-family → 400, (g) 3rd user joining full family → 400, (h) invalid code (len<4) → 400, (i) non-existent 6-char code → 404. All 9 pass. Full regression: test_password_flows.py (15) + test_forgot_password_rate_limit.py (5) — all 20 pass. Total: 29/29 PASS. Backend logs confirm Resend is currently returning 429 rate_limited, and send_email() correctly swallows the error (logged only) so /register + /family/join responses remain 200 and fast. test@test.com login with test123 verified still working; otilia.ioana96@gmail.com is_admin=true confirmed via login. All TEST_ users (including stale ones from prior iterations) cleaned; no empty families remain.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/auth/register + /api/family/join (email path)",
+        "issue": "Emergent-managed Resend is currently returning HTTP 429 ('email rate limit exceeded') for this workspace. send_email() correctly logs+returns None, so the API stays fast and returns 200. Actual email delivery will NOT succeed until the Resend rate limit resets or key/domain is provisioned. Not blocking the review request (fire-and-forget semantics verified), but production users are NOT receiving welcome / family-join emails right now."
+      },
+      {
+        "endpoint": "POST /api/auth/forgot-password",
+        "issue": "(carried over from iter 4) `password_reset_requests` collection grows unboundedly. Add a MongoDB TTL index on created_at (e.g. 3600s)."
+      },
+      {
+        "endpoint": "POST /api/auth/reset-password",
+        "issue": "(carried over from iter 3) When attempts hit 5 on the CURRENT call, response still says 'Cod incorect' instead of 'Prea multe încercări'. Non-blocking."
+      },
+      {
+        "endpoint": "POST /api/auth/reset-password",
+        "issue": "(carried over from iter 3) No same-password check on reset — inconsistent with /change-password. Non-blocking."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_email_triggers.py",
+    "/app/backend/tests/test_password_flows.py",
+    "/app/backend/tests/test_forgot_password_rate_limit.py",
+    "/app/test_reports/pytest/email_triggers_results.xml",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Investigate Resend 429 rate-limit for this Emergent workspace — no welcome/family emails will land until this is unblocked. Confirm EMERGENT_EMAIL_KEY has capacity and domain is verified.",
+    "Optional: add TTL index on db.password_reset_requests.created_at (expireAfterSeconds=3600) to bound audit log.",
+    "Optional: split /app/backend/server.py (~1500 LOC) into routers/{auth,family,forum,admin,journal,article,password,email}.py."
+  ],
+  "critical_code_review_comments": [
+    "Fire-and-forget is implemented correctly: asyncio.create_task(...) is wrapped in try/except in both /register (server.py:497-500) and /family/join (server.py:1276-1285). Even if scheduling fails, response returns immediately.",
+    "send_email() (server.py:385-402) catches httpx.HTTPStatusError AND generic Exception — returns None on failure so the awaiting task in create_task never surfaces an exception. Good defensive coding.",
+    "_assert_safe_email() runs BEFORE the httpx.post — if a maintainer accidentally injects unsafe HTML/URL it would raise ValueError. Because this runs INSIDE the async task (not the endpoint body), the raise is captured by the caught 'except Exception' in send_email. Good.",
+    "Welcome email uses html_escape on user name — no XSS risk.",
+    "family/join email dispatch computes partner_name from enriched.members using is_me=False; safe because at this point enriched['members'] always has exactly 2 entries.",
+    "server.py is now 1487+ lines — still above the 700-line recommended threshold."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_email_triggers.py (NEW — 9 tests for register+family/join email triggers)",
+    "/app/test_reports/pytest/email_triggers_results.xml (generated)",
+    "/app/test_reports/pytest/pytest_results.xml (regenerated — full 20 regression)"
+  ],
+  "success_rate": {
+    "backend": "100% (29/29 — 9 new email-trigger tests + 20 regression from password flows)",
+    "frontend": "n/a — backend-only per review request"
+  },
+  "seed_data_creation": "Per-test TEST_reg_*, TEST_famA_*, TEST_famB_*, TEST_famC_*, TEST_famJinv_*, TEST_famJnx_* users created via /api/auth/register. Autouse module-scope fixture cascade-deletes all of them (users + journal + bookmarks + ask_history + test_results + forum_posts + forum_answers + guide_progress) + removes them from any family + deletes empty family docs + wipes password_reset_codes/requests. Additional post-run manual cleanup removed 3 stale TEST_ users from previous iterations. test@test.com/test123 and otilia.ioana96@gmail.com (is_admin=true) verified intact after run.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Fire-and-forget email path is well tested. If future tests need to verify actual Resend delivery, the workspace is currently hitting 429; will need Emergent support to lift rate-limit or use a mocked http client. All TEST_ users are auto-cleaned by the module fixture in test_email_triggers.py. To rerun the full suite: pytest /app/backend/tests/ --junitxml=/app/test_reports/pytest/pytest_results.xml",
+  "rca_of_issue": "No new bug found — feature working as designed. Verified: (1) register response time p95 ~<1s even when Resend returns 429 immediately (email HTTP call resolves fast because Resend is fronting the rate limit as 429, not timeout); (2) 3 rapid registers all returned 200 with valid access_token and user objects; (3) family/join returned 200 with correctly-populated members[] including is_me flag from B's viewpoint; (4) all existing 4xx paths preserved (400 duplicate email, 400 already-in-family, 400 family full, 400 short code, 404 non-existent code)."
+}
