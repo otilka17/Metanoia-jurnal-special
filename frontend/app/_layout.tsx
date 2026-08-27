@@ -14,26 +14,32 @@ function RootNav() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const segments = useSegments();
-  const [obChecked, setObChecked] = useState(false);
-  const [obSeen, setObSeen] = useState(true);
+  const [ready, setReady] = useState(false);
 
+  // Re-read the onboarding flag on every navigation-relevant change instead of
+  // caching it in state, so finishing onboarding (which sets the flag and
+  // navigates away) is picked up immediately without a stale-state redirect loop.
   useEffect(() => {
+    if (loading) return;
+    let cancelled = false;
     (async () => {
       const seen = await storage.getItem("onboarding_seen", "");
-      setObSeen(!!seen);
-      setObChecked(true);
-    })();
-  }, []);
+      if (cancelled) return;
+      const obSeen = !!seen;
+      const inAuth = segments[0] === "(auth)";
+      const inOnboarding = segments[0] === "onboarding";
 
-  useEffect(() => {
-    if (loading || !obChecked) return;
-    const inAuth = segments[0] === "(auth)";
-    if (!user && !inAuth) {
-      router.replace("/(auth)/login");
-    } else if (user && inAuth) {
-      router.replace("/(tabs)");
-    }
-  }, [user, loading, segments, obChecked, obSeen]);
+      if (!obSeen && !inOnboarding) {
+        router.replace("/onboarding");
+      } else if (!user && !inAuth && !inOnboarding) {
+        router.replace("/(auth)/login");
+      } else if (user && inAuth) {
+        router.replace("/(tabs)");
+      }
+      setReady(true);
+    })();
+    return () => { cancelled = true; };
+  }, [user, loading, segments]);
 
   // Handle notification tap → navigate to the route in notification data
   useEffect(() => {
@@ -46,7 +52,7 @@ function RootNav() {
     return () => sub.remove();
   }, [router, user]);
 
-  if (loading || !obChecked) {
+  if (loading || !ready) {
     return (
       <View style={styles.loader}>
         <ActivityIndicator size="large" color={theme.colors.primary} />

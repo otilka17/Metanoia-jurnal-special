@@ -3,6 +3,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo.errors import DuplicateKeyError
 import os
 import logging
 from pathlib import Path
@@ -150,7 +151,7 @@ CATEGORIES = [
 # ============ MODELS ============
 class UserRegister(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(min_length=6)
     name: str
 
 class UserLogin(BaseModel):
@@ -295,7 +296,10 @@ async def register(data: UserRegister):
         "password": hash_password(data.password),
         "created_at": datetime.now(timezone.utc),
     }
-    await db.users.insert_one(user_doc)
+    try:
+        await db.users.insert_one(user_doc)
+    except DuplicateKeyError:
+        raise HTTPException(status_code=400, detail="Email deja înregistrat")
     token = create_token(user_id)
     return TokenResponse(
         access_token=token,
@@ -1005,16 +1009,27 @@ async def delete_answer(answer_id: str, user: dict = Depends(get_current_user)):
 
 app.include_router(api_router)
 
+# Wildcard origins + credentials is a browser-rejected, insecure combination.
+# Only enable credentialed cross-origin requests for explicitly configured origins;
+# otherwise fall back to a permissive but non-credentialed wildcard (safe default for
+# the mobile app, which doesn't send cookies/Origin-based credentials anyway).
+_cors_origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=["*"],
+    allow_credentials=bool(_cors_origins),
+    allow_origins=_cors_origins or ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+
+@app.on_event("startup")
+async def create_indexes():
+    await db.users.create_index("email", unique=True)
 
 
 @app.on_event("shutdown")
