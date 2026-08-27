@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
   permTitle: { fontSize: 18, fontWeight: "700", color: theme.colors.textPrimary, textAlign: "center", marginBottom: 8 },
   permDesc: { fontSize: 14, color: theme.colors.textPrimary, textAlign: "center", lineHeight: 21, marginBottom: 10 },
   permDescSmall: { fontSize: 12, color: theme.colors.textSecondary, textAlign: "center", marginBottom: 20, lineHeight: 17 },
-  chip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1.5, backgroundColor: theme.colors.surface },
+  chip: { flexDirection: "row", alignItems: "center", flexShrink: 0, gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1.5, backgroundColor: theme.colors.surface },
   chipText: { fontSize: 12, color: theme.colors.textPrimary, maxWidth: 160 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   empty: { alignItems: "center", marginTop: 40, paddingHorizontal: 32 },

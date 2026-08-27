@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 },
   adminBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#B56B6B", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, marginRight: 8 },
   adminBadgeText: { color: "#fff", fontSize: 10, fontWeight: "700", letterSpacing: 0.5 },
-  tab: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.bg },
+  tab: { flexDirection: "row", alignItems: "center", flexShrink: 0, gap: 5, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.bg },
   tabActive: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
   tabText: { fontSize: 12, color: theme.colors.textPrimary, fontWeight: "500" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
