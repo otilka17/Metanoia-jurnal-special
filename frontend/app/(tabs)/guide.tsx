@@ -7,9 +7,24 @@ import * as Clipboard from "expo-clipboard";
 import { storage } from "@/src/utils/storage";
 import { theme } from "@/src/lib/theme";
 import { GUIDE, GUIDE_INTRO, GUIDE_SUBTITLE, GUIDE_TITLE } from "@/src/lib/guide";
+import { GUIDES, GuideMeta } from "@/src/lib/guides_extra";
 
 const READ_KEY = "guide_read_ids";
 const ADVANCED_START = 9;
+
+// Build unified list: supradotare first, then extras
+const ALL_GUIDES: GuideMeta[] = [
+  {
+    key: "supradotare",
+    title: GUIDE_TITLE,
+    subtitle: GUIDE_SUBTITLE,
+    intro: GUIDE_INTRO,
+    icon: "sparkles",
+    color: "#5E8B7E",
+    sections: GUIDE,
+  },
+  ...GUIDES,
+];
 
 const escapeHtml = (s: string) =>
   String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -17,11 +32,16 @@ const escapeHtml = (s: string) =>
 export default function GuideScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const positions = useRef<Record<string, number>>({});
+  const [activeGuideKey, setActiveGuideKey] = useState<string>("supradotare");
   const [active, setActive] = useState("s1");
   const [read, setRead] = useState<Record<string, boolean>>({});
   const [exporting, setExporting] = useState(false);
   const [actionText, setActionText] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showGuidePicker, setShowGuidePicker] = useState(false);
+
+  const activeGuide = ALL_GUIDES.find(g => g.key === activeGuideKey) || ALL_GUIDES[0];
+  const ACTIVE_SECTIONS = activeGuide.sections;
 
   const onCopy = async () => {
     if (!actionText) return;
