@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator,
-  KeyboardAvoidingView, Platform, Alert, Share,
+  KeyboardAvoidingView, Platform, Share,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { Alert } from "@/src/lib/alert";
 import { api } from "@/src/lib/api";
 import { theme } from "@/src/lib/theme";
 

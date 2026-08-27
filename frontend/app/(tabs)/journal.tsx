@@ -1,12 +1,13 @@
 import { useState, useCallback, useEffect } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator,
-  Modal, TextInput, KeyboardAvoidingView, Platform, Alert, Pressable,
+  Modal, TextInput, KeyboardAvoidingView, Platform, Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { Alert } from "@/src/lib/alert";
 import { api } from "@/src/lib/api";
 import { theme, moods } from "@/src/lib/theme";
 import {
