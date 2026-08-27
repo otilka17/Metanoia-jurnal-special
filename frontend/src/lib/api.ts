@@ -43,6 +43,8 @@ export const api = {
   login: (email: string, password: string) =>
     request("/auth/login", { method: "POST", body: { email, password }, auth: false }),
   me: () => request("/auth/me"),
+  changePassword: (current_password: string, new_password: string) =>
+    request("/auth/change-password", { method: "POST", body: { current_password, new_password } }),
   getCategories: () => request("/categories", { auth: false }),
   getCategory: (id: string) => request(`/categories/${id}`, { auth: false }),
   getArticle: (subtopicId: string) => request(`/article/${subtopicId}`),

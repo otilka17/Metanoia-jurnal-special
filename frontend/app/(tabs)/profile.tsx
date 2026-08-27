@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Modal, Pressable,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Modal, Pressable, TextInput,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -24,6 +24,11 @@ export default function ProfileScreen() {
   const [exporting, setExporting] = useState<string | null>(null);
   const [tab, setTab] = useState<"article" | "explanation">("article");
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const load = async () => {
     try {
@@ -42,6 +47,38 @@ export default function ProfileScreen() {
     setConfirmLogout(false);
     await logout();
     router.replace("/(auth)/login");
+  };
+
+  const closePasswordModal = () => {
+    setShowPasswordModal(false);
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+  };
+
+  const onChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      Alert.alert("Atenție", "Completează toate câmpurile.");
+      return;
+    }
+    if (newPassword.length < 6) {
+      Alert.alert("Atenție", "Parola nouă trebuie să aibă minim 6 caractere.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      Alert.alert("Atenție", "Parolele noi nu coincid.");
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      await api.changePassword(currentPassword, newPassword);
+      closePasswordModal();
+      Alert.alert("Parolă schimbată ✓", "Parola ta a fost actualizată cu succes.");
+    } catch (e: any) {
+      Alert.alert("Eroare", e.message || "Nu am putut schimba parola");
+    } finally {
+      setChangingPassword(false);
+    }
   };
 
   const onExport = async (b: Bookmark) => {
@@ -69,6 +106,10 @@ export default function ProfileScreen() {
           <View style={styles.avatar}><Text style={styles.avatarText}>{(user?.name || "P")[0].toUpperCase()}</Text></View>
           <Text style={styles.name}>{user?.name}</Text>
           <Text style={styles.email}>{user?.email}</Text>
+          <TouchableOpacity testID="change-password-button" style={styles.changePwBtn} onPress={() => setShowPasswordModal(true)}>
+            <Ionicons name="key-outline" size={16} color={theme.colors.primary} />
+            <Text style={styles.changePwText}>Schimbă parola</Text>
+          </TouchableOpacity>
         </View>
 
         <Text style={styles.sectionTitle}>Articole salvate</Text>
@@ -170,6 +211,57 @@ export default function ProfileScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <Modal visible={showPasswordModal} transparent animationType="fade" onRequestClose={closePasswordModal}>
+        <Pressable style={styles.modalBg} onPress={closePasswordModal}>
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            <View style={[styles.modalIcon, { backgroundColor: theme.colors.primary + "22" }]}>
+              <Ionicons name="key-outline" size={28} color={theme.colors.primary} />
+            </View>
+            <Text style={styles.modalTitle}>Schimbă parola</Text>
+            <TextInput
+              testID="current-password-input"
+              style={styles.pwInput}
+              placeholder="Parola actuală"
+              placeholderTextColor={theme.colors.textDisabled}
+              secureTextEntry
+              value={currentPassword}
+              onChangeText={setCurrentPassword}
+            />
+            <TextInput
+              testID="new-password-input"
+              style={styles.pwInput}
+              placeholder="Parola nouă"
+              placeholderTextColor={theme.colors.textDisabled}
+              secureTextEntry
+              value={newPassword}
+              onChangeText={setNewPassword}
+            />
+            <TextInput
+              testID="confirm-password-input"
+              style={styles.pwInput}
+              placeholder="Confirmă parola nouă"
+              placeholderTextColor={theme.colors.textDisabled}
+              secureTextEntry
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity testID="cancel-password-change" style={styles.modalBtnOutline} onPress={closePasswordModal} disabled={changingPassword}>
+                <Text style={styles.modalBtnOutlineText}>Anulează</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                testID="confirm-password-change"
+                style={[styles.modalBtn, { backgroundColor: theme.colors.primary }, changingPassword && { opacity: 0.6 }]}
+                onPress={onChangePassword}
+                disabled={changingPassword}
+              >
+                {changingPassword ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalBtnText}>Salvează</Text>}
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -186,6 +278,13 @@ const styles = StyleSheet.create({
   avatarText: { color: "#fff", fontSize: 28, fontWeight: "600" },
   name: { ...theme.font.h3, color: theme.colors.textPrimary },
   email: { ...theme.font.body, color: theme.colors.textSecondary, marginTop: 4 },
+  changePwBtn: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 12, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 999, borderWidth: 1, borderColor: theme.colors.primary },
+  changePwText: { color: theme.colors.primary, fontSize: 13, fontWeight: "600" },
+  pwInput: {
+    alignSelf: "stretch", backgroundColor: theme.colors.surfaceElevated,
+    borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14,
+    fontSize: 15, color: theme.colors.textPrimary, marginTop: 12,
+  },
   sectionTitle: { ...theme.font.h3, color: theme.colors.textPrimary, marginBottom: 12 },
   tabs: { flexDirection: "row", gap: 8, marginBottom: 12 },
   tab: { flex: 1, paddingVertical: 10, borderRadius: 999, alignItems: "center", borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface },

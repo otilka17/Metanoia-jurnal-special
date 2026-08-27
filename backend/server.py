@@ -158,6 +158,10 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=6)
+
 class UserOut(BaseModel):
     id: str
     email: str
@@ -320,6 +324,14 @@ async def login(data: UserLogin):
 @api_router.get("/auth/me", response_model=UserOut)
 async def me(user: dict = Depends(get_current_user)):
     return UserOut(**user)
+
+@api_router.post("/auth/change-password")
+async def change_password(data: PasswordChange, user: dict = Depends(get_current_user)):
+    full_user = await db.users.find_one({"id": user["id"]})
+    if not full_user or not verify_password(data.current_password, full_user["password"]):
+        raise HTTPException(status_code=401, detail="Parola actuală este incorectă")
+    await db.users.update_one({"id": user["id"]}, {"$set": {"password": hash_password(data.new_password)}})
+    return {"ok": True}
 
 
 # ============ CATEGORIES & SEARCH ============
