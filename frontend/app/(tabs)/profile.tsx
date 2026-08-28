@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import { api } from "@/src/lib/api";
 import { useAuth } from "@/src/lib/auth";
 import { theme } from "@/src/lib/theme";
 import { exportArticlePdf } from "@/src/lib/pdf";
+import { canPromptInstall, promptInstall, isPwaInstalled, isIos, subscribeInstallAvailability } from "@/src/lib/pwaInstall";
 
 type Bookmark = {
   id: string; subtopic_id: string; title: string; category_id: string;
@@ -45,6 +46,7 @@ export default function ProfileScreen() {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [myStats, setMyStats] = useState<any>(null);
   const [referralInfo, setReferralInfo] = useState<{ code: string; count: number } | null>(null);
+  const [installState, setInstallState] = useState({ can: false, installed: false });
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState<string | null>(null);
   const [tab, setTab] = useState<"article" | "explanation">("article");
@@ -103,6 +105,29 @@ export default function ProfileScreen() {
     } catch (e) { console.warn(e); }
   };
 
+  useEffect(() => {
+    const update = () => setInstallState({ can: canPromptInstall(), installed: isPwaInstalled() });
+    update();
+    return subscribeInstallAvailability(update);
+  }, []);
+
+  const onInstallPress = async () => {
+    if (installState.can) {
+      const outcome = await promptInstall();
+      if (outcome === "accepted") setInstallState((s) => ({ ...s, can: false, installed: true }));
+    } else if (isIos()) {
+      Alert.alert(
+        "Instalează aplicația",
+        "Apasă pe butonul Distribuie (pătratul cu săgeată în sus) din bara browserului Safari, apoi alege \"Adaugă pe ecranul principal\"."
+      );
+    } else {
+      Alert.alert(
+        "Instalează aplicația",
+        "Deschide meniul browserului (⋮) și alege \"Instalează aplicația\" sau \"Adaugă pe ecranul principal\"."
+      );
+    }
+  };
+
   useFocusEffect(useCallback(() => {
     (async () => { setLoading(true); await load(); setLoading(false); })();
   }, []));
@@ -153,6 +178,19 @@ export default function ProfileScreen() {
             </View>
           )}
         </View>
+
+        {Platform.OS === "web" && !installState.installed && (
+          <TouchableOpacity testID="install-app-btn" style={styles.installCard} onPress={onInstallPress}>
+            <View style={styles.installIcon}>
+              <Ionicons name="download-outline" size={20} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.installTitle}>Adaugă pe ecranul principal</Text>
+              <Text style={styles.installText}>Instalează aplicația pe telefon, ca acces rapid, fără browser</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#fff" />
+          </TouchableOpacity>
+        )}
 
         {!!referralInfo && (
           <View style={styles.referralCard}>
@@ -382,6 +420,10 @@ const styles = StyleSheet.create({
   adminIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.22)", alignItems: "center", justifyContent: "center" },
   adminTitle: { color: "#fff", fontWeight: "700", fontSize: 15 },
   adminText: { color: "rgba(255,255,255,0.9)", fontSize: 12, marginTop: 2 },
+  installCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: theme.colors.primary, borderRadius: 16, padding: 14, marginBottom: 16 },
+  installIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.22)", alignItems: "center", justifyContent: "center" },
+  installTitle: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  installText: { color: "rgba(255,255,255,0.9)", fontSize: 12, marginTop: 2 },
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   statCardBox: { width: "31.5%", backgroundColor: theme.colors.surface, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: theme.colors.border, borderLeftWidth: 3 },
   statCardIcon: { marginBottom: 4 },
