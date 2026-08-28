@@ -75,11 +75,17 @@ export default function ProfileScreen() {
 
   const load = async () => {
     try {
-      const [res, stats, ref]: any = await Promise.all([api.listBookmarks(), api.myStats(), api.myReferrals()]);
+      const res: any = await api.listBookmarks();
       setBookmarks(res.bookmarks);
+    } catch (e) { console.warn("listBookmarks failed", e); }
+    try {
+      const stats: any = await api.myStats();
       setMyStats(stats);
+    } catch (e) { console.warn("myStats failed", e); }
+    try {
+      const ref: any = await api.myReferrals();
       setReferralInfo({ code: ref.code, count: ref.count });
-    } catch {}
+    } catch (e) { console.warn("myReferrals failed", e); }
   };
 
   const copyReferralCode = async () => {
