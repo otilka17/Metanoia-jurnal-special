@@ -831,31 +831,6 @@ async def get_category(category_id: str):
             return c
     raise HTTPException(status_code=404, detail="Categorie inexistentă")
 
-@api_router.get("/search")
-async def search(q: str, category_id: Optional[str] = None):
-    q_low = q.lower().strip()
-    if not q_low:
-        return {"results": []}
-    results = []
-    for cat in CATEGORIES:
-        if category_id and cat["id"] != category_id:
-            continue
-        if q_low in cat["title"].lower() or q_low in cat["subtitle"].lower():
-            results.append({"type": "category", "category_id": cat["id"], "title": cat["title"], "subtitle": cat["subtitle"], "color": cat["color"]})
-        for sub in cat["subtopics"]:
-            matched = q_low in sub["title"].lower() or any(q_low in p.lower() for p in sub["points"])
-            if matched:
-                results.append({
-                    "type": "subtopic",
-                    "category_id": cat["id"],
-                    "subtopic_id": sub["id"],
-                    "title": sub["title"],
-                    "category_title": cat["title"],
-                    "color": cat["color"],
-                })
-    return {"results": results}
-
-
 # ============ ARTICLE (AI-GENERATED) ============
 def find_subtopic(subtopic_id: str):
     for cat in CATEGORIES:

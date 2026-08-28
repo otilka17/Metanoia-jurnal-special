@@ -47,8 +47,6 @@ export const api = {
   getCategories: () => request("/categories", { auth: false }),
   getCategory: (id: string) => request(`/categories/${id}`, { auth: false }),
   getArticle: (subtopicId: string) => request(`/article/${subtopicId}`),
-  search: (q: string, category_id?: string) =>
-    request(`/search?q=${encodeURIComponent(q)}${category_id ? `&category_id=${category_id}` : ""}`, { auth: false }),
   listBookmarks: () => request("/bookmarks"),
   addBookmark: (data: {
     subtopic_id: string; title: string; category_id: string;
