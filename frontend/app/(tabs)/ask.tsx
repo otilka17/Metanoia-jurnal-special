@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
 import { Alert } from "@/src/lib/alert";
 import { useFocusEffect } from "expo-router";
@@ -14,24 +14,39 @@ export default function AskScreen() {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
 
   const load = async () => {
-    try { const r: any = await api.askHistory(); setItems(r.items); } catch {}
+    try { const r: any = await api.askHistory(); setItems((r.items || []).slice().reverse()); } catch {}
   };
   useFocusEffect(useCallback(() => { (async () => { setLoading(true); await load(); setLoading(false); })(); }, []));
 
+  const scrollToEnd = () => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
+
+  useEffect(() => { if (!loading) scrollToEnd(); }, [loading, items.length, pendingQuestion]);
+
   const send = async () => {
-    if (!q.trim()) return;
+    const question = q.trim();
+    if (!question) return;
+    setQ("");
+    setPendingQuestion(question);
     setSending(true);
     try {
-      await api.ask(q.trim());
-      setQ("");
+      await api.ask(question);
       await load();
-    } catch (e: any) { Alert.alert("Eroare", e.message); }
-    finally { setSending(false); }
+    } catch (e: any) {
+      Alert.alert("Eroare", e.message);
+      setQ(question);
+    } finally {
+      setSending(false);
+      setPendingQuestion(null);
+    }
   };
 
   const remove = async (id: string) => { await api.askDelete(id); await load(); };
+
+  const isEmpty = items.length === 0 && !pendingQuestion;
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.root}>
@@ -39,6 +54,54 @@ export default function AskScreen() {
         <Text style={styles.title}>Întreabă specialistul</Text>
         <Text style={styles.sub}>AI specializat în copii cu profiluri atipice</Text>
       </View>
+
+      {loading ? (
+        <ActivityIndicator color={theme.colors.primary} style={{ marginTop: 40 }} />
+      ) : isEmpty ? (
+        <View style={styles.empty}>
+          <Ionicons name="chatbubbles-outline" size={48} color={theme.colors.textDisabled} />
+          <Text style={styles.emptyText}>Nicio întrebare încă. Întreabă orice despre copilul tău — primești răspuns în câteva secunde.</Text>
+        </View>
+      ) : (
+        <ScrollView ref={scrollRef} contentContainerStyle={{ padding: 16, paddingBottom: 12 }}>
+          {items.map((it, i) => (
+            <View key={it.id}>
+              <View style={styles.rowUser}>
+                <View style={[styles.bubble, styles.bubbleUser]}>
+                  <Text style={styles.bubbleUserText}>{it.question}</Text>
+                </View>
+                <TouchableOpacity testID={`ask-delete-${i}`} onPress={() => remove(it.id)} style={styles.deleteBtn}>
+                  <Ionicons name="trash-outline" size={14} color={theme.colors.textDisabled} />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.rowAi}>
+                <View style={styles.aiIcon}><Ionicons name="sparkles" size={12} color="#fff" /></View>
+                <View style={[styles.bubble, styles.bubbleAi]} testID={`ask-item-${i}`}>
+                  <Markdown text={it.answer} />
+                </View>
+              </View>
+              <Text style={styles.date}>{new Date(it.created_at).toLocaleString("ro-RO", { dateStyle: "medium", timeStyle: "short" })}</Text>
+            </View>
+          ))}
+
+          {pendingQuestion && (
+            <View>
+              <View style={styles.rowUser}>
+                <View style={[styles.bubble, styles.bubbleUser]}>
+                  <Text style={styles.bubbleUserText}>{pendingQuestion}</Text>
+                </View>
+              </View>
+              <View style={styles.rowAi}>
+                <View style={styles.aiIcon}><Ionicons name="sparkles" size={12} color="#fff" /></View>
+                <View style={[styles.bubble, styles.bubbleAi, styles.typingBubble]}>
+                  <ActivityIndicator size="small" color={theme.colors.primary} />
+                  <Text style={styles.typingText}>specialistul scrie...</Text>
+                </View>
+              </View>
+            </View>
+          )}
+        </ScrollView>
+      )}
 
       <View style={styles.inputBox}>
         <TextInput
@@ -55,55 +118,29 @@ export default function AskScreen() {
           {sending ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="send" size={18} color="#fff" />}
         </TouchableOpacity>
       </View>
-
-      {loading ? (
-        <ActivityIndicator color={theme.colors.primary} style={{ marginTop: 40 }} />
-      ) : items.length === 0 ? (
-        <View style={styles.empty}>
-          <Ionicons name="chatbubbles-outline" size={48} color={theme.colors.textDisabled} />
-          <Text style={styles.emptyText}>Nicio întrebare încă. Întreabă orice despre copilul tău — primești răspuns în câteva secunde.</Text>
-        </View>
-      ) : (
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
-          {items.map((it, i) => (
-            <View key={it.id} style={styles.card} testID={`ask-item-${i}`}>
-              <View style={styles.qHeader}>
-                <Text style={styles.qLabel}>ÎNTREBARE</Text>
-                <TouchableOpacity onPress={() => remove(it.id)}><Ionicons name="trash-outline" size={16} color={theme.colors.textDisabled} /></TouchableOpacity>
-              </View>
-              <Text style={styles.qText}>{it.question}</Text>
-              <View style={styles.divider} />
-              <View style={styles.aHeader}>
-                <Ionicons name="sparkles" size={14} color={theme.colors.primary} />
-                <Text style={styles.aLabel}>RĂSPUNS SPECIALIST</Text>
-              </View>
-              <Markdown text={it.answer} />
-              <Text style={styles.date}>{new Date(it.created_at).toLocaleString("ro-RO", { dateStyle: "medium", timeStyle: "short" })}</Text>
-            </View>
-          ))}
-        </ScrollView>
-      )}
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.colors.bg },
-  header: { padding: 20, paddingBottom: 12 },
+  header: { padding: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
   title: { ...theme.font.h1, color: theme.colors.textPrimary },
   sub: { ...theme.font.body, color: theme.colors.textSecondary, marginTop: 4 },
-  inputBox: { flexDirection: "row", alignItems: "flex-end", gap: 10, paddingHorizontal: 20, marginBottom: 12 },
-  input: { flex: 1, minHeight: 50, maxHeight: 120, backgroundColor: theme.colors.surfaceElevated, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: theme.colors.textPrimary },
-  sendBtn: { width: 50, height: 50, borderRadius: 25, backgroundColor: theme.colors.primary, alignItems: "center", justifyContent: "center" },
-  empty: { alignItems: "center", marginTop: 40, paddingHorizontal: 32 },
+  empty: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 },
   emptyText: { ...theme.font.body, color: theme.colors.textSecondary, marginTop: 12, textAlign: "center", lineHeight: 22 },
-  card: { backgroundColor: theme.colors.surface, borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: theme.colors.border },
-  qHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
-  qLabel: { fontSize: 10, fontWeight: "700", color: theme.colors.textSecondary, letterSpacing: 1 },
-  qText: { fontSize: 15, fontWeight: "600", color: theme.colors.textPrimary, lineHeight: 21 },
-  divider: { height: 1, backgroundColor: theme.colors.border, marginVertical: 12 },
-  aHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
-  aLabel: { fontSize: 10, fontWeight: "700", color: theme.colors.primary, letterSpacing: 1 },
-  aText: { fontSize: 14, color: theme.colors.textPrimary, lineHeight: 21 },
-  date: { fontSize: 11, color: theme.colors.textDisabled, marginTop: 10 },
+  rowUser: { flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 6, marginBottom: 6 },
+  rowAi: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginBottom: 2 },
+  aiIcon: { width: 22, height: 22, borderRadius: 11, backgroundColor: theme.colors.primary, alignItems: "center", justifyContent: "center", marginTop: 2 },
+  bubble: { maxWidth: "82%", borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10 },
+  bubbleUser: { backgroundColor: theme.colors.primary, borderBottomRightRadius: 4 },
+  bubbleUserText: { color: "#fff", fontSize: 14, lineHeight: 20, fontWeight: "500" },
+  bubbleAi: { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border, borderBottomLeftRadius: 4, flexShrink: 1 },
+  typingBubble: { flexDirection: "row", alignItems: "center", gap: 8 },
+  typingText: { fontSize: 13, color: theme.colors.textSecondary, fontStyle: "italic" },
+  deleteBtn: { padding: 4 },
+  date: { fontSize: 10, color: theme.colors.textDisabled, marginBottom: 16, marginLeft: 30 },
+  inputBox: { flexDirection: "row", alignItems: "flex-end", gap: 10, paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: theme.colors.border, backgroundColor: theme.colors.bg },
+  input: { flex: 1, minHeight: 44, maxHeight: 120, backgroundColor: theme.colors.surfaceElevated, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: theme.colors.textPrimary },
+  sendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: theme.colors.primary, alignItems: "center", justifyContent: "center" },
 });
