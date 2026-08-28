@@ -18,6 +18,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/src/lib/api";
+import { useAuth } from "@/src/lib/auth";
 import { theme } from "@/src/lib/theme";
 
 type Post = {
@@ -49,6 +50,7 @@ function timeAgo(iso: string): string {
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { user } = useAuth();
   const [post, setPost] = useState<Post | null>(null);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [cats, setCats] = useState<ForumCat[]>([]);
@@ -137,25 +139,32 @@ export default function PostDetailScreen() {
 
   const deleteItem = async () => {
     if (!menuTarget) return;
-    Alert.alert("Ștergere", "Sigur vrei să ștergi?", [
-      { text: "Anulează", style: "cancel" },
-      {
-        text: "Șterge", style: "destructive", onPress: async () => {
-          try {
-            if (menuTarget.type === "post") {
-              await api.forumDeletePost(menuTarget.id);
-              router.back();
-            } else {
-              await api.forumDeleteAnswer(menuTarget.id);
-              setMenuTarget(null);
-              await load();
+    const asAdmin = !menuTarget.isMine && user?.is_admin;
+    Alert.alert(
+      "Ștergere",
+      asAdmin ? "Ștergi acest conținut ca administrator?" : "Sigur vrei să ștergi?",
+      [
+        { text: "Anulează", style: "cancel" },
+        {
+          text: "Șterge", style: "destructive", onPress: async () => {
+            try {
+              if (menuTarget.type === "post") {
+                if (asAdmin) await api.adminDeleteForumPost(menuTarget.id);
+                else await api.forumDeletePost(menuTarget.id);
+                router.back();
+              } else {
+                if (asAdmin) await api.adminDeleteForumAnswer(menuTarget.id);
+                else await api.forumDeleteAnswer(menuTarget.id);
+                setMenuTarget(null);
+                await load();
+              }
+            } catch (e: any) {
+              Alert.alert("Eroare", e.message || "Eroare la ștergere");
             }
-          } catch (e: any) {
-            Alert.alert("Eroare", e.message || "Eroare la ștergere");
-          }
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
 
   if (loading || !post) {
@@ -280,12 +289,20 @@ export default function PostDetailScreen() {
                 <Text style={[styles.menuItemText, { color: "#B56B6B" }]}>Șterge</Text>
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity onPress={flagItem} style={styles.menuItem} disabled={menuTarget?.flagged}>
-                <Ionicons name="flag" size={20} color={menuTarget?.flagged ? theme.colors.textDisabled : "#DE8F6E"} />
-                <Text style={[styles.menuItemText, { color: menuTarget?.flagged ? theme.colors.textDisabled : "#DE8F6E" }]}>
-                  {menuTarget?.flagged ? "Deja raportat" : "Raportează conținut"}
-                </Text>
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity onPress={flagItem} style={styles.menuItem} disabled={menuTarget?.flagged}>
+                  <Ionicons name="flag" size={20} color={menuTarget?.flagged ? theme.colors.textDisabled : "#DE8F6E"} />
+                  <Text style={[styles.menuItemText, { color: menuTarget?.flagged ? theme.colors.textDisabled : "#DE8F6E" }]}>
+                    {menuTarget?.flagged ? "Deja raportat" : "Raportează conținut"}
+                  </Text>
+                </TouchableOpacity>
+                {user?.is_admin && (
+                  <TouchableOpacity onPress={deleteItem} style={styles.menuItem}>
+                    <Ionicons name="trash" size={20} color="#B56B6B" />
+                    <Text style={[styles.menuItemText, { color: "#B56B6B" }]}>Șterge (admin)</Text>
+                  </TouchableOpacity>
+                )}
+              </>
             )}
             <TouchableOpacity onPress={() => setMenuTarget(null)} style={styles.menuItem}>
               <Ionicons name="close" size={20} color={theme.colors.textPrimary} />
