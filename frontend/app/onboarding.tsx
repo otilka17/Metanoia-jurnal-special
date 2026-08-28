@@ -41,7 +41,7 @@ export default function Onboarding() {
 
   const next = () => {
     if (idx < slides.length - 1) {
-      listRef.current?.scrollToIndex({ index: idx + 1, animated: true });
+      listRef.current?.scrollToOffset({ offset: (idx + 1) * width, animated: true });
       setIdx(idx + 1);
     } else finish();
   };

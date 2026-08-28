@@ -138,8 +138,8 @@ export default function ProfileScreen() {
           <>
             <Text style={styles.sectionTitle}>Activitatea mea</Text>
             <View style={styles.statsGrid}>
-              <StatCard icon="book" value={myStats.journal?.total || 0} label="Însemnări" sub={`${myStats.journal?.last_7_days || 0} săpt.`} color="#7A9E9F" />
-              <StatCard icon="chatbubbles" value={myStats.ask_ai?.total || 0} label="Întrebări AI" sub={`${myStats.ask_ai?.last_30_days || 0} lună`} color="#DE8F6E" />
+              <StatCard icon="book" value={myStats.journal?.total || 0} label="Însemnări" sub={`${myStats.journal?.last_7_days || 0} în ultima săpt.`} color="#7A9E9F" />
+              <StatCard icon="chatbubbles" value={myStats.ask_ai?.total || 0} label="Întrebări AI" sub={`${myStats.ask_ai?.last_30_days || 0} în ultima lună`} color="#DE8F6E" />
               <StatCard icon="bookmark" value={myStats.bookmarks_total || 0} label="Bookmarks" color="#E8C37C" />
               <StatCard icon="library" value={myStats.guide_read_chapters || 0} label="Capitole citite" color="#5E8B7E" />
               <StatCard icon="chatbubble-ellipses" value={(myStats.forum?.posts || 0) + (myStats.forum?.answers || 0)} label="Postări forum" sub={`${myStats.forum?.posts || 0} întrebări`} color="#9B8CC4" />
