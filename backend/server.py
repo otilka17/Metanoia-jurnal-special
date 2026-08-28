@@ -199,6 +199,7 @@ class UserOut(BaseModel):
     name: str
     created_at: datetime
     is_admin: bool = False
+    assistant_name: Optional[str] = None
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -552,12 +553,25 @@ async def login(data: UserLogin):
     token = create_token(user["id"])
     return TokenResponse(
         access_token=token,
-        user=UserOut(id=user["id"], email=user["email"], name=user["name"], created_at=user["created_at"], is_admin=bool(user.get("is_admin"))),
+        user=UserOut(id=user["id"], email=user["email"], name=user["name"], created_at=user["created_at"], is_admin=bool(user.get("is_admin")), assistant_name=user.get("assistant_name")),
     )
 
 @api_router.get("/auth/me", response_model=UserOut)
 async def me(user: dict = Depends(get_current_user)):
-    return UserOut(id=user["id"], email=user["email"], name=user["name"], created_at=user["created_at"], is_admin=is_super_admin(user))
+    return UserOut(id=user["id"], email=user["email"], name=user["name"], created_at=user["created_at"], is_admin=is_super_admin(user), assistant_name=user.get("assistant_name"))
+
+
+class AssistantNameRequest(BaseModel):
+    name: str
+
+
+@api_router.post("/auth/assistant-name", response_model=UserOut)
+async def set_assistant_name(data: AssistantNameRequest, user: dict = Depends(get_current_user)):
+    name = data.name.strip()[:30]
+    if not name:
+        raise HTTPException(status_code=400, detail="Numele nu poate fi gol")
+    await db.users.update_one({"id": user["id"]}, {"$set": {"assistant_name": name}})
+    return UserOut(id=user["id"], email=user["email"], name=user["name"], created_at=user["created_at"], is_admin=is_super_admin(user), assistant_name=name)
 
 
 @api_router.post("/auth/change-password")
@@ -1007,6 +1021,13 @@ async def ask_specialist(data: AskRequest, user: dict = Depends(get_current_user
         "validarea de la zero, NU reiei structura completă, doar continui firul: răspunzi direct la ce "
         "a întrebat acum, ținând cont de tot ce ați discutat până acum."
     ) + RO_CAPITALIZATION_RULE
+    assistant_name = user.get("assistant_name")
+    if assistant_name:
+        system_msg += (
+            f"\n\nNUME: părintele te-a numit '{assistant_name}'. Dacă vine natural în context (ex. "
+            f"părintele te salută sau te întreabă cum te cheamă), te poți referi la tine cu acest nume — "
+            f"dar NU îl repeta forțat sau în fiecare mesaj."
+        )
     # Reconstruct recent conversation so Claude sees prior turns (last 6 exchanges, oldest first)
     history_docs = await db.ask_history.find(
         {"user_id": user["id"]}, {"_id": 0, "question": 1, "answer": 1}

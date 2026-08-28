@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { storage } from "@/src/utils/storage";
 import { api, TOKEN_KEY } from "@/src/lib/api";
 
-type User = { id: string; email: string; name: string; is_admin?: boolean };
+type User = { id: string; email: string; name: string; is_admin?: boolean; assistant_name?: string | null };
 
 type AuthContextType = {
   user: User | null;
@@ -10,6 +10,7 @@ type AuthContextType = {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateUser: (patch: Partial<User>) => void;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -24,7 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (token) {
         try {
           const me: any = await api.me();
-          setUser({ id: me.id, email: me.email, name: me.name, is_admin: me.is_admin });
+          setUser({ id: me.id, email: me.email, name: me.name, is_admin: me.is_admin, assistant_name: me.assistant_name });
         } catch {
           await storage.secureRemove(TOKEN_KEY);
         }
@@ -50,8 +51,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  const updateUser = (patch: Partial<User>) => {
+    setUser((prev) => (prev ? { ...prev, ...patch } : prev));
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

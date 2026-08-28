@@ -109,6 +109,8 @@ export const api = {
   // Password
   changePassword: (old_password: string, new_password: string) =>
     request("/auth/change-password", { method: "POST", body: { old_password, new_password } }),
+  setAssistantName: (name: string) =>
+    request("/auth/assistant-name", { method: "POST", body: { name } }),
   forgotPassword: (email: string) =>
     request("/auth/forgot-password", { method: "POST", body: { email }, auth: false }),
   resetPassword: (email: string, code: string, new_password: string) =>
