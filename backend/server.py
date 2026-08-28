@@ -1162,34 +1162,41 @@ async def admin_stats(admin: dict = Depends(require_admin)):
     since_7 = now - timedelta(days=7)
     since_30 = now - timedelta(days=30)
 
-    users_total = await db.users.count_documents({})
-    users_new_7 = await db.users.count_documents({"created_at": {"$gte": since_7}})
-    users_new_30 = await db.users.count_documents({"created_at": {"$gte": since_30}})
+    async def distinct_user_ids(collection, filt):
+        return await collection.distinct("user_id", filt)
 
-    # Active users (posted anything in last 7 days) — approximate via journal or forum
-    active_uids_7 = set()
-    async for j in db.journal.find({"created_at": {"$gte": since_7}}, {"_id": 0, "user_id": 1}):
-        active_uids_7.add(j["user_id"])
-    async for a in db.ask_history.find({"created_at": {"$gte": since_7.isoformat()}}, {"_id": 0, "user_id": 1}):
-        active_uids_7.add(a["user_id"])
+    async def profile_distribution():
+        dist: dict = {}
+        async for t in db.test_results.find({}, {"_id": 0, "profile_title": 1}):
+            pt = t.get("profile_title", "Necunoscut")
+            dist[pt] = dist.get(pt, 0) + 1
+        return dist
 
-    journal_total = await db.journal.count_documents({})
-    journal_1 = await db.journal.count_documents({"created_at": {"$gte": since_1}})
-
-    ask_total = await db.ask_history.count_documents({})
-    ask_1 = await db.ask_history.count_documents({"created_at": {"$gte": since_1.isoformat()}})
-
-    tests_total = await db.test_results.count_documents({})
-    families_total = await db.families.count_documents({})
-    forum_posts_total = await db.forum_posts.count_documents({})
-    forum_answers_total = await db.forum_answers.count_documents({})
-    flagged_posts = await db.forum_posts.count_documents({"flagged_by.0": {"$exists": True}})
-
-    # Distribution of profile titles from tests
-    profile_dist: dict = {}
-    async for t in db.test_results.find({}, {"_id": 0, "profile_title": 1}):
-        pt = t.get("profile_title", "Necunoscut")
-        profile_dist[pt] = profile_dist.get(pt, 0) + 1
+    (
+        users_total, users_new_7, users_new_30,
+        journal_uids_7, ask_uids_7,
+        journal_total, journal_1,
+        ask_total, ask_1,
+        tests_total, families_total, forum_posts_total, forum_answers_total, flagged_posts,
+        profile_dist,
+    ) = await asyncio.gather(
+        db.users.count_documents({}),
+        db.users.count_documents({"created_at": {"$gte": since_7}}),
+        db.users.count_documents({"created_at": {"$gte": since_30}}),
+        distinct_user_ids(db.journal, {"created_at": {"$gte": since_7}}),
+        distinct_user_ids(db.ask_history, {"created_at": {"$gte": since_7.isoformat()}}),
+        db.journal.count_documents({}),
+        db.journal.count_documents({"created_at": {"$gte": since_1}}),
+        db.ask_history.count_documents({}),
+        db.ask_history.count_documents({"created_at": {"$gte": since_1.isoformat()}}),
+        db.test_results.count_documents({}),
+        db.families.count_documents({}),
+        db.forum_posts.count_documents({}),
+        db.forum_answers.count_documents({}),
+        db.forum_posts.count_documents({"flagged_by.0": {"$exists": True}}),
+        profile_distribution(),
+    )
+    active_uids_7 = set(journal_uids_7) | set(ask_uids_7)
 
     return {
         "users": {"total": users_total, "new_last_7_days": users_new_7, "new_last_30_days": users_new_30, "active_last_7_days": len(active_uids_7)},
@@ -1212,24 +1219,34 @@ async def admin_list_users(limit: int = 200, skip: int = 0, q: Optional[str] = N
         ]
     cursor = db.users.find(query, {"_id": 0, "password": 0}).sort("created_at", -1).skip(skip).limit(limit)
     users = await cursor.to_list(limit)
-    out = []
-    for u in users:
-        uid = u["id"]
-        journal_count = await db.journal.count_documents({"user_id": uid})
-        ask_count = await db.ask_history.count_documents({"user_id": uid})
-        forum_count = await db.forum_posts.count_documents({"user_id": uid})
-        last_j = await db.journal.find_one({"user_id": uid}, {"_id": 0, "created_at": 1}, sort=[("created_at", -1)])
-        out.append({
-            "id": u["id"],
-            "email": u.get("email"),
-            "name": u.get("name"),
-            "created_at": u.get("created_at"),
-            "is_admin": bool(u.get("is_admin")) or (u.get("email", "").lower() == SUPER_ADMIN_EMAIL),
-            "journal_count": journal_count,
-            "ask_count": ask_count,
-            "forum_count": forum_count,
-            "last_activity": last_j.get("created_at") if last_j else None,
-        })
+    uids = [u["id"] for u in users]
+
+    async def counts_by_user(collection, uids):
+        pipeline = [{"$match": {"user_id": {"$in": uids}}}, {"$group": {"_id": "$user_id", "n": {"$sum": 1}}}]
+        return {row["_id"]: row["n"] async for row in collection.aggregate(pipeline)}
+
+    async def last_activity_by_user(collection, uids):
+        pipeline = [{"$match": {"user_id": {"$in": uids}}}, {"$group": {"_id": "$user_id", "last": {"$max": "$created_at"}}}]
+        return {row["_id"]: row["last"] async for row in collection.aggregate(pipeline)}
+
+    journal_counts, ask_counts, forum_counts, last_activity = await asyncio.gather(
+        counts_by_user(db.journal, uids),
+        counts_by_user(db.ask_history, uids),
+        counts_by_user(db.forum_posts, uids),
+        last_activity_by_user(db.journal, uids),
+    )
+
+    out = [{
+        "id": u["id"],
+        "email": u.get("email"),
+        "name": u.get("name"),
+        "created_at": u.get("created_at"),
+        "is_admin": bool(u.get("is_admin")) or (u.get("email", "").lower() == SUPER_ADMIN_EMAIL),
+        "journal_count": journal_counts.get(u["id"], 0),
+        "ask_count": ask_counts.get(u["id"], 0),
+        "forum_count": forum_counts.get(u["id"], 0),
+        "last_activity": last_activity.get(u["id"]),
+    } for u in users]
     return {"users": out, "total": await db.users.count_documents(query)}
 
 
