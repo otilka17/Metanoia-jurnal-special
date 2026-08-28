@@ -1,5 +1,6 @@
 import * as Notifications from "expo-notifications";
-import { Platform, Linking, Alert } from "react-native";
+import { Platform, Linking } from "react-native";
+import { Alert } from "@/src/lib/alert";
 import { storage } from "@/src/utils/storage";
 
 export const REMINDER_KEY = "journal_reminder";
