@@ -38,8 +38,9 @@ async function request<T = any>(
 }
 
 export const api = {
-  register: (email: string, password: string, name: string) =>
-    request("/auth/register", { method: "POST", body: { email, password, name }, auth: false }),
+  register: (email: string, password: string, name: string, referral_code?: string) =>
+    request("/auth/register", { method: "POST", body: { email, password, name, referral_code: referral_code || undefined }, auth: false }),
+  myReferrals: () => request("/referrals/me"),
   login: (email: string, password: string) =>
     request("/auth/login", { method: "POST", body: { email, password }, auth: false }),
   me: () => request("/auth/me"),

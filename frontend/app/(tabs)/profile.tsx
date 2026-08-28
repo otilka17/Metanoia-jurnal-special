@@ -10,8 +10,10 @@ import {
   Pressable,
   TextInput,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Share
 } from "react-native";
+import * as Clipboard from "expo-clipboard";
 import { Alert } from "@/src/lib/alert";
 import { useRouter, useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -42,6 +44,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [myStats, setMyStats] = useState<any>(null);
+  const [referralInfo, setReferralInfo] = useState<{ code: string; count: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState<string | null>(null);
   const [tab, setTab] = useState<"article" | "explanation">("article");
@@ -72,10 +75,26 @@ export default function ProfileScreen() {
 
   const load = async () => {
     try {
-      const [res, stats]: any = await Promise.all([api.listBookmarks(), api.myStats()]);
+      const [res, stats, ref]: any = await Promise.all([api.listBookmarks(), api.myStats(), api.myReferrals()]);
       setBookmarks(res.bookmarks);
       setMyStats(stats);
+      setReferralInfo({ code: ref.code, count: ref.count });
     } catch {}
+  };
+
+  const copyReferralCode = async () => {
+    if (!referralInfo) return;
+    await Clipboard.setStringAsync(referralInfo.code);
+    Alert.alert("Copiat ✓", `Codul ${referralInfo.code} a fost copiat în clipboard.`);
+  };
+
+  const shareReferralCode = async () => {
+    if (!referralInfo) return;
+    try {
+      await Share.share({
+        message: `Te invit să încerci Ghid Părinte, o aplicație de parenting conștient cu sfaturi AI personalizate! La înregistrare, introdu codul meu de recomandare: ${referralInfo.code}.\n\nhttps://otilka17.github.io/Metanoia-psihologiacopilului/`,
+      });
+    } catch (e) { console.warn(e); }
   };
 
   useFocusEffect(useCallback(() => {
@@ -121,7 +140,33 @@ export default function ProfileScreen() {
               <Text style={styles.adminBadgeText}>ADMINISTRATOR</Text>
             </View>
           )}
+          {!!referralInfo && referralInfo.count > 0 && (
+            <View style={styles.ambassadorBadge}>
+              <Ionicons name="star" size={12} color="#fff" />
+              <Text style={styles.ambassadorBadgeText}>AMBASADOR · {referralInfo.count} {referralInfo.count === 1 ? "prieten invitat" : "prieteni invitați"}</Text>
+            </View>
+          )}
         </View>
+
+        {!!referralInfo && (
+          <View style={styles.referralCard}>
+            <View style={styles.referralHeader}>
+              <Ionicons name="gift" size={18} color={theme.colors.primary} />
+              <Text style={styles.referralTitle}>Recomandă aplicația unui prieten</Text>
+            </View>
+            <Text style={styles.referralText}>
+              Trimite codul tău unui prieten. Când se înregistrează cu el, primești titlul de Ambasador.
+            </Text>
+            <TouchableOpacity testID="copy-referral-code" style={styles.referralCodeBox} onPress={copyReferralCode}>
+              <Text style={styles.referralCode}>{referralInfo.code}</Text>
+              <Ionicons name="copy-outline" size={18} color={theme.colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity testID="share-referral-code" style={styles.referralShareBtn} onPress={shareReferralCode}>
+              <Ionicons name="share-social-outline" size={16} color="#fff" />
+              <Text style={styles.referralShareText}>Trimite invitație</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {user?.is_admin && (
           <TouchableOpacity testID="open-admin" onPress={() => router.push("/admin")} style={styles.adminCard}>
@@ -317,6 +362,16 @@ const styles = StyleSheet.create({
   },
   adminBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#B56B6B", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, marginTop: 8 },
   adminBadgeText: { color: "#fff", fontSize: 10, fontWeight: "700", letterSpacing: 0.5 },
+  ambassadorBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#E8C37C", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, marginTop: 8 },
+  ambassadorBadgeText: { color: "#fff", fontSize: 10, fontWeight: "700", letterSpacing: 0.5 },
+  referralCard: { backgroundColor: theme.colors.surface, borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: theme.colors.border },
+  referralHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
+  referralTitle: { fontSize: 14, fontWeight: "700", color: theme.colors.textPrimary },
+  referralText: { fontSize: 12, color: theme.colors.textSecondary, lineHeight: 17, marginBottom: 12 },
+  referralCodeBox: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: theme.colors.primary + "11", borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, marginBottom: 10 },
+  referralCode: { fontSize: 18, fontWeight: "700", color: theme.colors.primary, letterSpacing: 2 },
+  referralShareBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: theme.colors.primary, borderRadius: 999, paddingVertical: 12 },
+  referralShareText: { color: "#fff", fontWeight: "700", fontSize: 13 },
   adminCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#B56B6B", borderRadius: 16, padding: 14, marginBottom: 16 },
   adminIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.22)", alignItems: "center", justifyContent: "center" },
   adminTitle: { color: "#fff", fontWeight: "700", fontSize: 15 },

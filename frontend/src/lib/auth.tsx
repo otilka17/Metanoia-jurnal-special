@@ -2,13 +2,13 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { storage } from "@/src/utils/storage";
 import { api, TOKEN_KEY } from "@/src/lib/api";
 
-type User = { id: string; email: string; name: string; is_admin?: boolean; assistant_name?: string | null };
+type User = { id: string; email: string; name: string; is_admin?: boolean; assistant_name?: string | null; referral_code?: string | null };
 
 type AuthContextType = {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
+  register: (email: string, password: string, name: string, referral_code?: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (patch: Partial<User>) => void;
 };
@@ -25,7 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (token) {
         try {
           const me: any = await api.me();
-          setUser({ id: me.id, email: me.email, name: me.name, is_admin: me.is_admin, assistant_name: me.assistant_name });
+          setUser({ id: me.id, email: me.email, name: me.name, is_admin: me.is_admin, assistant_name: me.assistant_name, referral_code: me.referral_code });
         } catch {
           await storage.secureRemove(TOKEN_KEY);
         }
@@ -40,8 +40,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(res.user);
   };
 
-  const register = async (email: string, password: string, name: string) => {
-    const res: any = await api.register(email, password, name);
+  const register = async (email: string, password: string, name: string, referral_code?: string) => {
+    const res: any = await api.register(email, password, name, referral_code);
     await storage.secureSet(TOKEN_KEY, res.access_token);
     setUser(res.user);
   };

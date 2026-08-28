@@ -193,6 +193,7 @@ class UserRegister(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6)
     name: str
+    referral_code: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -205,6 +206,7 @@ class UserOut(BaseModel):
     created_at: datetime
     is_admin: bool = False
     assistant_name: Optional[str] = None
+    referral_code: Optional[str] = None
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -531,6 +533,14 @@ async def require_admin(user: dict = Depends(get_current_user)) -> dict:
 
 
 # ============ AUTH ROUTES ============
+async def generate_referral_code() -> str:
+    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O/1/I to avoid confusion
+    for _ in range(10):
+        code = "".join(py_secrets.choice(alphabet) for _ in range(6))
+        if not await db.users.find_one({"referral_code": code}):
+            return code
+    return str(uuid.uuid4())[:8].upper()
+
 @api_router.post("/auth/register", response_model=TokenResponse)
 async def register(data: UserRegister):
     existing = await db.users.find_one({"email": data.email.lower()})
@@ -538,6 +548,10 @@ async def register(data: UserRegister):
         raise HTTPException(status_code=400, detail="Email deja înregistrat")
     user_id = str(uuid.uuid4())
     email_lc = data.email.lower()
+    referral_code = await generate_referral_code()
+    referrer = None
+    if data.referral_code:
+        referrer = await db.users.find_one({"referral_code": data.referral_code.strip().upper()})
     user_doc = {
         "id": user_id,
         "email": email_lc,
@@ -545,11 +559,21 @@ async def register(data: UserRegister):
         "password": hash_password(data.password),
         "created_at": datetime.now(timezone.utc),
         "is_admin": email_lc == SUPER_ADMIN_EMAIL,
+        "referral_code": referral_code,
+        "referred_by": referrer["id"] if referrer else None,
     }
     try:
         await db.users.insert_one(user_doc)
     except DuplicateKeyError:
         raise HTTPException(status_code=400, detail="Email deja înregistrat")
+    if referrer:
+        await db.referrals.insert_one({
+            "id": str(uuid.uuid4()),
+            "referrer_id": referrer["id"],
+            "referred_id": user_id,
+            "referred_name": user_doc["name"],
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
     # Fire-and-forget welcome email
     try:
         asyncio.create_task(send_welcome_email(user_doc["email"], user_doc["name"]))
@@ -558,7 +582,7 @@ async def register(data: UserRegister):
     token = create_token(user_id)
     return TokenResponse(
         access_token=token,
-        user=UserOut(id=user_id, email=user_doc["email"], name=user_doc["name"], created_at=user_doc["created_at"], is_admin=user_doc["is_admin"]),
+        user=UserOut(id=user_id, email=user_doc["email"], name=user_doc["name"], created_at=user_doc["created_at"], is_admin=user_doc["is_admin"], referral_code=referral_code),
     )
 
 @api_router.post("/auth/login", response_model=TokenResponse)
@@ -570,15 +594,32 @@ async def login(data: UserLogin):
     if user.get("email", "").lower() == SUPER_ADMIN_EMAIL and not user.get("is_admin"):
         await db.users.update_one({"id": user["id"]}, {"$set": {"is_admin": True}})
         user["is_admin"] = True
+    if not user.get("referral_code"):
+        user["referral_code"] = await generate_referral_code()
+        await db.users.update_one({"id": user["id"]}, {"$set": {"referral_code": user["referral_code"]}})
     token = create_token(user["id"])
     return TokenResponse(
         access_token=token,
-        user=UserOut(id=user["id"], email=user["email"], name=user["name"], created_at=user["created_at"], is_admin=bool(user.get("is_admin")), assistant_name=user.get("assistant_name")),
+        user=UserOut(id=user["id"], email=user["email"], name=user["name"], created_at=user["created_at"], is_admin=bool(user.get("is_admin")), assistant_name=user.get("assistant_name"), referral_code=user.get("referral_code")),
     )
 
 @api_router.get("/auth/me", response_model=UserOut)
 async def me(user: dict = Depends(get_current_user)):
-    return UserOut(id=user["id"], email=user["email"], name=user["name"], created_at=user["created_at"], is_admin=is_super_admin(user), assistant_name=user.get("assistant_name"))
+    referral_code = user.get("referral_code")
+    if not referral_code:
+        referral_code = await generate_referral_code()
+        await db.users.update_one({"id": user["id"]}, {"$set": {"referral_code": referral_code}})
+    return UserOut(id=user["id"], email=user["email"], name=user["name"], created_at=user["created_at"], is_admin=is_super_admin(user), assistant_name=user.get("assistant_name"), referral_code=referral_code)
+
+
+@api_router.get("/referrals/me")
+async def my_referrals(user: dict = Depends(get_current_user)):
+    referral_code = user.get("referral_code")
+    if not referral_code:
+        referral_code = await generate_referral_code()
+        await db.users.update_one({"id": user["id"]}, {"$set": {"referral_code": referral_code}})
+    items = await db.referrals.find({"referrer_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return {"code": referral_code, "count": len(items), "referred": items}
 
 
 class AssistantNameRequest(BaseModel):
@@ -1966,6 +2007,7 @@ logger = logging.getLogger(__name__)
 @app.on_event("startup")
 async def create_indexes():
     await db.users.create_index("email", unique=True)
+    await db.users.create_index("referral_code", unique=True, sparse=True)
 
 
 @app.on_event("shutdown")

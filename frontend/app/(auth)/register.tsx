@@ -11,7 +11,7 @@ import {
   ActivityIndicator
 } from "react-native";
 import { Alert } from "@/src/lib/alert";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/src/lib/auth";
@@ -20,9 +20,11 @@ import { theme } from "@/src/lib/theme";
 export default function RegisterScreen() {
   const router = useRouter();
   const { register } = useAuth();
+  const params = useLocalSearchParams<{ ref?: string }>();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [referralCode, setReferralCode] = useState(params.ref ? String(params.ref).toUpperCase() : "");
   const [loading, setLoading] = useState(false);
 
   const onSubmit = async () => {
@@ -36,7 +38,7 @@ export default function RegisterScreen() {
     }
     setLoading(true);
     try {
-      await register(email.trim(), password, name.trim());
+      await register(email.trim(), password, name.trim(), referralCode.trim());
     } catch (e: any) {
       Alert.alert("Eroare", e.message || "Înregistrare eșuată");
     } finally {
@@ -89,6 +91,19 @@ export default function RegisterScreen() {
               secureTextEntry
               value={password}
               onChangeText={setPassword}
+            />
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>COD DE RECOMANDARE (OPȚIONAL)</Text>
+            <TextInput
+              testID="register-referral-input"
+              style={styles.input}
+              placeholder="Ex. AB12CD"
+              placeholderTextColor={theme.colors.textDisabled}
+              autoCapitalize="characters"
+              value={referralCode}
+              onChangeText={setReferralCode}
             />
           </View>
 
