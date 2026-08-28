@@ -105,9 +105,12 @@ export const api = {
   adminFlagged: () => request("/admin/forum/flagged"),
   adminUserAskHistory: (id: string) => request(`/admin/users/${id}/ask-history`),
   adminPregenerateArticles: () => request("/admin/articles/pregenerate", { method: "POST" }),
-  getCalendlySettings: () => request("/settings/calendly"),
-  setCalendlySettings: (calendly_url: string) =>
-    request("/admin/settings/calendly", { method: "POST", body: { calendly_url } }),
+  listSpecialists: () => request("/specialists"),
+  adminCreateSpecialist: (data: { name: string; title: string; specialization: string; calendly_url: string }) =>
+    request("/admin/specialists", { method: "POST", body: data }),
+  adminUpdateSpecialist: (id: string, data: { name: string; title: string; specialization: string; calendly_url: string }) =>
+    request(`/admin/specialists/${id}`, { method: "PUT", body: data }),
+  adminDeleteSpecialist: (id: string) => request(`/admin/specialists/${id}`, { method: "DELETE" }),
   adminDeleteForumPost: (id: string) => request(`/admin/forum/posts/${id}`, { method: "DELETE" }),
   adminDeleteForumAnswer: (id: string) => request(`/admin/forum/answers/${id}`, { method: "DELETE" }),
 

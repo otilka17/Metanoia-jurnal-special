@@ -255,9 +255,12 @@ class ReviewCreate(BaseModel):
     comment: str = ""
 
 
-# ============ APP SETTINGS (admin-editable) ============
-class CalendlySettingsUpdate(BaseModel):
-    calendly_url: str = ""
+# ============ SPECIALISTS (admin-editable directory) ============
+class SpecialistCreate(BaseModel):
+    name: str
+    title: str = ""
+    specialization: str = ""
+    calendly_url: str
 
 
 # ============ FAMILY MODELS ============
@@ -1885,20 +1888,56 @@ async def admin_delete_review(review_id: str, admin: dict = Depends(require_admi
     return {"ok": True}
 
 
-# ============ APP SETTINGS ============
-@api_router.get("/settings/calendly")
-async def get_calendly_settings(user: dict = Depends(get_current_user)):
-    doc = await db.settings.find_one({"key": "calendly_url"}, {"_id": 0})
-    return {"calendly_url": (doc or {}).get("value", "")}
+# ============ SPECIALISTS DIRECTORY ============
+@api_router.get("/specialists")
+async def list_specialists(user: dict = Depends(get_current_user)):
+    items = await db.specialists.find({}, {"_id": 0}).sort("created_at", 1).to_list(200)
+    return {"specialists": items}
 
 
-@api_router.post("/admin/settings/calendly")
-async def set_calendly_settings(data: CalendlySettingsUpdate, admin: dict = Depends(require_admin)):
+@api_router.post("/admin/specialists")
+async def create_specialist(data: SpecialistCreate, admin: dict = Depends(require_admin)):
     url = data.calendly_url.strip()
-    if url and not url.startswith("https://"):
+    if not url.startswith("https://"):
         raise HTTPException(status_code=400, detail="Linkul trebuie să înceapă cu https://")
-    await db.settings.update_one({"key": "calendly_url"}, {"$set": {"value": url}}, upsert=True)
-    return {"ok": True, "calendly_url": url}
+    doc = {
+        "id": str(uuid.uuid4()),
+        "name": data.name.strip(),
+        "title": data.title.strip(),
+        "specialization": data.specialization.strip(),
+        "calendly_url": url,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.specialists.insert_one(doc.copy())
+    doc.pop("_id", None)
+    return {"ok": True, "specialist": doc}
+
+
+@api_router.put("/admin/specialists/{specialist_id}")
+async def update_specialist(specialist_id: str, data: SpecialistCreate, admin: dict = Depends(require_admin)):
+    url = data.calendly_url.strip()
+    if not url.startswith("https://"):
+        raise HTTPException(status_code=400, detail="Linkul trebuie să înceapă cu https://")
+    result = await db.specialists.update_one(
+        {"id": specialist_id},
+        {"$set": {
+            "name": data.name.strip(),
+            "title": data.title.strip(),
+            "specialization": data.specialization.strip(),
+            "calendly_url": url,
+        }},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Specialist inexistent")
+    return {"ok": True}
+
+
+@api_router.delete("/admin/specialists/{specialist_id}")
+async def delete_specialist(specialist_id: str, admin: dict = Depends(require_admin)):
+    result = await db.specialists.delete_one({"id": specialist_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Specialist inexistent")
+    return {"ok": True}
 
 
 app.include_router(api_router)

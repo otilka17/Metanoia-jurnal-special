@@ -29,6 +29,7 @@ type AdminUser = {
 };
 type FlaggedItem = { id: string; content: string; display_name: string; flag_count: number; created_at: string; title?: string; category?: string; post_id?: string };
 type AskItem = { id: string; question: string; answer: string; created_at: string };
+type Specialist = { id: string; name: string; title: string; specialization: string; calendly_url: string };
 
 export default function AdminScreen() {
   const router = useRouter();
@@ -43,21 +44,27 @@ export default function AdminScreen() {
   const [askViewer, setAskViewer] = useState<{ user: AdminUser; items: AskItem[] } | null>(null);
   const [askLoading, setAskLoading] = useState(false);
   const [pregenLoading, setPregenLoading] = useState(false);
-  const [calendlyUrl, setCalendlyUrl] = useState("");
-  const [calendlySaving, setCalendlySaving] = useState(false);
+  const [specialists, setSpecialists] = useState<Specialist[]>([]);
+  const [showSpecModal, setShowSpecModal] = useState(false);
+  const [editingSpec, setEditingSpec] = useState<Specialist | null>(null);
+  const [specName, setSpecName] = useState("");
+  const [specTitle, setSpecTitle] = useState("");
+  const [specSpecialization, setSpecSpecialization] = useState("");
+  const [specUrl, setSpecUrl] = useState("");
+  const [specSaving, setSpecSaving] = useState(false);
 
   const loadAll = useCallback(async () => {
     try {
-      const [s, u, f, cal]: any = await Promise.all([
+      const [s, u, f, sp]: any = await Promise.all([
         api.adminStats(),
         api.adminUsers(),
         api.adminFlagged(),
-        api.getCalendlySettings(),
+        api.listSpecialists(),
       ]);
       setStats(s);
       setUsers(u.users || []);
       setFlagged({ posts: f.flagged_posts || [], answers: f.flagged_answers || [] });
-      setCalendlyUrl(cal.calendly_url || "");
+      setSpecialists(sp.specialists || []);
     } catch (e: any) {
       Alert.alert("Eroare admin", e.message || "Nu am putut încărca datele");
     }
@@ -131,16 +138,37 @@ export default function AdminScreen() {
     }
   };
 
-  const saveCalendly = async () => {
-    setCalendlySaving(true);
+  const openAddSpecialist = () => {
+    setEditingSpec(null);
+    setSpecName(""); setSpecTitle(""); setSpecSpecialization(""); setSpecUrl("");
+    setShowSpecModal(true);
+  };
+  const openEditSpecialist = (s: Specialist) => {
+    setEditingSpec(s);
+    setSpecName(s.name); setSpecTitle(s.title); setSpecSpecialization(s.specialization); setSpecUrl(s.calendly_url);
+    setShowSpecModal(true);
+  };
+  const saveSpecialist = async () => {
+    if (!specName.trim()) { Alert.alert("Nume lipsă", "Scrie numele specialistului."); return; }
+    if (!specUrl.trim().startsWith("https://")) { Alert.alert("Link invalid", "Linkul Calendly trebuie să înceapă cu https://"); return; }
+    setSpecSaving(true);
     try {
-      await api.setCalendlySettings(calendlyUrl.trim());
-      Alert.alert("Salvat ✓", "Linkul de programare a fost actualizat.");
+      const data = { name: specName.trim(), title: specTitle.trim(), specialization: specSpecialization.trim(), calendly_url: specUrl.trim() };
+      if (editingSpec) await api.adminUpdateSpecialist(editingSpec.id, data);
+      else await api.adminCreateSpecialist(data);
+      setShowSpecModal(false);
+      await loadAll();
     } catch (e: any) {
-      Alert.alert("Eroare", e.message || "Nu am putut salva linkul");
+      Alert.alert("Eroare", e.message || "Nu am putut salva specialistul");
     } finally {
-      setCalendlySaving(false);
+      setSpecSaving(false);
     }
+  };
+  const deleteSpecialist = (s: Specialist) => {
+    Alert.alert("Șterge specialist?", `Confirmi ștergerea lui ${s.name}?`, [
+      { text: "Anulează", style: "cancel" },
+      { text: "Șterge", style: "destructive", onPress: async () => { try { await api.adminDeleteSpecialist(s.id); await loadAll(); } catch (e: any) { Alert.alert("Eroare", e.message || "Eroare"); } } },
+    ]);
   };
 
   const toggleAdmin = async (u: AdminUser) => {
@@ -220,19 +248,25 @@ export default function AdminScreen() {
             <View style={styles.calendlyCard}>
               <View style={styles.calendlyHeader}>
                 <Ionicons name="calendar" size={18} color={theme.colors.primary} />
-                <Text style={styles.calendlyTitle}>Link programare specialist (Calendly)</Text>
+                <Text style={styles.calendlyTitle}>Specialiști (programare + plată online)</Text>
               </View>
-              <TextInput
-                testID="calendly-url-input"
-                value={calendlyUrl}
-                onChangeText={setCalendlyUrl}
-                placeholder="https://calendly.com/numele-tau/consultatie"
-                placeholderTextColor={theme.colors.textDisabled}
-                autoCapitalize="none"
-                style={styles.calendlyInput}
-              />
-              <TouchableOpacity testID="save-calendly-btn" style={[styles.calendlySaveBtn, calendlySaving && { opacity: 0.6 }]} onPress={saveCalendly} disabled={calendlySaving}>
-                {calendlySaving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.calendlySaveText}>Salvează</Text>}
+              {specialists.map((s) => (
+                <View key={s.id} style={styles.specRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.specName}>{s.name}</Text>
+                    <Text style={styles.specMeta} numberOfLines={1}>{[s.title, s.specialization].filter(Boolean).join(" · ") || s.calendly_url}</Text>
+                  </View>
+                  <TouchableOpacity testID={`edit-spec-${s.id}`} onPress={() => openEditSpecialist(s)} style={styles.specIconBtn}>
+                    <Ionicons name="create-outline" size={18} color={theme.colors.primary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity testID={`delete-spec-${s.id}`} onPress={() => deleteSpecialist(s)} style={styles.specIconBtn}>
+                    <Ionicons name="trash-outline" size={18} color="#B56B6B" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              {specialists.length === 0 && <Text style={styles.specEmpty}>Niciun specialist adăugat încă.</Text>}
+              <TouchableOpacity testID="add-specialist-btn" style={styles.calendlySaveBtn} onPress={openAddSpecialist}>
+                <Text style={styles.calendlySaveText}>+ Adaugă specialist</Text>
               </TouchableOpacity>
             </View>
 
@@ -423,6 +457,26 @@ export default function AdminScreen() {
           )}
         </SafeAreaView>
       </Modal>
+
+      <Modal visible={showSpecModal} transparent animationType="fade" onRequestClose={() => !specSaving && setShowSpecModal(false)}>
+        <Pressable style={styles.modalBg} onPress={() => !specSaving && setShowSpecModal(false)}>
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.modalTitle}>{editingSpec ? "Editează specialist" : "Adaugă specialist"}</Text>
+            <TextInput testID="spec-name-input" value={specName} onChangeText={setSpecName} placeholder="Nume (ex. Ana Popescu)" placeholderTextColor={theme.colors.textDisabled} style={styles.modalInput} />
+            <TextInput testID="spec-title-input" value={specTitle} onChangeText={setSpecTitle} placeholder="Titlu (ex. Psiholog clinician)" placeholderTextColor={theme.colors.textDisabled} style={styles.modalInput} />
+            <TextInput testID="spec-specialization-input" value={specSpecialization} onChangeText={setSpecSpecialization} placeholder="Specializare (ex. ADHD, Autism)" placeholderTextColor={theme.colors.textDisabled} style={styles.modalInput} />
+            <TextInput testID="spec-url-input" value={specUrl} onChangeText={setSpecUrl} placeholder="https://calendly.com/..." placeholderTextColor={theme.colors.textDisabled} autoCapitalize="none" style={styles.modalInput} />
+            <View style={styles.modalActions}>
+              <TouchableOpacity testID="spec-cancel" style={styles.modalBtnOutline} onPress={() => setShowSpecModal(false)} disabled={specSaving}>
+                <Text style={styles.modalBtnOutlineText}>Anulează</Text>
+              </TouchableOpacity>
+              <TouchableOpacity testID="spec-save" style={[styles.modalBtn, specSaving && { opacity: 0.5 }]} onPress={saveSpecialist} disabled={specSaving}>
+                {specSaving ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalBtnText}>Salvează</Text>}
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -507,9 +561,22 @@ const styles = StyleSheet.create({
   calendlyCard: { backgroundColor: theme.colors.surface, borderRadius: 16, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: theme.colors.border },
   calendlyHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 },
   calendlyTitle: { fontSize: 13, fontWeight: "700", color: theme.colors.textPrimary },
-  calendlyInput: { backgroundColor: theme.colors.surfaceElevated, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: theme.colors.textPrimary, marginBottom: 10 },
-  calendlySaveBtn: { backgroundColor: theme.colors.primary, borderRadius: 999, paddingVertical: 10, alignItems: "center" },
+  calendlySaveBtn: { backgroundColor: theme.colors.primary, borderRadius: 999, paddingVertical: 10, alignItems: "center", marginTop: 4 },
   calendlySaveText: { color: "#fff", fontWeight: "700", fontSize: 13 },
+  specRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
+  specName: { fontSize: 13, fontWeight: "700", color: theme.colors.textPrimary },
+  specMeta: { fontSize: 11, color: theme.colors.textSecondary, marginTop: 2 },
+  specIconBtn: { padding: 6 },
+  specEmpty: { fontSize: 12, color: theme.colors.textSecondary, paddingVertical: 10, textAlign: "center" },
+  modalBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "center", paddingHorizontal: 28 },
+  modalCard: { backgroundColor: theme.colors.surface, borderRadius: 20, padding: 24, alignItems: "center" },
+  modalTitle: { fontSize: 18, fontWeight: "700", color: theme.colors.textPrimary, marginBottom: 16, textAlign: "center" },
+  modalInput: { alignSelf: "stretch", backgroundColor: theme.colors.surfaceElevated, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: theme.colors.textPrimary, marginBottom: 12 },
+  modalActions: { flexDirection: "row", gap: 10, alignSelf: "stretch", marginTop: 6 },
+  modalBtn: { flex: 1, paddingVertical: 14, borderRadius: 999, alignItems: "center", backgroundColor: theme.colors.primary },
+  modalBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  modalBtnOutline: { flex: 1, paddingVertical: 14, borderRadius: 999, alignItems: "center", borderWidth: 1.5, borderColor: theme.colors.border },
+  modalBtnOutlineText: { color: theme.colors.textPrimary, fontWeight: "600", fontSize: 14 },
   askCard: { backgroundColor: theme.colors.surface, borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: theme.colors.border },
   askQ: { fontSize: 15, fontWeight: "700", color: theme.colors.textPrimary, lineHeight: 21 },
   askDivider: { height: 1, backgroundColor: theme.colors.border, marginVertical: 12 },
