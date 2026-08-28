@@ -13,7 +13,7 @@ const slides = [
     icon: "git-network-outline" as const,
     color: "#5E8B7E",
     title: "Mind Map interactiv",
-    text: "Explorează vizual structura completă a ghidului: 5 categorii, 12 teme, 40+ concepte — la un singur tap.",
+    text: "Explorează vizual structura completă a ghidului: 5 categorii, 12 teme, 40+ concepte — dintr-o singură atingere.",
   },
   {
     icon: "sparkles-outline" as const,
