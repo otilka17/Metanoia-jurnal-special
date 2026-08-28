@@ -455,7 +455,7 @@ async def send_welcome_email(to: str, name: str) -> None:
         f'<p style="margin:0 0 16px;font-size:14px;line-height:20px">Ne bucurăm că te alături comunității <strong>{html_escape(EMAIL_FROM_NAME)}</strong> — un ghid practic pentru părinții copiilor supradotați, hiperactivi sau sensibili emoțional.</p>'
         f'<p style="margin:0 0 12px;font-size:14px;line-height:20px">Iată ce poți descoperi în aplicație:</p>'
         f'<ul style="margin:0 0 20px;padding-left:20px;font-size:13px;color:#555;line-height:22px">'
-        f'<li>📖 <strong>Ghidul Specialistului</strong> — 17 capitole practice</li>'
+        f'<li>📖 <strong>Ghidul Specialistului</strong> — 19 capitole practice</li>'
         f'<li>🧠 <strong>Mind Map interactiv</strong> — teme cheie ale parentingului</li>'
         f'<li>📝 <strong>Jurnal cu analiză AI</strong> — descoperă tipare</li>'
         f'<li>🧩 <strong>Test profil copil</strong> — 12 întrebări → recomandări</li>'
