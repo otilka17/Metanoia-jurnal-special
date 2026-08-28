@@ -53,6 +53,7 @@ export default function AskScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Întreabă specialistul</Text>
         <Text style={styles.sub}>AI specializat în copii cu profiluri atipice</Text>
+        <Text style={styles.aiNote}>Conținut generat cu AI, supervizat de specialiști</Text>
       </View>
 
       {loading ? (
@@ -127,6 +128,7 @@ const styles = StyleSheet.create({
   header: { padding: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
   title: { ...theme.font.h1, color: theme.colors.textPrimary },
   sub: { ...theme.font.body, color: theme.colors.textSecondary, marginTop: 4 },
+  aiNote: { fontSize: 11, color: theme.colors.textDisabled, fontStyle: "italic", marginTop: 4 },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 },
   emptyText: { ...theme.font.body, color: theme.colors.textSecondary, marginTop: 12, textAlign: "center", lineHeight: 22 },
   rowUser: { flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 6, marginBottom: 6 },

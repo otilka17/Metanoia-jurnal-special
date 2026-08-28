@@ -154,6 +154,11 @@ export default function ArticleScreen() {
         <Text style={styles.sectionTitle}>Când să ceri ajutor</Text>
         <Text style={styles.helpText}>{c.cand_sa_cer_ajutor}</Text>
 
+        <View style={styles.aiNote}>
+          <Ionicons name="sparkles" size={13} color={theme.colors.textDisabled} />
+          <Text style={styles.aiNoteText}>Conținut generat cu AI, supervizat de specialiști.</Text>
+        </View>
+
         <View style={{ height: 32 }} />
       </ScrollView>
     </SafeAreaView>
@@ -199,4 +204,6 @@ const styles = StyleSheet.create({
   },
   exampleText: { ...theme.font.body, color: theme.colors.textPrimary, fontStyle: "italic" },
   helpText: { ...theme.font.body, color: theme.colors.textSecondary, marginTop: 4 },
+  aiNote: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 28 },
+  aiNoteText: { fontSize: 11, color: theme.colors.textDisabled, fontStyle: "italic" },
 });
