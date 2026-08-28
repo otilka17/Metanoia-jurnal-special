@@ -106,6 +106,7 @@ export const api = {
   adminFlagged: () => request("/admin/forum/flagged"),
   adminUserAskHistory: (id: string) => request(`/admin/users/${id}/ask-history`),
   adminPregenerateArticles: () => request("/admin/articles/pregenerate", { method: "POST" }),
+  adminAnalytics: () => request("/admin/analytics"),
   listSpecialists: () => request("/specialists"),
   adminCreateSpecialist: (data: { name: string; title: string; specialization: string; calendly_url: string; photo_url?: string }) =>
     request("/admin/specialists", { method: "POST", body: data }),
@@ -131,6 +132,11 @@ export const api = {
     request("/reviews", { method: "POST", body: { rating, comment } }),
   deleteMyReview: () => request("/reviews/mine", { method: "DELETE" }),
   adminDeleteReview: (id: string) => request(`/admin/reviews/${id}`, { method: "DELETE" }),
+
+  // Notifications
+  listNotifications: () => request("/notifications"),
+  markNotificationRead: (id: string) => request(`/notifications/${id}/read`, { method: "POST" }),
+  markAllNotificationsRead: () => request("/notifications/read-all", { method: "POST" }),
 
   // Comparison tables
   listComparisons: () => request("/compare"),

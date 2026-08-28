@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Stack, useRouter, usePathname } from "expo-router";
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "@/src/lib/theme";
 import { useAuth } from "@/src/lib/auth";
+import { api } from "@/src/lib/api";
 
 const MENU = [
   { label: "Acasă", route: "/(tabs)", icon: "home" as const },
@@ -23,14 +24,21 @@ const MENU = [
 
 const ADMIN_ITEM = { label: "Admin", route: "/admin", icon: "shield-checkmark" as const };
 
-function HeaderBar({ onMenu }: { onMenu: () => void }) {
+function HeaderBar({ onMenu, unreadCount, onBell }: { onMenu: () => void; unreadCount: number; onBell: () => void }) {
   return (
     <View style={styles.header}>
       <TouchableOpacity testID="burger-menu-button" onPress={onMenu} style={styles.iconBtn}>
         <Ionicons name="menu" size={26} color={theme.colors.textPrimary} />
       </TouchableOpacity>
       <Text style={styles.brand}>Ghid Părinte</Text>
-      <View style={{ width: 40 }} />
+      <TouchableOpacity testID="notifications-bell" onPress={onBell} style={styles.iconBtn}>
+        <Ionicons name="notifications-outline" size={24} color={theme.colors.textPrimary} />
+        {unreadCount > 0 && (
+          <View style={styles.bellBadge}>
+            <Text style={styles.bellBadgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
     </View>
   );
 }
@@ -58,14 +66,29 @@ export default function TabsLayout() {
   const pathname = usePathname();
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const go = (r: string) => { setOpen(false); router.push(r as any); };
 
   const menuItems = user?.is_admin ? [...MENU, ADMIN_ITEM] : MENU;
 
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res: any = await api.listNotifications();
+        if (!cancelled) setUnreadCount(res.unread_count || 0);
+      } catch (e) { /* ignore */ }
+    };
+    poll();
+    const id = setInterval(poll, 30000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [user]);
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.bg }}>
       <SafeAreaView edges={["top"]} style={{ backgroundColor: theme.colors.bg }}>
-        <HeaderBar onMenu={() => setOpen(true)} />
+        <HeaderBar onMenu={() => setOpen(true)} unreadCount={unreadCount} onBell={() => { setUnreadCount(0); router.push("/notifications"); }} />
       </SafeAreaView>
 
       <View style={{ flex: 1 }}>
@@ -104,6 +127,8 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: theme.colors.border, backgroundColor: theme.colors.surface },
   iconBtn: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
   brand: { fontSize: 16, fontWeight: "700", color: theme.colors.primary, letterSpacing: 0.3 },
+  bellBadge: { position: "absolute", top: 4, right: 4, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: "#B56B6B", alignItems: "center", justifyContent: "center", paddingHorizontal: 3 },
+  bellBadgeText: { color: "#fff", fontSize: 9, fontWeight: "700" },
   bottomNav: { flexDirection: "row", borderTopWidth: 1, borderTopColor: theme.colors.border, backgroundColor: theme.colors.surface, paddingTop: 8 },
   navBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 6 },
   navText: { color: theme.colors.primary, fontSize: 13, fontWeight: "600" },

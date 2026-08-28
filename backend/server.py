@@ -349,6 +349,11 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         user = await db.users.find_one({"id": user_id}, {"_id": 0, "password": 0})
         if not user:
             raise HTTPException(status_code=401, detail="Utilizator inexistent")
+        now = datetime.now(timezone.utc)
+        last_seen = user.get("last_seen")
+        if not last_seen or (now - last_seen).total_seconds() > 60:
+            await db.users.update_one({"id": user_id}, {"$set": {"last_seen": now}})
+            user["last_seen"] = now
         return user
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expirat")
@@ -519,6 +524,66 @@ async def send_family_join_notice(to: str, addressee_name: str, other_name: str,
     await send_email(to=to, subject=title, html=_email_shell(inner))
 
 
+MOOD_LABELS = {"calm": "calm", "agitat": "agitat", "criza": "cu momente de criză", "fericit": "fericit", "ingrijorat": "îngrijorat"}
+
+
+async def _send_weekly_recap_for_user(u: dict, since: datetime) -> None:
+    uid = u["id"]
+    journal_items = await db.journal.find({"user_id": uid, "created_at": {"$gte": since}}, {"_id": 0, "mood": 1}).to_list(200)
+    ask_count = await db.ask_history.count_documents({"user_id": uid, "created_at": {"$gte": since.isoformat()}})
+    forum_count = (
+        await db.forum_posts.count_documents({"user_id": uid, "created_at": {"$gte": since.isoformat()}})
+        + await db.forum_answers.count_documents({"user_id": uid, "created_at": {"$gte": since.isoformat()}})
+    )
+    if not journal_items and not ask_count and not forum_count:
+        return  # skip inactive users, don't spam
+    mood_counts: dict = {}
+    for it in journal_items:
+        mood_counts[it["mood"]] = mood_counts.get(it["mood"], 0) + 1
+    top_mood = max(mood_counts, key=mood_counts.get) if mood_counts else None
+    safe_name = html_escape(u.get("name") or "Părinte")
+    items_html = []
+    if journal_items:
+        n = len(journal_items)
+        items_html.append(f'<li>📝 <strong>{n}</strong> {"însemnare" if n == 1 else "însemnări"} în jurnal</li>')
+        if top_mood:
+            items_html.append(f'<li>😊 Starea predominantă: <strong>{html_escape(MOOD_LABELS.get(top_mood, top_mood))}</strong></li>')
+    if ask_count:
+        items_html.append(f'<li>💬 <strong>{ask_count}</strong> {"întrebare" if ask_count == 1 else "întrebări"} către asistentul AI</li>')
+    if forum_count:
+        items_html.append(f'<li>👥 <strong>{forum_count}</strong> {"contribuție" if forum_count == 1 else "contribuții"} în comunitate</li>')
+    inner = (
+        f'<h1 style="margin:0 0 12px;color:#7A9E9F;font-size:20px">Recapitularea ta săptămânală 🌱</h1>'
+        f'<p style="margin:0 0 16px;font-size:14px;line-height:20px">Salut, {safe_name}! Iată ce ai făcut săptămâna aceasta în {html_escape(EMAIL_FROM_NAME)}:</p>'
+        f'<ul style="margin:0 0 20px;padding-left:20px;font-size:13px;color:#555;line-height:22px">{"".join(items_html)}</ul>'
+        f'<p style="margin:0;font-size:13px;color:#666">Continuă tot așa — fiecare notă contează.</p>'
+    )
+    await send_email(to=u["email"], subject=f"Recapitularea ta săptămânală — {EMAIL_FROM_NAME}", html=_email_shell(inner))
+
+
+async def _maybe_send_weekly_recaps() -> None:
+    now = datetime.now(timezone.utc)
+    if now.weekday() != 0 or now.hour != 8:  # Monday, 08:00 UTC
+        return
+    week_key = now.strftime("%G-W%V")
+    since = now - timedelta(days=7)
+    async for u in db.users.find({}, {"_id": 0, "id": 1, "email": 1, "name": 1, "last_weekly_recap_week": 1}):
+        if u.get("last_weekly_recap_week") == week_key:
+            continue
+        try:
+            await _send_weekly_recap_for_user(u, since)
+        except Exception as e:
+            logger.error(f"weekly recap failed for {u.get('email')}: {e}")
+        await db.users.update_one({"id": u["id"]}, {"$set": {"last_weekly_recap_week": week_key}})
+
+
+async def _weekly_recap_loop() -> None:
+    while True:
+        try:
+            await _maybe_send_weekly_recaps()
+        except Exception as e:
+            logger.error(f"weekly recap loop error: {e}")
+        await asyncio.sleep(3600)
 
 
 
@@ -1204,6 +1269,29 @@ async def my_stats(user: dict = Depends(get_current_user)):
     journal_30 = await db.journal.count_documents({"user_id": uid, "created_at": {"$gte": since_30}})
     journal_7 = await db.journal.count_documents({"user_id": uid, "created_at": {"$gte": since_7}})
 
+    # Streak: consecutive days (grace period for today) with at least one journal entry
+    journal_dates = await db.journal.find({"user_id": uid}, {"_id": 0, "created_at": 1}).sort("created_at", -1).to_list(400)
+    days_with_entry = {d["created_at"].date() for d in journal_dates}
+    streak_days = 0
+    cursor_day = now.date()
+    if cursor_day not in days_with_entry:
+        cursor_day -= timedelta(days=1)
+    while cursor_day in days_with_entry:
+        streak_days += 1
+        cursor_day -= timedelta(days=1)
+
+    journal_badges = []
+    if journal_total >= 1:
+        journal_badges.append("first_entry")
+    if journal_total >= 30:
+        journal_badges.append("entries_30")
+    if journal_total >= 100:
+        journal_badges.append("entries_100")
+    if streak_days >= 7:
+        journal_badges.append("streak_7")
+    if streak_days >= 30:
+        journal_badges.append("streak_30")
+
     # Bookmarks
     bookmarks_total = await db.bookmarks.count_documents({"user_id": uid})
 
@@ -1229,7 +1317,7 @@ async def my_stats(user: dict = Depends(get_current_user)):
     read_chapters = len(gp.get("read_chapters", []))
 
     return {
-        "journal": {"total": journal_total, "last_30_days": journal_30, "last_7_days": journal_7},
+        "journal": {"total": journal_total, "last_30_days": journal_30, "last_7_days": journal_7, "streak_days": streak_days, "badges": journal_badges},
         "bookmarks_total": bookmarks_total,
         "ask_ai": {"total": ask_total, "last_30_days": ask_30},
         "forum": {"posts": forum_posts, "answers": forum_answers},
@@ -1238,6 +1326,26 @@ async def my_stats(user: dict = Depends(get_current_user)):
         "guide_read_chapters": read_chapters,
         "member_since": user.get("created_at"),
     }
+
+
+# ============ NOTIFICATIONS ============
+@api_router.get("/notifications")
+async def list_notifications(user: dict = Depends(get_current_user)):
+    items = await db.notifications.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    unread = await db.notifications.count_documents({"user_id": user["id"], "is_read": False})
+    return {"notifications": items, "unread_count": unread}
+
+
+@api_router.post("/notifications/{notif_id}/read")
+async def mark_notification_read(notif_id: str, user: dict = Depends(get_current_user)):
+    await db.notifications.update_one({"id": notif_id, "user_id": user["id"]}, {"$set": {"is_read": True}})
+    return {"ok": True}
+
+
+@api_router.post("/notifications/read-all")
+async def mark_all_notifications_read(user: dict = Depends(get_current_user)):
+    await db.notifications.update_many({"user_id": user["id"], "is_read": False}, {"$set": {"is_read": True}})
+    return {"ok": True}
 
 
 # ============ SUPER ADMIN ============
@@ -1284,15 +1392,53 @@ async def admin_stats(admin: dict = Depends(require_admin)):
         profile_distribution(),
     )
     active_uids_7 = set(journal_uids_7) | set(ask_uids_7)
+    online_now = await db.users.count_documents({"last_seen": {"$gte": now - timedelta(minutes=5)}})
 
     return {
-        "users": {"total": users_total, "new_last_7_days": users_new_7, "new_last_30_days": users_new_30, "active_last_7_days": len(active_uids_7)},
+        "users": {"total": users_total, "new_last_7_days": users_new_7, "new_last_30_days": users_new_30, "active_last_7_days": len(active_uids_7), "online_now": online_now},
         "journal": {"total": journal_total, "last_24h": journal_1},
         "ask_ai": {"total": ask_total, "last_24h": ask_1},
         "tests": {"total": tests_total, "profile_distribution": profile_dist},
         "families_total": families_total,
         "forum": {"posts_total": forum_posts_total, "answers_total": forum_answers_total, "flagged_posts": flagged_posts},
     }
+
+
+@api_router.get("/admin/analytics")
+async def admin_analytics(admin: dict = Depends(require_admin)):
+    """30-day trend + category popularity, for the admin analytics dashboard."""
+    now = datetime.now(timezone.utc)
+    since_30 = now - timedelta(days=30)
+
+    async def per_day_counts(collection):
+        pipeline = [
+            {"$match": {"created_at": {"$gte": since_30}}},
+            {"$group": {"_id": {"$dateToString": {"format": "%Y-%m-%d", "date": "$created_at"}}, "count": {"$sum": 1}}},
+        ]
+        return {row["_id"]: row["count"] async for row in collection.aggregate(pipeline)}
+
+    signups_by_day, journal_by_day = await asyncio.gather(
+        per_day_counts(db.users),
+        per_day_counts(db.journal),
+    )
+
+    days = []
+    for i in range(29, -1, -1):
+        d = (now - timedelta(days=i)).strftime("%Y-%m-%d")
+        days.append({"date": d, "signups": signups_by_day.get(d, 0), "journal_entries": journal_by_day.get(d, 0)})
+
+    cat_pipeline = [
+        {"$match": {"created_at": {"$gte": since_30}, "category_id": {"$ne": ""}}},
+        {"$group": {"_id": "$category_id", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+    ]
+    cat_title_map = {c["id"]: c["title"] for c in CATEGORIES}
+    category_popularity = [
+        {"category_id": row["_id"], "title": cat_title_map.get(row["_id"], row["_id"]), "count": row["count"]}
+        async for row in db.journal.aggregate(cat_pipeline)
+    ]
+
+    return {"days": days, "category_popularity": category_popularity}
 
 
 @api_router.get("/admin/users")
@@ -1322,6 +1468,7 @@ async def admin_list_users(limit: int = 200, skip: int = 0, q: Optional[str] = N
         counts_by_user(db.forum_posts, uids),
         last_activity_by_user(db.journal, uids),
     )
+    online_cutoff = datetime.now(timezone.utc) - timedelta(minutes=5)
 
     out = [{
         "id": u["id"],
@@ -1333,6 +1480,8 @@ async def admin_list_users(limit: int = 200, skip: int = 0, q: Optional[str] = N
         "ask_count": ask_counts.get(u["id"], 0),
         "forum_count": forum_counts.get(u["id"], 0),
         "last_activity": last_activity.get(u["id"]),
+        "last_seen": u.get("last_seen"),
+        "is_online": bool(u.get("last_seen")) and u["last_seen"] >= online_cutoff,
     } for u in users]
     return {"users": out, "total": await db.users.count_documents(query)}
 
@@ -1808,6 +1957,17 @@ async def create_answer(post_id: str, data: ForumAnswerCreate, user: dict = Depe
     await db.forum_answers.insert_one(doc.copy())
     await db.forum_posts.update_one({"id": post_id}, {"$inc": {"answer_count": 1}})
     doc.pop("_id", None)
+    if post.get("user_id") and post["user_id"] != user["id"]:
+        await db.notifications.insert_one({
+            "id": str(uuid.uuid4()),
+            "user_id": post["user_id"],
+            "kind": "forum_reply",
+            "title": "Ai un răspuns nou",
+            "body": f'{doc["display_name"]} a răspuns la postarea ta „{post["title"][:60]}”',
+            "route": f"/forum/{post_id}",
+            "is_read": False,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
     return {"ok": True, "answer": doc}
 
 
@@ -2008,6 +2168,11 @@ logger = logging.getLogger(__name__)
 async def create_indexes():
     await db.users.create_index("email", unique=True)
     await db.users.create_index("referral_code", unique=True, sparse=True)
+
+
+@app.on_event("startup")
+async def start_background_loops():
+    asyncio.create_task(_weekly_recap_loop())
 
 
 @app.on_event("shutdown")

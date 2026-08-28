@@ -29,6 +29,14 @@ type Bookmark = {
   type?: string; point?: string; explanation?: string;
 };
 
+const JOURNAL_BADGES: Record<string, { emoji: string; label: string }> = {
+  first_entry: { emoji: "📝", label: "Prima însemnare" },
+  entries_30: { emoji: "🌿", label: "30 de însemnări" },
+  entries_100: { emoji: "🌳", label: "100 de însemnări" },
+  streak_7: { emoji: "🔥", label: "7 zile la rând" },
+  streak_30: { emoji: "🏆", label: "30 zile la rând" },
+};
+
 function StatCard({ icon, value, label, sub, color }: { icon: any; value: number; label: string; sub?: string; color: string }) {
   return (
     <View style={[styles.statCardBox, { borderLeftColor: color }]}>
@@ -233,7 +241,22 @@ export default function ProfileScreen() {
               <StatCard icon="library" value={myStats.guide_read_chapters || 0} label="Capitole citite" color="#5E8B7E" />
               <StatCard icon="chatbubble-ellipses" value={(myStats.forum?.posts || 0) + (myStats.forum?.answers || 0)} label="Postări forum" sub={`${myStats.forum?.posts || 0} întrebări`} color="#9B8CC4" />
               <StatCard icon="clipboard" value={myStats.test_result ? 1 : 0} label="Test profil" sub={myStats.test_result?.profile_title ? myStats.test_result.profile_title.slice(0, 20) + '…' : "Nefăcut"} color="#6E8FD8" />
+              <StatCard icon="flame" value={myStats.journal?.streak_days || 0} label="Streak jurnal" sub="zile la rând" color="#D9743C" />
             </View>
+            {!!myStats.journal?.badges?.length && (
+              <View style={styles.badgesRow}>
+                {myStats.journal.badges.map((b: string) => {
+                  const def = JOURNAL_BADGES[b];
+                  if (!def) return null;
+                  return (
+                    <View key={b} style={styles.badgeChip} testID={`badge-${b}`}>
+                      <Text style={styles.badgeEmoji}>{def.emoji}</Text>
+                      <Text style={styles.badgeLabel}>{def.label}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
             {myStats.family && (
               <View style={styles.famBanner}>
                 <Ionicons name="people-circle" size={20} color={theme.colors.primary} />
@@ -430,6 +453,10 @@ const styles = StyleSheet.create({
   statCardValue: { fontSize: 20, fontWeight: "700" },
   statCardLabel: { fontSize: 10, color: theme.colors.textSecondary, marginTop: 2, fontWeight: "500" },
   statCardSub: { fontSize: 9, color: theme.colors.textDisabled, marginTop: 1 },
+  badgesRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
+  badgeChip: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: theme.colors.surface, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: theme.colors.border },
+  badgeEmoji: { fontSize: 14 },
+  badgeLabel: { fontSize: 12, fontWeight: "600", color: theme.colors.textPrimary },
   famBanner: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: theme.colors.primary + "11", borderRadius: 12, padding: 12, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: theme.colors.primary },
   famBannerText: { flex: 1, fontSize: 12, color: theme.colors.textPrimary },
   avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: theme.colors.primary, alignItems: "center", justifyContent: "center", marginBottom: 12 },

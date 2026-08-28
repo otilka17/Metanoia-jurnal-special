@@ -28,7 +28,10 @@ type Stats = any;
 type AdminUser = {
   id: string; email: string; name: string; created_at: string; is_admin: boolean;
   journal_count: number; ask_count: number; forum_count: number; last_activity: string | null;
+  is_online?: boolean;
 };
+type AnalyticsDay = { date: string; signups: number; journal_entries: number };
+type CategoryPopularity = { category_id: string; title: string; count: number };
 type FlaggedItem = { id: string; content: string; display_name: string; flag_count: number; created_at: string; title?: string; category?: string; post_id?: string };
 type AskItem = { id: string; question: string; answer: string; created_at: string };
 type Specialist = { id: string; name: string; title: string; specialization: string; calendly_url: string; photo_url?: string };
@@ -55,19 +58,24 @@ export default function AdminScreen() {
   const [specUrl, setSpecUrl] = useState("");
   const [specPhoto, setSpecPhoto] = useState("");
   const [specSaving, setSpecSaving] = useState(false);
+  const [analyticsDays, setAnalyticsDays] = useState<AnalyticsDay[]>([]);
+  const [categoryPopularity, setCategoryPopularity] = useState<CategoryPopularity[]>([]);
 
   const loadAll = useCallback(async () => {
     try {
-      const [s, u, f, sp]: any = await Promise.all([
+      const [s, u, f, sp, an]: any = await Promise.all([
         api.adminStats(),
         api.adminUsers(),
         api.adminFlagged(),
         api.listSpecialists(),
+        api.adminAnalytics(),
       ]);
       setStats(s);
       setUsers(u.users || []);
       setFlagged({ posts: f.flagged_posts || [], answers: f.flagged_answers || [] });
       setSpecialists(sp.specialists || []);
+      setAnalyticsDays(an.days || []);
+      setCategoryPopularity(an.category_popularity || []);
     } catch (e: any) {
       Alert.alert("Eroare admin", e.message || "Nu am putut încărca datele");
     }
@@ -305,7 +313,56 @@ export default function AdminScreen() {
               <StatCard icon="person-add" label="Noi (7 zile)" value={stats.users?.new_last_7_days || 0} color="#7A9E9F" />
               <StatCard icon="flash" label="Activi (7z)" value={stats.users?.active_last_7_days || 0} color="#DE8F6E" />
               <StatCard icon="calendar" label="Noi (30z)" value={stats.users?.new_last_30_days || 0} color="#E8C37C" />
+              <StatCard icon="radio-button-on" label="Online acum" value={stats.users?.online_now || 0} color="#5FAE72" />
             </View>
+
+            {analyticsDays.length > 0 && (
+              <>
+                <SectionHeader title="Activitate — ultimele 30 zile" icon="stats-chart" />
+                <View style={styles.card}>
+                  <Text style={styles.chartLabel}>Înscrieri noi / zi</Text>
+                  <View style={styles.barChartRow}>
+                    {analyticsDays.map((d) => {
+                      const max = Math.max(1, ...analyticsDays.map((x) => x.signups));
+                      const h = Math.max(2, (d.signups / max) * 48);
+                      return <View key={d.date} style={[styles.bar, { height: h, backgroundColor: "#7A9E9F" }]} />;
+                    })}
+                  </View>
+                  <Text style={styles.chartRangeText}>{analyticsDays[0]?.date} → {analyticsDays[analyticsDays.length - 1]?.date}</Text>
+
+                  <Text style={[styles.chartLabel, { marginTop: 16 }]}>Însemnări jurnal / zi</Text>
+                  <View style={styles.barChartRow}>
+                    {analyticsDays.map((d) => {
+                      const max = Math.max(1, ...analyticsDays.map((x) => x.journal_entries));
+                      const h = Math.max(2, (d.journal_entries / max) * 48);
+                      return <View key={d.date} style={[styles.bar, { height: h, backgroundColor: "#9B8CC4" }]} />;
+                    })}
+                  </View>
+                  <Text style={styles.chartRangeText}>{analyticsDays[0]?.date} → {analyticsDays[analyticsDays.length - 1]?.date}</Text>
+                </View>
+              </>
+            )}
+
+            {categoryPopularity.length > 0 && (
+              <>
+                <SectionHeader title="Categorii populare (jurnal, 30 zile)" icon="podium" />
+                <View style={styles.card}>
+                  {categoryPopularity.map((c) => {
+                    const max = Math.max(1, ...categoryPopularity.map((x) => x.count));
+                    const widthPct = Math.max(6, (c.count / max) * 100);
+                    return (
+                      <View key={c.category_id} style={styles.catPopRow}>
+                        <Text style={styles.catPopLabel} numberOfLines={1}>{c.title}</Text>
+                        <View style={styles.catPopBarBg}>
+                          <View style={[styles.catPopBarFill, { width: `${widthPct}%` }]} />
+                        </View>
+                        <Text style={styles.catPopCount}>{c.count}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </>
+            )}
 
             <SectionHeader title="Activitate 24h" icon="pulse" />
             <View style={styles.grid}>
@@ -357,13 +414,17 @@ export default function AdminScreen() {
             {users.map(u => (
               <View key={u.id} style={styles.userCard}>
                 <View style={styles.userHeader}>
-                  <View style={[styles.avatar, u.is_admin && { backgroundColor: "#B56B6B" }]}>
-                    <Ionicons name={u.is_admin ? "shield-checkmark" : "person"} size={20} color="#fff" />
+                  <View>
+                    <View style={[styles.avatar, u.is_admin && { backgroundColor: "#B56B6B" }]}>
+                      <Ionicons name={u.is_admin ? "shield-checkmark" : "person"} size={20} color="#fff" />
+                    </View>
+                    {u.is_online && <View style={styles.onlineDot} testID={`online-${u.id}`} />}
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.userName}>{u.name}{u.email === user?.email ? " (tu)" : ""}</Text>
                     <Text style={styles.userEmail}>{u.email}</Text>
                   </View>
+                  {u.is_online && <Text style={styles.onlineLabel}>Online</Text>}
                   {u.is_admin && <View style={styles.tagAdmin}><Text style={styles.tagAdminText}>ADMIN</Text></View>}
                 </View>
                 <View style={styles.userStats}>
@@ -565,12 +626,23 @@ const styles = StyleSheet.create({
   distRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
   distLabel: { fontSize: 13, color: theme.colors.textPrimary, flex: 1 },
   distValue: { fontSize: 15, fontWeight: "700", color: theme.colors.primary },
+  chartLabel: { fontSize: 12, fontWeight: "700", color: theme.colors.textSecondary, marginBottom: 8 },
+  barChartRow: { flexDirection: "row", alignItems: "flex-end", gap: 2, height: 48 },
+  bar: { flex: 1, borderRadius: 2, minWidth: 2 },
+  chartRangeText: { fontSize: 10, color: theme.colors.textDisabled, marginTop: 6, textAlign: "center" },
+  catPopRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 6 },
+  catPopLabel: { width: 110, fontSize: 12, color: theme.colors.textPrimary },
+  catPopBarBg: { flex: 1, height: 10, borderRadius: 5, backgroundColor: theme.colors.border, overflow: "hidden" },
+  catPopBarFill: { height: 10, borderRadius: 5, backgroundColor: theme.colors.primary },
+  catPopCount: { width: 28, textAlign: "right", fontSize: 12, fontWeight: "700", color: theme.colors.primary },
   searchRow: { flexDirection: "row", gap: 8, marginBottom: 16 },
   searchInput: { flex: 1, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 13, color: theme.colors.textPrimary },
   searchBtn: { backgroundColor: theme.colors.primary, borderRadius: 12, paddingHorizontal: 16, alignItems: "center", justifyContent: "center" },
   userCard: { backgroundColor: theme.colors.surface, borderRadius: 12, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: theme.colors.border },
   userHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 },
   avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: theme.colors.primary, alignItems: "center", justifyContent: "center" },
+  onlineDot: { position: "absolute", bottom: -1, right: -1, width: 11, height: 11, borderRadius: 6, backgroundColor: "#5FAE72", borderWidth: 2, borderColor: theme.colors.surface },
+  onlineLabel: { fontSize: 10, fontWeight: "700", color: "#5FAE72" },
   userName: { fontSize: 14, fontWeight: "600", color: theme.colors.textPrimary },
   userEmail: { fontSize: 11, color: theme.colors.textSecondary, marginTop: 1 },
   tagAdmin: { backgroundColor: "#B56B6B22", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 },
