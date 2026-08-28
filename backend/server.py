@@ -255,6 +255,11 @@ class ReviewCreate(BaseModel):
     comment: str = ""
 
 
+# ============ APP SETTINGS (admin-editable) ============
+class CalendlySettingsUpdate(BaseModel):
+    calendly_url: str = ""
+
+
 # ============ FAMILY MODELS ============
 class FamilyJoinRequest(BaseModel):
     code: str
@@ -1878,6 +1883,22 @@ async def admin_delete_review(review_id: str, admin: dict = Depends(require_admi
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Recenzie inexistentă")
     return {"ok": True}
+
+
+# ============ APP SETTINGS ============
+@api_router.get("/settings/calendly")
+async def get_calendly_settings(user: dict = Depends(get_current_user)):
+    doc = await db.settings.find_one({"key": "calendly_url"}, {"_id": 0})
+    return {"calendly_url": (doc or {}).get("value", "")}
+
+
+@api_router.post("/admin/settings/calendly")
+async def set_calendly_settings(data: CalendlySettingsUpdate, admin: dict = Depends(require_admin)):
+    url = data.calendly_url.strip()
+    if url and not url.startswith("https://"):
+        raise HTTPException(status_code=400, detail="Linkul trebuie să înceapă cu https://")
+    await db.settings.update_one({"key": "calendly_url"}, {"$set": {"value": url}}, upsert=True)
+    return {"ok": True, "calendly_url": url}
 
 
 app.include_router(api_router)

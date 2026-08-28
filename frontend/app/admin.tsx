@@ -43,17 +43,21 @@ export default function AdminScreen() {
   const [askViewer, setAskViewer] = useState<{ user: AdminUser; items: AskItem[] } | null>(null);
   const [askLoading, setAskLoading] = useState(false);
   const [pregenLoading, setPregenLoading] = useState(false);
+  const [calendlyUrl, setCalendlyUrl] = useState("");
+  const [calendlySaving, setCalendlySaving] = useState(false);
 
   const loadAll = useCallback(async () => {
     try {
-      const [s, u, f]: any = await Promise.all([
+      const [s, u, f, cal]: any = await Promise.all([
         api.adminStats(),
         api.adminUsers(),
         api.adminFlagged(),
+        api.getCalendlySettings(),
       ]);
       setStats(s);
       setUsers(u.users || []);
       setFlagged({ posts: f.flagged_posts || [], answers: f.flagged_answers || [] });
+      setCalendlyUrl(cal.calendly_url || "");
     } catch (e: any) {
       Alert.alert("Eroare admin", e.message || "Nu am putut încărca datele");
     }
@@ -124,6 +128,18 @@ export default function AdminScreen() {
       Alert.alert("Eroare", e.message || "Nu am putut porni pre-generarea");
     } finally {
       setPregenLoading(false);
+    }
+  };
+
+  const saveCalendly = async () => {
+    setCalendlySaving(true);
+    try {
+      await api.setCalendlySettings(calendlyUrl.trim());
+      Alert.alert("Salvat ✓", "Linkul de programare a fost actualizat.");
+    } catch (e: any) {
+      Alert.alert("Eroare", e.message || "Nu am putut salva linkul");
+    } finally {
+      setCalendlySaving(false);
     }
   };
 
@@ -200,6 +216,25 @@ export default function AdminScreen() {
                 <Text style={styles.pregenText}>Generează din timp articolele AI lipsă din Mind Map, ca niciun utilizator să nu mai aștepte</Text>
               </View>
             </TouchableOpacity>
+
+            <View style={styles.calendlyCard}>
+              <View style={styles.calendlyHeader}>
+                <Ionicons name="calendar" size={18} color={theme.colors.primary} />
+                <Text style={styles.calendlyTitle}>Link programare specialist (Calendly)</Text>
+              </View>
+              <TextInput
+                testID="calendly-url-input"
+                value={calendlyUrl}
+                onChangeText={setCalendlyUrl}
+                placeholder="https://calendly.com/numele-tau/consultatie"
+                placeholderTextColor={theme.colors.textDisabled}
+                autoCapitalize="none"
+                style={styles.calendlyInput}
+              />
+              <TouchableOpacity testID="save-calendly-btn" style={[styles.calendlySaveBtn, calendlySaving && { opacity: 0.6 }]} onPress={saveCalendly} disabled={calendlySaving}>
+                {calendlySaving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.calendlySaveText}>Salvează</Text>}
+              </TouchableOpacity>
+            </View>
 
             <View style={styles.grid}>
               <StatCard icon="people" label="Utilizatori total" value={stats.users?.total || 0} color="#5E8B7E" />
@@ -469,6 +504,12 @@ const styles = StyleSheet.create({
   pregenIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.22)", alignItems: "center", justifyContent: "center" },
   pregenTitle: { color: "#fff", fontWeight: "700", fontSize: 14 },
   pregenText: { color: "rgba(255,255,255,0.9)", fontSize: 11, marginTop: 2 },
+  calendlyCard: { backgroundColor: theme.colors.surface, borderRadius: 16, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: theme.colors.border },
+  calendlyHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 },
+  calendlyTitle: { fontSize: 13, fontWeight: "700", color: theme.colors.textPrimary },
+  calendlyInput: { backgroundColor: theme.colors.surfaceElevated, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: theme.colors.textPrimary, marginBottom: 10 },
+  calendlySaveBtn: { backgroundColor: theme.colors.primary, borderRadius: 999, paddingVertical: 10, alignItems: "center" },
+  calendlySaveText: { color: "#fff", fontWeight: "700", fontSize: 13 },
   askCard: { backgroundColor: theme.colors.surface, borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: theme.colors.border },
   askQ: { fontSize: 15, fontWeight: "700", color: theme.colors.textPrimary, lineHeight: 21 },
   askDivider: { height: 1, backgroundColor: theme.colors.border, marginVertical: 12 },

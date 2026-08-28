@@ -11,6 +11,7 @@ const MENU = [
   { label: "Familie", route: "/family", icon: "people-circle" as const },
   { label: "Comunitate", route: "/forum", icon: "people" as const },
   { label: "Tabele comparative", route: "/compare", icon: "grid" as const },
+  { label: "Contactează un specialist", route: "/specialist", icon: "calendar" as const },
   { label: "Test profil copil", route: "/(tabs)/test", icon: "clipboard" as const },
   { label: "Întreabă specialistul", route: "/(tabs)/ask", icon: "chatbubbles" as const },
   { label: "Ghidul Specialistului", route: "/(tabs)/guide", icon: "library" as const },

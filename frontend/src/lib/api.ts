@@ -105,6 +105,9 @@ export const api = {
   adminFlagged: () => request("/admin/forum/flagged"),
   adminUserAskHistory: (id: string) => request(`/admin/users/${id}/ask-history`),
   adminPregenerateArticles: () => request("/admin/articles/pregenerate", { method: "POST" }),
+  getCalendlySettings: () => request("/settings/calendly"),
+  setCalendlySettings: (calendly_url: string) =>
+    request("/admin/settings/calendly", { method: "POST", body: { calendly_url } }),
   adminDeleteForumPost: (id: string) => request(`/admin/forum/posts/${id}`, { method: "DELETE" }),
   adminDeleteForumAnswer: (id: string) => request(`/admin/forum/answers/${id}`, { method: "DELETE" }),
 
