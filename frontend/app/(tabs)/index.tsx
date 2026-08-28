@@ -7,7 +7,16 @@ import { useAuth } from "@/src/lib/auth";
 import { storage } from "@/src/utils/storage";
 import { theme } from "@/src/lib/theme";
 
-type Category = { id: string; title: string; subtitle: string; color: string; icon: string; subtopics: { id: string; title: string }[] };
+type Category = { id: string; title: string; subtitle: string; color: string; icon: string; profiles?: string[]; subtopics: { id: string; title: string }[] };
+
+const PROFILE_FILTERS: { key: string; label: string }[] = [
+  { key: "toate", label: "Toate" },
+  { key: "supradotat", label: "Supradotat" },
+  { key: "adhd", label: "ADHD" },
+  { key: "autism", label: "Autism" },
+  { key: "sensibil", label: "Sensibilitate emoțională" },
+];
+const PROFILE_KEY = "categories_profile_filter";
 
 const DAILY_TIPS: { age: "3-6" | "6-10" | "10-14" | "14+" | "all"; text: string }[] = [
   { age: "all", text: "Conectează-te cu copilul tău înainte de a corecta. Comportamentul este o formă de comunicare." },
@@ -60,6 +69,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [ageGroup, setAgeGroup] = useState<string>("all");
+  const [profileFilter, setProfileFilter] = useState<string>("toate");
 
   const load = async () => {
     try { const res: any = await api.getCategories(); setCats(res.categories); } catch (e) { console.warn(e); }
@@ -68,12 +78,17 @@ export default function HomeScreen() {
     (async () => {
       const saved = await storage.getItem(AGE_KEY, "all");
       setAgeGroup(saved || "all");
+      const savedProfile = await storage.getItem(PROFILE_KEY, "toate");
+      setProfileFilter(savedProfile || "toate");
       await load();
       setLoading(false);
     })();
   }, []);
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
   const changeAge = async (a: string) => { setAgeGroup(a); await storage.setItem(AGE_KEY, a); };
+  const changeProfile = async (p: string) => { setProfileFilter(p); await storage.setItem(PROFILE_KEY, p); };
+
+  const visibleCats = profileFilter === "toate" ? cats : cats.filter(c => c.profiles?.includes(profileFilter));
 
   const tip = getDailyTip(ageGroup);
 
@@ -160,7 +175,21 @@ export default function HomeScreen() {
       </View>
 
       <Text style={styles.sectionTitle}>Categorii</Text>
-      {loading ? <ActivityIndicator color={theme.colors.primary} style={{ marginTop: 32 }} /> : cats.map((c, idx) => (
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexShrink: 0, marginBottom: 12 }} contentContainerStyle={{ gap: 8 }}>
+        {PROFILE_FILTERS.map((p) => (
+          <TouchableOpacity
+            key={p.key}
+            testID={`profile-filter-${p.key}`}
+            onPress={() => changeProfile(p.key)}
+            style={[styles.profileChip, profileFilter === p.key && styles.profileChipActive]}
+          >
+            <Text style={[styles.profileChipText, profileFilter === p.key && { color: "#fff", fontWeight: "700" }]}>{p.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+      {loading ? <ActivityIndicator color={theme.colors.primary} style={{ marginTop: 32 }} /> : visibleCats.length === 0 ? (
+        <Text style={styles.emptyCatsText}>Nicio categorie etichetată pentru acest profil încă.</Text>
+      ) : visibleCats.map((c, idx) => (
         <TouchableOpacity key={c.id} testID={`category-card-${idx}`} style={[styles.catCard, { borderLeftColor: c.color }]} onPress={() => router.push(`/category/${c.id}`)} activeOpacity={0.7}>
           <View style={[styles.catIcon, { backgroundColor: c.color + "22" }]}>
             <Ionicons name={c.icon as any} size={26} color={c.color} />
@@ -211,6 +240,10 @@ const styles = StyleSheet.create({
   ageChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.bg },
   ageChipActive: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
   ageChipText: { fontSize: 11, color: theme.colors.textPrimary, fontWeight: "500" },
+  profileChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface },
+  profileChipActive: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
+  profileChipText: { fontSize: 12, color: theme.colors.textPrimary, fontWeight: "500" },
+  emptyCatsText: { ...theme.font.body, color: theme.colors.textSecondary, textAlign: "center", paddingVertical: 24 },
   quickRow: { flexDirection: "row", gap: 10, marginBottom: 16 },
   quickCard: { flex: 1, padding: 14, borderRadius: 14, alignItems: "flex-start" },
   quickTitle: { color: "#fff", fontWeight: "700", fontSize: 13, marginTop: 8 },

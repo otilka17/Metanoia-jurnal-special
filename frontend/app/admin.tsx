@@ -42,6 +42,7 @@ export default function AdminScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [askViewer, setAskViewer] = useState<{ user: AdminUser; items: AskItem[] } | null>(null);
   const [askLoading, setAskLoading] = useState(false);
+  const [pregenLoading, setPregenLoading] = useState(false);
 
   const loadAll = useCallback(async () => {
     try {
@@ -111,6 +112,21 @@ export default function AdminScreen() {
     }
   };
 
+  const pregenerateArticles = async () => {
+    setPregenLoading(true);
+    try {
+      const r: any = await api.adminPregenerateArticles();
+      Alert.alert(
+        "Pornit ✓",
+        `${r.already_cached}/${r.total} articole erau deja generate. Se generează acum ${r.generating} lipsă, în fundal — poate dura câteva minute.`
+      );
+    } catch (e: any) {
+      Alert.alert("Eroare", e.message || "Nu am putut porni pre-generarea");
+    } finally {
+      setPregenLoading(false);
+    }
+  };
+
   const toggleAdmin = async (u: AdminUser) => {
     try {
       const r: any = await api.adminToggleAdmin(u.id);
@@ -175,6 +191,16 @@ export default function AdminScreen() {
       >
         {tab === "overview" && stats && (
           <>
+            <TouchableOpacity testID="pregen-articles-btn" style={[styles.pregenCard, pregenLoading && { opacity: 0.6 }]} onPress={pregenerateArticles} disabled={pregenLoading}>
+              <View style={styles.pregenIcon}>
+                {pregenLoading ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="flash" size={20} color="#fff" />}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.pregenTitle}>Pre-generează toate articolele</Text>
+                <Text style={styles.pregenText}>Generează din timp articolele AI lipsă din Mind Map, ca niciun utilizator să nu mai aștepte</Text>
+              </View>
+            </TouchableOpacity>
+
             <View style={styles.grid}>
               <StatCard icon="people" label="Utilizatori total" value={stats.users?.total || 0} color="#5E8B7E" />
               <StatCard icon="person-add" label="Noi (7 zile)" value={stats.users?.new_last_7_days || 0} color="#7A9E9F" />
@@ -439,6 +465,10 @@ const styles = StyleSheet.create({
   deleteBtnText: { color: "#B56B6B", fontWeight: "700", fontSize: 12 },
   empty: { alignItems: "center", paddingVertical: 40, paddingHorizontal: 24 },
   emptyText: { fontSize: 13, color: theme.colors.textSecondary, textAlign: "center" },
+  pregenCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#6E8FD8", borderRadius: 16, padding: 14, marginBottom: 16 },
+  pregenIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.22)", alignItems: "center", justifyContent: "center" },
+  pregenTitle: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  pregenText: { color: "rgba(255,255,255,0.9)", fontSize: 11, marginTop: 2 },
   askCard: { backgroundColor: theme.colors.surface, borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: theme.colors.border },
   askQ: { fontSize: 15, fontWeight: "700", color: theme.colors.textPrimary, lineHeight: 21 },
   askDivider: { height: 1, backgroundColor: theme.colors.border, marginVertical: 12 },

@@ -104,6 +104,7 @@ export const api = {
   adminToggleAdmin: (id: string) => request(`/admin/users/${id}/toggle-admin`, { method: "POST" }),
   adminFlagged: () => request("/admin/forum/flagged"),
   adminUserAskHistory: (id: string) => request(`/admin/users/${id}/ask-history`),
+  adminPregenerateArticles: () => request("/admin/articles/pregenerate", { method: "POST" }),
   adminDeleteForumPost: (id: string) => request(`/admin/forum/posts/${id}`, { method: "DELETE" }),
   adminDeleteForumAnswer: (id: string) => request(`/admin/forum/answers/${id}`, { method: "DELETE" }),
 

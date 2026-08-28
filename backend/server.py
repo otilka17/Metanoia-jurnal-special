@@ -77,6 +77,7 @@ CATEGORIES = [
         "subtitle": "Decalaj, supraexcitabilități și dublă excepționalitate",
         "color": "#7A9E9F",
         "icon": "sparkles",
+        "profiles": ["supradotat", "adhd", "autism"],
         "subtopics": [
             {"id": "sub-1-1", "title": "Dezvoltare Asincronă", "points": [
                 "Decalaj vârstă mentală vs. emoțională",
@@ -103,6 +104,7 @@ CATEGORIES = [
         "subtitle": "Autoreglare, calm și conectare",
         "color": "#E8C37C",
         "icon": "heart",
+        "profiles": ["supradotat", "adhd", "autism", "sensibil"],
         "subtopics": [
             {"id": "sub-2-1", "title": "Autoreglare și Calm", "points": [
                 "Rămânerea calmă pentru de-escaladare",
@@ -122,6 +124,7 @@ CATEGORIES = [
         "subtitle": "Fermitate, predictibilitate și consecințe",
         "color": "#DE8F6E",
         "icon": "shield-checkmark",
+        "profiles": ["supradotat", "adhd", "autism", "sensibil"],
         "subtopics": [
             {"id": "sub-3-1", "title": "Fermitate vs. Control", "points": [
                 "Responsabilitate caldă vs. Jocuri de putere",
@@ -146,6 +149,7 @@ CATEGORIES = [
         "subtitle": "Suport acasă și strategii la școală",
         "color": "#5E8B7E",
         "icon": "flash",
+        "profiles": ["adhd", "supradotat"],
         "subtopics": [
             {"id": "sub-4-1", "title": "Suport Acasă", "points": [
                 "Fragmentarea sarcinilor în pași mici",
@@ -166,6 +170,7 @@ CATEGORIES = [
         "subtitle": "Intervenție și recuperare",
         "color": "#B56B6B",
         "icon": "thunderstorm",
+        "profiles": ["autism", "sensibil", "adhd"],
         "subtopics": [
             {"id": "sub-5-1", "title": "Intervenție în Momentul Critic", "points": [
                 "Monitorizarea factorilor declanșatori",
@@ -738,13 +743,8 @@ def find_subtopic(subtopic_id: str):
                 return cat, sub
     return None, None
 
-@api_router.get("/article/{subtopic_id}")
-async def get_article(subtopic_id: str, user: dict = Depends(get_current_user)):
-    # Check cache
-    cached = await db.articles.find_one({"subtopic_id": subtopic_id}, {"_id": 0})
-    if cached:
-        return cached
-
+async def generate_article(subtopic_id: str) -> dict:
+    """Generates (via Claude) and caches the article for one subtopic. Raises on failure."""
     cat, sub = find_subtopic(subtopic_id)
     if not sub:
         raise HTTPException(status_code=404, detail="Subiect inexistent")
@@ -755,7 +755,7 @@ async def get_article(subtopic_id: str, user: dict = Depends(get_current_user)):
         "Scrii articole educaționale pentru părinți români. Folosești limba română corectă, ton cald, empatic și practic. "
         "Răspunzi strict în format JSON valid, fără text suplimentar."
     ) + RO_CAPITALIZATION_RULE
-    prompt = f"""Scrie un articol educațional pentru părinți despre tema: "{sub['title']}" 
+    prompt = f"""Scrie un articol educațional pentru părinți despre tema: "{sub['title']}"
 (din categoria "{cat['title']}").
 
 Puncte cheie de acoperit:
@@ -810,6 +810,37 @@ Răspunde STRICT în format JSON valid (fără markdown, fără ```json), cu str
     await db.articles.insert_one(article.copy())
     article.pop("_id", None)
     return article
+
+
+@api_router.get("/article/{subtopic_id}")
+async def get_article(subtopic_id: str, user: dict = Depends(get_current_user)):
+    cached = await db.articles.find_one({"subtopic_id": subtopic_id}, {"_id": 0})
+    if cached:
+        return cached
+    return await generate_article(subtopic_id)
+
+
+async def _pregenerate_all_articles():
+    all_subtopic_ids = [sub["id"] for cat in CATEGORIES for sub in cat["subtopics"]]
+    cached_ids = set(await db.articles.distinct("subtopic_id", {"subtopic_id": {"$in": all_subtopic_ids}}))
+    missing = [sid for sid in all_subtopic_ids if sid not in cached_ids]
+    logger.info(f"Pre-generating {len(missing)} of {len(all_subtopic_ids)} articles (rest already cached)")
+    for sid in missing:
+        try:
+            await generate_article(sid)
+            logger.info(f"Pre-generated article for {sid}")
+        except Exception:
+            logger.exception(f"Pre-generation failed for {sid}")
+
+
+@api_router.post("/admin/articles/pregenerate")
+async def admin_pregenerate_articles(admin: dict = Depends(require_admin)):
+    """Kicks off (in the background) generating+caching every subtopic article that isn't cached yet."""
+    all_subtopic_ids = [sub["id"] for cat in CATEGORIES for sub in cat["subtopics"]]
+    cached_ids = set(await db.articles.distinct("subtopic_id", {"subtopic_id": {"$in": all_subtopic_ids}}))
+    missing_count = len(all_subtopic_ids) - len(cached_ids)
+    asyncio.create_task(_pregenerate_all_articles())
+    return {"ok": True, "total": len(all_subtopic_ids), "already_cached": len(cached_ids), "generating": missing_count}
 
 
 # ============ BOOKMARKS ============
