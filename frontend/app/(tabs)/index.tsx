@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Modal, Pressable, TextInput } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { Alert } from "@/src/lib/alert";
 import { api } from "@/src/lib/api";
 import { useAuth } from "@/src/lib/auth";
 import { storage } from "@/src/utils/storage";
 import { theme } from "@/src/lib/theme";
 
 type Category = { id: string; title: string; subtitle: string; color: string; icon: string; profiles?: string[]; subtopics: { id: string; title: string }[] };
+type Review = { id: string; author_name: string; rating: number; comment: string; created_at: string; is_mine: boolean };
 
 const PROFILE_FILTERS: { key: string; label: string }[] = [
   { key: "toate", label: "Toate" },
@@ -70,9 +72,24 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [ageGroup, setAgeGroup] = useState<string>("all");
   const [profileFilter, setProfileFilter] = useState<string>("toate");
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewsAvg, setReviewsAvg] = useState(0);
+  const [reviewsCount, setReviewsCount] = useState(0);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [myRating, setMyRating] = useState(0);
+  const [myComment, setMyComment] = useState("");
+  const [savingReview, setSavingReview] = useState(false);
 
   const load = async () => {
     try { const res: any = await api.getCategories(); setCats(res.categories); } catch (e) { console.warn(e); }
+  };
+  const loadReviews = async () => {
+    try {
+      const res: any = await api.listReviews();
+      setReviews(res.reviews || []);
+      setReviewsAvg(res.average || 0);
+      setReviewsCount(res.count || 0);
+    } catch (e) { console.warn(e); }
   };
   useEffect(() => {
     (async () => {
@@ -80,12 +97,46 @@ export default function HomeScreen() {
       setAgeGroup(saved || "all");
       const savedProfile = await storage.getItem(PROFILE_KEY, "toate");
       setProfileFilter(savedProfile || "toate");
-      await load();
+      await Promise.all([load(), loadReviews()]);
       setLoading(false);
     })();
   }, []);
-  const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
+  const onRefresh = async () => { setRefreshing(true); await Promise.all([load(), loadReviews()]); setRefreshing(false); };
   const changeAge = async (a: string) => { setAgeGroup(a); await storage.setItem(AGE_KEY, a); };
+
+  const myReview = reviews.find(r => r.is_mine);
+  const openReviewModal = () => {
+    setMyRating(myReview?.rating || 0);
+    setMyComment(myReview?.comment || "");
+    setShowReviewModal(true);
+  };
+  const saveReview = async () => {
+    if (myRating < 1) { Alert.alert("Alege un rating", "Selectează cel puțin o stea."); return; }
+    setSavingReview(true);
+    try {
+      await api.upsertReview(myRating, myComment.trim());
+      setShowReviewModal(false);
+      await loadReviews();
+    } catch (e: any) {
+      Alert.alert("Eroare", e.message || "Nu am putut salva recenzia");
+    } finally {
+      setSavingReview(false);
+    }
+  };
+  const deleteReview = (r: Review) => {
+    Alert.alert("Șterge recenzia?", "", [
+      { text: "Anulează", style: "cancel" },
+      {
+        text: "Șterge", style: "destructive", onPress: async () => {
+          try {
+            if (r.is_mine) await api.deleteMyReview();
+            else await api.adminDeleteReview(r.id);
+            await loadReviews();
+          } catch (e: any) { Alert.alert("Eroare", e.message || "Eroare la ștergere"); }
+        },
+      },
+    ]);
+  };
   const changeProfile = async (p: string) => { setProfileFilter(p); await storage.setItem(PROFILE_KEY, p); };
 
   const visibleCats = profileFilter === "toate" ? cats : cats.filter(c => c.profiles?.includes(profileFilter));
@@ -202,6 +253,77 @@ export default function HomeScreen() {
           <Ionicons name="chevron-forward" size={22} color={theme.colors.textDisabled} />
         </TouchableOpacity>
       ))}
+
+      <View style={styles.reviewsHeader}>
+        <Text style={styles.sectionTitle}>Recenzii</Text>
+        {reviewsCount > 0 && (
+          <View style={styles.reviewsAvgRow}>
+            <Ionicons name="star" size={16} color="#E8C37C" />
+            <Text style={styles.reviewsAvgText}>{reviewsAvg.toFixed(1)} · {reviewsCount} {reviewsCount === 1 ? "recenzie" : "recenzii"}</Text>
+          </View>
+        )}
+      </View>
+
+      <TouchableOpacity testID="add-review-btn" style={styles.addReviewBtn} onPress={openReviewModal}>
+        <Ionicons name={myReview ? "create-outline" : "star-outline"} size={18} color={theme.colors.primary} />
+        <Text style={styles.addReviewText}>{myReview ? "Editează recenzia mea" : "Lasă o recenzie"}</Text>
+      </TouchableOpacity>
+
+      {reviews.length === 0 ? (
+        <Text style={styles.emptyCatsText}>Nicio recenzie încă. Fii prima!</Text>
+      ) : reviews.map((r) => (
+        <View key={r.id} style={styles.reviewCard} testID={`review-${r.id}`}>
+          <View style={styles.reviewHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.reviewAuthor}>{r.author_name}{r.is_mine ? " (tu)" : ""}</Text>
+              <View style={styles.reviewStars}>
+                {[1, 2, 3, 4, 5].map(i => (
+                  <Ionicons key={i} name={i <= r.rating ? "star" : "star-outline"} size={13} color="#E8C37C" />
+                ))}
+              </View>
+            </View>
+            {(r.is_mine || user?.is_admin) && (
+              <TouchableOpacity testID={`delete-review-${r.id}`} onPress={() => deleteReview(r)}>
+                <Ionicons name="trash-outline" size={16} color={theme.colors.textDisabled} />
+              </TouchableOpacity>
+            )}
+          </View>
+          {!!r.comment && <Text style={styles.reviewComment}>{r.comment}</Text>}
+        </View>
+      ))}
+
+      <Modal visible={showReviewModal} transparent animationType="fade" onRequestClose={() => !savingReview && setShowReviewModal(false)}>
+        <Pressable style={styles.modalBg} onPress={() => !savingReview && setShowReviewModal(false)}>
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.modalTitle}>{myReview ? "Editează recenzia" : "Lasă o recenzie"}</Text>
+            <View style={styles.starPicker}>
+              {[1, 2, 3, 4, 5].map(i => (
+                <TouchableOpacity key={i} testID={`star-${i}`} onPress={() => setMyRating(i)}>
+                  <Ionicons name={i <= myRating ? "star" : "star-outline"} size={34} color="#E8C37C" style={{ marginHorizontal: 3 }} />
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput
+              testID="review-comment-input"
+              style={styles.modalInput}
+              placeholder="Ce ți-a plăcut / ce ai îmbunătăți? (opțional)"
+              placeholderTextColor={theme.colors.textDisabled}
+              value={myComment}
+              onChangeText={setMyComment}
+              multiline
+              maxLength={500}
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity testID="review-cancel" style={styles.modalBtnOutline} onPress={() => setShowReviewModal(false)} disabled={savingReview}>
+                <Text style={styles.modalBtnOutlineText}>Anulează</Text>
+              </TouchableOpacity>
+              <TouchableOpacity testID="review-save" style={[styles.modalBtn, savingReview && { opacity: 0.5 }]} onPress={saveReview} disabled={savingReview}>
+                {savingReview ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalBtnText}>Salvează</Text>}
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScrollView>
   );
 }
@@ -244,6 +366,26 @@ const styles = StyleSheet.create({
   profileChipActive: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
   profileChipText: { fontSize: 12, color: theme.colors.textPrimary, fontWeight: "500" },
   emptyCatsText: { ...theme.font.body, color: theme.colors.textSecondary, textAlign: "center", paddingVertical: 24 },
+  reviewsHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 },
+  reviewsAvgRow: { flexDirection: "row", alignItems: "center", gap: 5 },
+  reviewsAvgText: { fontSize: 13, color: theme.colors.textSecondary, fontWeight: "600" },
+  addReviewBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 999, paddingVertical: 12, marginBottom: 14 },
+  addReviewText: { color: theme.colors.primary, fontWeight: "700", fontSize: 14 },
+  reviewCard: { backgroundColor: theme.colors.surface, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: theme.colors.border },
+  reviewHeader: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" },
+  reviewAuthor: { fontSize: 13, fontWeight: "700", color: theme.colors.textPrimary },
+  reviewStars: { flexDirection: "row", gap: 1, marginTop: 3 },
+  reviewComment: { fontSize: 13, color: theme.colors.textSecondary, lineHeight: 19, marginTop: 8 },
+  modalBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "center", paddingHorizontal: 28 },
+  modalCard: { backgroundColor: theme.colors.surface, borderRadius: 20, padding: 24, alignItems: "center" },
+  modalTitle: { ...theme.font.h3, color: theme.colors.textPrimary, marginBottom: 16, textAlign: "center" },
+  starPicker: { flexDirection: "row", marginBottom: 18 },
+  modalInput: { alignSelf: "stretch", backgroundColor: theme.colors.surfaceElevated, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: theme.colors.textPrimary, marginBottom: 16, minHeight: 70, textAlignVertical: "top" },
+  modalActions: { flexDirection: "row", gap: 10, alignSelf: "stretch" },
+  modalBtn: { flex: 1, paddingVertical: 14, borderRadius: 999, alignItems: "center", backgroundColor: theme.colors.primary },
+  modalBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  modalBtnOutline: { flex: 1, paddingVertical: 14, borderRadius: 999, alignItems: "center", borderWidth: 1.5, borderColor: theme.colors.border },
+  modalBtnOutlineText: { color: theme.colors.textPrimary, fontWeight: "600", fontSize: 14 },
   quickRow: { flexDirection: "row", gap: 10, marginBottom: 16 },
   quickCard: { flex: 1, padding: 14, borderRadius: 14, alignItems: "flex-start" },
   quickTitle: { color: "#fff", fontWeight: "700", fontSize: 13, marginTop: 8 },

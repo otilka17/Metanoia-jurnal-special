@@ -249,6 +249,12 @@ class ForumAnswerCreate(BaseModel):
     is_anonymous: bool = False
 
 
+# ============ REVIEW MODELS ============
+class ReviewCreate(BaseModel):
+    rating: int = Field(ge=1, le=5)
+    comment: str = ""
+
+
 # ============ FAMILY MODELS ============
 class FamilyJoinRequest(BaseModel):
     code: str
@@ -1826,6 +1832,51 @@ async def delete_answer(answer_id: str, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Nu poți șterge răspunsurile altor utilizatori")
     await db.forum_answers.delete_one({"id": answer_id})
     await db.forum_posts.update_one({"id": a["post_id"]}, {"$inc": {"answer_count": -1}})
+    return {"ok": True}
+
+
+# ============ REVIEWS ============
+@api_router.get("/reviews")
+async def list_reviews(user: dict = Depends(get_current_user)):
+    items = await db.reviews.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    count = len(items)
+    avg = round(sum(r["rating"] for r in items) / count, 1) if count else 0
+    out = [{**r, "is_mine": r["user_id"] == user["id"]} for r in items]
+    return {"reviews": out, "average": avg, "count": count}
+
+
+@api_router.post("/reviews")
+async def upsert_review(data: ReviewCreate, user: dict = Depends(get_current_user)):
+    comment = data.comment.strip()[:500]
+    existing = await db.reviews.find_one({"user_id": user["id"]})
+    if existing:
+        await db.reviews.update_one(
+            {"user_id": user["id"]},
+            {"$set": {"rating": data.rating, "comment": comment, "created_at": datetime.now(timezone.utc).isoformat()}},
+        )
+    else:
+        await db.reviews.insert_one({
+            "id": str(uuid.uuid4()),
+            "user_id": user["id"],
+            "author_name": user["name"],
+            "rating": data.rating,
+            "comment": comment,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+    return {"ok": True}
+
+
+@api_router.delete("/reviews/mine")
+async def delete_my_review(user: dict = Depends(get_current_user)):
+    await db.reviews.delete_one({"user_id": user["id"]})
+    return {"ok": True}
+
+
+@api_router.delete("/admin/reviews/{review_id}")
+async def admin_delete_review(review_id: str, admin: dict = Depends(require_admin)):
+    result = await db.reviews.delete_one({"id": review_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Recenzie inexistentă")
     return {"ok": True}
 
 

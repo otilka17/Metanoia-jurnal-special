@@ -118,6 +118,13 @@ export const api = {
   resetPassword: (email: string, code: string, new_password: string) =>
     request("/auth/reset-password", { method: "POST", body: { email, code, new_password }, auth: false }),
 
+  // Reviews
+  listReviews: () => request("/reviews"),
+  upsertReview: (rating: number, comment: string) =>
+    request("/reviews", { method: "POST", body: { rating, comment } }),
+  deleteMyReview: () => request("/reviews/mine", { method: "DELETE" }),
+  adminDeleteReview: (id: string) => request(`/admin/reviews/${id}`, { method: "DELETE" }),
+
   // Comparison tables
   listComparisons: () => request("/compare"),
   getComparison: (id: string) => request(`/compare/${id}`),
