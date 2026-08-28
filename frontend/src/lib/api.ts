@@ -106,9 +106,9 @@ export const api = {
   adminUserAskHistory: (id: string) => request(`/admin/users/${id}/ask-history`),
   adminPregenerateArticles: () => request("/admin/articles/pregenerate", { method: "POST" }),
   listSpecialists: () => request("/specialists"),
-  adminCreateSpecialist: (data: { name: string; title: string; specialization: string; calendly_url: string }) =>
+  adminCreateSpecialist: (data: { name: string; title: string; specialization: string; calendly_url: string; photo_url?: string }) =>
     request("/admin/specialists", { method: "POST", body: data }),
-  adminUpdateSpecialist: (id: string, data: { name: string; title: string; specialization: string; calendly_url: string }) =>
+  adminUpdateSpecialist: (id: string, data: { name: string; title: string; specialization: string; calendly_url: string; photo_url?: string }) =>
     request(`/admin/specialists/${id}`, { method: "PUT", body: data }),
   adminDeleteSpecialist: (id: string) => request(`/admin/specialists/${id}`, { method: "DELETE" }),
   adminDeleteForumPost: (id: string) => request(`/admin/forum/posts/${id}`, { method: "DELETE" }),

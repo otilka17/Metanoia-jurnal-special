@@ -261,6 +261,7 @@ class SpecialistCreate(BaseModel):
     title: str = ""
     specialization: str = ""
     calendly_url: str
+    photo_url: str = ""
 
 
 # ============ FAMILY MODELS ============
@@ -1900,12 +1901,15 @@ async def create_specialist(data: SpecialistCreate, admin: dict = Depends(requir
     url = data.calendly_url.strip()
     if not url.startswith("https://"):
         raise HTTPException(status_code=400, detail="Linkul trebuie să înceapă cu https://")
+    if len(data.photo_url) > 2_000_000:
+        raise HTTPException(status_code=400, detail="Poza este prea mare")
     doc = {
         "id": str(uuid.uuid4()),
         "name": data.name.strip(),
         "title": data.title.strip(),
         "specialization": data.specialization.strip(),
         "calendly_url": url,
+        "photo_url": data.photo_url,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.specialists.insert_one(doc.copy())
@@ -1918,6 +1922,8 @@ async def update_specialist(specialist_id: str, data: SpecialistCreate, admin: d
     url = data.calendly_url.strip()
     if not url.startswith("https://"):
         raise HTTPException(status_code=400, detail="Linkul trebuie să înceapă cu https://")
+    if len(data.photo_url) > 2_000_000:
+        raise HTTPException(status_code=400, detail="Poza este prea mare")
     result = await db.specialists.update_one(
         {"id": specialist_id},
         {"$set": {
@@ -1925,6 +1931,7 @@ async def update_specialist(specialist_id: str, data: SpecialistCreate, admin: d
             "title": data.title.strip(),
             "specialization": data.specialization.strip(),
             "calendly_url": url,
+            "photo_url": data.photo_url,
         }},
     )
     if result.matched_count == 0:

@@ -9,8 +9,10 @@ import {
   ActivityIndicator,
   RefreshControl,
   Modal,
-  Pressable
+  Pressable,
+  Image
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { Alert } from "@/src/lib/alert";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -29,7 +31,7 @@ type AdminUser = {
 };
 type FlaggedItem = { id: string; content: string; display_name: string; flag_count: number; created_at: string; title?: string; category?: string; post_id?: string };
 type AskItem = { id: string; question: string; answer: string; created_at: string };
-type Specialist = { id: string; name: string; title: string; specialization: string; calendly_url: string };
+type Specialist = { id: string; name: string; title: string; specialization: string; calendly_url: string; photo_url?: string };
 
 export default function AdminScreen() {
   const router = useRouter();
@@ -51,6 +53,7 @@ export default function AdminScreen() {
   const [specTitle, setSpecTitle] = useState("");
   const [specSpecialization, setSpecSpecialization] = useState("");
   const [specUrl, setSpecUrl] = useState("");
+  const [specPhoto, setSpecPhoto] = useState("");
   const [specSaving, setSpecSaving] = useState(false);
 
   const loadAll = useCallback(async () => {
@@ -140,20 +143,40 @@ export default function AdminScreen() {
 
   const openAddSpecialist = () => {
     setEditingSpec(null);
-    setSpecName(""); setSpecTitle(""); setSpecSpecialization(""); setSpecUrl("");
+    setSpecName(""); setSpecTitle(""); setSpecSpecialization(""); setSpecUrl(""); setSpecPhoto("");
     setShowSpecModal(true);
   };
   const openEditSpecialist = (s: Specialist) => {
     setEditingSpec(s);
     setSpecName(s.name); setSpecTitle(s.title); setSpecSpecialization(s.specialization); setSpecUrl(s.calendly_url);
+    setSpecPhoto(s.photo_url || "");
     setShowSpecModal(true);
+  };
+  const pickSpecialistPhoto = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) { Alert.alert("Acces necesar", "Permite accesul la poze pentru a putea alege o imagine."); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      quality: 0.5,
+      base64: true,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+    if (result.canceled || !result.assets?.[0]?.base64) return;
+    const asset = result.assets[0];
+    const dataUri = `data:${asset.mimeType || "image/jpeg"};base64,${asset.base64}`;
+    if (dataUri.length > 1_500_000) {
+      Alert.alert("Poză prea mare", "Alege o poză mai mică sau cu o calitate mai redusă.");
+      return;
+    }
+    setSpecPhoto(dataUri);
   };
   const saveSpecialist = async () => {
     if (!specName.trim()) { Alert.alert("Nume lipsă", "Scrie numele specialistului."); return; }
     if (!specUrl.trim().startsWith("https://")) { Alert.alert("Link invalid", "Linkul Calendly trebuie să înceapă cu https://"); return; }
     setSpecSaving(true);
     try {
-      const data = { name: specName.trim(), title: specTitle.trim(), specialization: specSpecialization.trim(), calendly_url: specUrl.trim() };
+      const data = { name: specName.trim(), title: specTitle.trim(), specialization: specSpecialization.trim(), calendly_url: specUrl.trim(), photo_url: specPhoto };
       if (editingSpec) await api.adminUpdateSpecialist(editingSpec.id, data);
       else await api.adminCreateSpecialist(data);
       setShowSpecModal(false);
@@ -252,6 +275,13 @@ export default function AdminScreen() {
               </View>
               {specialists.map((s) => (
                 <View key={s.id} style={styles.specRow}>
+                  {s.photo_url ? (
+                    <Image source={{ uri: s.photo_url }} style={styles.specThumb} />
+                  ) : (
+                    <View style={styles.specThumbPlaceholder}>
+                      <Ionicons name="person" size={16} color={theme.colors.primary} />
+                    </View>
+                  )}
                   <View style={{ flex: 1 }}>
                     <Text style={styles.specName}>{s.name}</Text>
                     <Text style={styles.specMeta} numberOfLines={1}>{[s.title, s.specialization].filter(Boolean).join(" · ") || s.calendly_url}</Text>
@@ -462,6 +492,16 @@ export default function AdminScreen() {
         <Pressable style={styles.modalBg} onPress={() => !specSaving && setShowSpecModal(false)}>
           <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
             <Text style={styles.modalTitle}>{editingSpec ? "Editează specialist" : "Adaugă specialist"}</Text>
+            <TouchableOpacity testID="spec-photo-pick" style={styles.specPhotoPicker} onPress={pickSpecialistPhoto}>
+              {specPhoto ? (
+                <Image source={{ uri: specPhoto }} style={styles.specPhotoPreview} />
+              ) : (
+                <View style={styles.specPhotoPlaceholder}>
+                  <Ionicons name="camera" size={22} color={theme.colors.primary} />
+                </View>
+              )}
+              <Text style={styles.specPhotoText}>{specPhoto ? "Schimbă poza" : "Adaugă poza"}</Text>
+            </TouchableOpacity>
             <TextInput testID="spec-name-input" value={specName} onChangeText={setSpecName} placeholder="Nume (ex. Ana Popescu)" placeholderTextColor={theme.colors.textDisabled} style={styles.modalInput} />
             <TextInput testID="spec-title-input" value={specTitle} onChangeText={setSpecTitle} placeholder="Titlu (ex. Psiholog clinician)" placeholderTextColor={theme.colors.textDisabled} style={styles.modalInput} />
             <TextInput testID="spec-specialization-input" value={specSpecialization} onChangeText={setSpecSpecialization} placeholder="Specializare (ex. ADHD, Autism)" placeholderTextColor={theme.colors.textDisabled} style={styles.modalInput} />
@@ -568,6 +608,12 @@ const styles = StyleSheet.create({
   specMeta: { fontSize: 11, color: theme.colors.textSecondary, marginTop: 2 },
   specIconBtn: { padding: 6 },
   specEmpty: { fontSize: 12, color: theme.colors.textSecondary, paddingVertical: 10, textAlign: "center" },
+  specThumb: { width: 36, height: 36, borderRadius: 18 },
+  specThumbPlaceholder: { width: 36, height: 36, borderRadius: 18, backgroundColor: theme.colors.primary + "18", alignItems: "center", justifyContent: "center" },
+  specPhotoPicker: { alignItems: "center", justifyContent: "center", alignSelf: "center", marginBottom: 12 },
+  specPhotoPreview: { width: 72, height: 72, borderRadius: 36 },
+  specPhotoPlaceholder: { width: 72, height: 72, borderRadius: 36, backgroundColor: theme.colors.primary + "18", alignItems: "center", justifyContent: "center" },
+  specPhotoText: { fontSize: 12, color: theme.colors.primary, fontWeight: "600", marginTop: 6 },
   modalBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "center", paddingHorizontal: 28 },
   modalCard: { backgroundColor: theme.colors.surface, borderRadius: 20, padding: 24, alignItems: "center" },
   modalTitle: { fontSize: 18, fontWeight: "700", color: theme.colors.textPrimary, marginBottom: 16, textAlign: "center" },

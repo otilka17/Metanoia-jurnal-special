@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Linking, ActivityIndicator, ScrollView } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Linking, ActivityIndicator, ScrollView, Image } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -7,7 +7,7 @@ import { Alert } from "@/src/lib/alert";
 import { api } from "@/src/lib/api";
 import { theme } from "@/src/lib/theme";
 
-type Specialist = { id: string; name: string; title: string; specialization: string; calendly_url: string };
+type Specialist = { id: string; name: string; title: string; specialization: string; calendly_url: string; photo_url?: string };
 
 export default function SpecialistScreen() {
   const router = useRouter();
@@ -66,9 +66,13 @@ export default function SpecialistScreen() {
           </Text>
           {specialists.map((s) => (
             <View key={s.id} style={styles.card} testID={`specialist-${s.id}`}>
-              <View style={styles.cardAvatar}>
-                <Ionicons name="person" size={24} color={theme.colors.primary} />
-              </View>
+              {s.photo_url ? (
+                <Image source={{ uri: s.photo_url }} style={styles.cardAvatarImg} />
+              ) : (
+                <View style={styles.cardAvatar}>
+                  <Ionicons name="person" size={24} color={theme.colors.primary} />
+                </View>
+              )}
               <View style={{ flex: 1 }}>
                 <Text style={styles.cardName}>{s.name}</Text>
                 {!!s.title && <Text style={styles.cardTitleText}>{s.title}</Text>}
@@ -105,6 +109,7 @@ const styles = StyleSheet.create({
   intro: { ...theme.font.body, color: theme.colors.textSecondary, textAlign: "center", lineHeight: 22, marginBottom: 20 },
   card: { flexDirection: "row", gap: 14, backgroundColor: theme.colors.surface, borderRadius: 16, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: theme.colors.border },
   cardAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: theme.colors.primary + "18", alignItems: "center", justifyContent: "center" },
+  cardAvatarImg: { width: 48, height: 48, borderRadius: 24 },
   cardName: { fontSize: 16, fontWeight: "700", color: theme.colors.textPrimary },
   cardTitleText: { fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 },
   cardSpec: { fontSize: 12, color: theme.colors.primary, fontWeight: "600", marginTop: 4 },
