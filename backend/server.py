@@ -23,7 +23,7 @@ from html import escape as html_escape
 from html.parser import HTMLParser
 from urllib.parse import urlparse as _urlparse
 
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+import anthropic
 from comparison_tables import COMPARISON_TABLES, COMPARISON_MAP
 
 ROOT_DIR = Path(__file__).parent
@@ -37,7 +37,20 @@ db = client[os.environ['DB_NAME']]
 JWT_SECRET = os.environ['JWT_SECRET']
 JWT_ALGORITHM = os.environ['JWT_ALGORITHM']
 JWT_EXPIRE_DAYS = int(os.environ['JWT_EXPIRE_DAYS'])
-EMERGENT_LLM_KEY = os.environ['EMERGENT_LLM_KEY']
+
+CLAUDE_MODEL = "claude-sonnet-4-5-20250929"
+_anthropic_client = anthropic.AsyncAnthropic(api_key=os.environ['ANTHROPIC_API_KEY'])
+
+
+async def call_claude(system_message: str, messages: list, max_tokens: int = 3000) -> str:
+    resp = await _anthropic_client.messages.create(
+        model=CLAUDE_MODEL,
+        max_tokens=max_tokens,
+        system=system_message,
+        messages=messages,
+    )
+    return "".join(block.text for block in resp.content if getattr(block, "type", None) == "text")
+
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -322,10 +335,10 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
 SUPER_ADMIN_EMAIL = "otilia.ioana96@gmail.com"
 
-# ============ EMAIL (Emergent-managed Resend) ============
-EMAIL_BASE_URL = "https://integrations.emergentagent.com"
-EMAIL_KEY = os.environ.get("EMERGENT_EMAIL_KEY", "")
+# ============ EMAIL (Resend) ============
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "Ghid Părinte")
+EMAIL_FROM_ADDRESS = os.environ.get("EMAIL_FROM_ADDRESS", "onboarding@resend.dev")
 
 _SHORTENERS = ("bit.ly", "tinyurl.com", "t.co", "is.gd", "cutt.ly", "goo.gl", "rebrand.ly")
 _CRED_ASK = ("reply with your password", "reply with the code", "send your password", "cvv",
@@ -399,12 +412,17 @@ def _assert_safe_email(subject: str, html: str) -> None:
 
 async def send_email(*, to: str, subject: str, html: str) -> Optional[str]:
     _assert_safe_email(subject, html)
-    payload = {"to": [to], "subject": subject, "html": html, "from_name": EMAIL_FROM_NAME}
+    payload = {
+        "from": f"{EMAIL_FROM_NAME} <{EMAIL_FROM_ADDRESS}>",
+        "to": [to],
+        "subject": subject,
+        "html": html,
+    }
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(
-                f"{EMAIL_BASE_URL}/api/v1/email/send",
-                headers={"X-Email-Key": EMAIL_KEY},
+                "https://api.resend.com/emails",
+                headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
                 json=payload,
             )
         resp.raise_for_status()
@@ -745,12 +763,7 @@ Răspunde STRICT în format JSON valid (fără markdown, fără ```json), cu str
 }}"""
 
     try:
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"article-{subtopic_id}",
-            system_message=system_msg,
-        ).with_model("anthropic", "claude-sonnet-4-5-20250929")
-        response_text = await chat.send_message(UserMessage(text=prompt))
+        response_text = await call_claude(system_msg, [{"role": "user", "content": prompt}])
 
         # Parse JSON
         import json, re
@@ -901,12 +914,7 @@ async def quick_explain(data: QuickExplainRequest, user: dict = Depends(get_curr
         f"Răspunde cu text simplu, fără markdown, fără titluri."
     )
     try:
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"qe-{uuid.uuid4()}",
-            system_message=system_msg,
-        ).with_model("anthropic", "claude-sonnet-4-5-20250929")
-        text = await chat.send_message(UserMessage(text=prompt))
+        text = await call_claude(system_msg, [{"role": "user", "content": prompt}], max_tokens=300)
         explanation = text.strip()
         await db.quick_explains.insert_one({"key": cache_key, "explanation": explanation})
         return {"explanation": explanation}
@@ -999,13 +1007,19 @@ async def ask_specialist(data: AskRequest, user: dict = Depends(get_current_user
         "validarea de la zero, NU reiei structura completă, doar continui firul: răspunzi direct la ce "
         "a întrebat acum, ținând cont de tot ce ați discutat până acum."
     ) + RO_CAPITALIZATION_RULE
+    # Reconstruct recent conversation so Claude sees prior turns (last 6 exchanges, oldest first)
+    history_docs = await db.ask_history.find(
+        {"user_id": user["id"]}, {"_id": 0, "question": 1, "answer": 1}
+    ).sort("created_at", -1).to_list(6)
+    history_docs.reverse()
+    messages = []
+    for h in history_docs:
+        messages.append({"role": "user", "content": h["question"]})
+        messages.append({"role": "assistant", "content": h["answer"]})
+    messages.append({"role": "user", "content": data.question})
+
     try:
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"ask-{user['id']}",
-            system_message=system_msg,
-        ).with_model("anthropic", "claude-sonnet-4-5-20250929")
-        answer = await chat.send_message(UserMessage(text=data.question))
+        answer = await call_claude(system_msg, messages, max_tokens=1200)
     except Exception as e:
         logger.exception("ask failed")
         raise HTTPException(status_code=500, detail=str(e))
@@ -1056,12 +1070,7 @@ async def journal_patterns(user: dict = Depends(get_current_user)):
         f"Nu folosi markdown."
     )
     try:
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"patterns-{user['id']}-{datetime.now(timezone.utc).strftime('%Y%m%d')}",
-            system_message=system_msg,
-        ).with_model("anthropic", "claude-sonnet-4-5-20250929")
-        text = await chat.send_message(UserMessage(text=prompt))
+        text = await call_claude(system_msg, [{"role": "user", "content": prompt}], max_tokens=800)
     except Exception as e:
         logger.exception("patterns failed")
         raise HTTPException(status_code=500, detail=str(e))
@@ -1486,12 +1495,7 @@ async def generate_comparison(data: CompareGenerateRequest, user: dict = Depends
     prompt = f"Generează tabelul comparativ între: **{left}** și **{right}**. Doar JSON."
 
     try:
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"compare-{uuid.uuid4()}",
-            system_message=system_msg,
-        ).with_model("anthropic", "claude-sonnet-4-5-20250929")
-        raw = await chat.send_message(UserMessage(text=prompt))
+        raw = await call_claude(system_msg, [{"role": "user", "content": prompt}], max_tokens=1500)
     except Exception as e:
         logger.exception("compare generate failed")
         raise HTTPException(status_code=500, detail=str(e))

@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: metanoia-backend
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: MONGO_URL
+        sync: false
+      - key: DB_NAME
+        value: metanoia
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_EXPIRE_DAYS
+        value: "30"
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM_NAME
+        value: Ghid Părinte
+      - key: EMAIL_FROM_ADDRESS
+        value: onboarding@resend.dev
+      - key: CORS_ORIGINS
+        value: https://otilka17.github.io
