@@ -1233,6 +1233,16 @@ async def admin_list_users(limit: int = 200, skip: int = 0, q: Optional[str] = N
     return {"users": out, "total": await db.users.count_documents(query)}
 
 
+@api_router.get("/admin/users/{user_id}/ask-history")
+async def admin_user_ask_history(user_id: str, admin: dict = Depends(require_admin)):
+    """Full Ask Specialist question/answer history for one user (admin-only)."""
+    target = await db.users.find_one({"id": user_id}, {"_id": 0, "name": 1, "email": 1})
+    if not target:
+        raise HTTPException(status_code=404, detail="Utilizator inexistent")
+    items = await db.ask_history.find({"user_id": user_id}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return {"user": target, "items": items}
+
+
 @api_router.delete("/admin/users/{user_id}")
 async def admin_delete_user(user_id: str, admin: dict = Depends(require_admin)):
     if user_id == admin["id"]:

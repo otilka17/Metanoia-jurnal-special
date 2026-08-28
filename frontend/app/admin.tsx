@@ -18,6 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/src/lib/api";
 import { useAuth } from "@/src/lib/auth";
 import { theme } from "@/src/lib/theme";
+import { Markdown } from "@/src/lib/Markdown";
 
 type Tab = "overview" | "users" | "flagged";
 
@@ -27,6 +28,7 @@ type AdminUser = {
   journal_count: number; ask_count: number; forum_count: number; last_activity: string | null;
 };
 type FlaggedItem = { id: string; content: string; display_name: string; flag_count: number; created_at: string; title?: string; category?: string; post_id?: string };
+type AskItem = { id: string; question: string; answer: string; created_at: string };
 
 export default function AdminScreen() {
   const router = useRouter();
@@ -38,6 +40,8 @@ export default function AdminScreen() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [askViewer, setAskViewer] = useState<{ user: AdminUser; items: AskItem[] } | null>(null);
+  const [askLoading, setAskLoading] = useState(false);
 
   const loadAll = useCallback(async () => {
     try {
@@ -91,6 +95,20 @@ export default function AdminScreen() {
         },
       ]
     );
+  };
+
+  const viewAskHistory = async (u: AdminUser) => {
+    setAskViewer({ user: u, items: [] });
+    setAskLoading(true);
+    try {
+      const r: any = await api.adminUserAskHistory(u.id);
+      setAskViewer({ user: u, items: r.items || [] });
+    } catch (e: any) {
+      Alert.alert("Eroare", e.message || "Nu am putut încărca întrebările");
+      setAskViewer(null);
+    } finally {
+      setAskLoading(false);
+    }
   };
 
   const toggleAdmin = async (u: AdminUser) => {
@@ -225,7 +243,15 @@ export default function AdminScreen() {
                 </View>
                 <View style={styles.userStats}>
                   <View style={styles.userStat}><Ionicons name="book" size={12} color={theme.colors.textSecondary} /><Text style={styles.userStatText}>{u.journal_count} jurnal</Text></View>
-                  <View style={styles.userStat}><Ionicons name="chatbubbles" size={12} color={theme.colors.textSecondary} /><Text style={styles.userStatText}>{u.ask_count} AI</Text></View>
+                  <TouchableOpacity
+                    testID={`view-ask-${u.id}`}
+                    style={[styles.userStat, u.ask_count > 0 && styles.userStatClickable]}
+                    onPress={() => u.ask_count > 0 && viewAskHistory(u)}
+                    disabled={u.ask_count === 0}
+                  >
+                    <Ionicons name="chatbubbles" size={12} color={u.ask_count > 0 ? theme.colors.primary : theme.colors.textSecondary} />
+                    <Text style={[styles.userStatText, u.ask_count > 0 && { color: theme.colors.primary, fontWeight: "700" }]}>{u.ask_count} AI</Text>
+                  </TouchableOpacity>
                   <View style={styles.userStat}><Ionicons name="chatbubble" size={12} color={theme.colors.textSecondary} /><Text style={styles.userStatText}>{u.forum_count} postări</Text></View>
                 </View>
                 <Text style={styles.userMeta}>
@@ -305,6 +331,37 @@ export default function AdminScreen() {
           </>
         )}
       </ScrollView>
+
+      <Modal visible={!!askViewer} animationType="slide" onRequestClose={() => setAskViewer(null)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg }} edges={["top", "bottom"]}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => setAskViewer(null)} style={styles.iconBtn}>
+              <Ionicons name="close" size={26} color={theme.colors.textPrimary} />
+            </TouchableOpacity>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.title}>{askViewer?.user.name}</Text>
+              <Text style={styles.subtitle}>{askViewer?.user.email} · {askViewer?.items.length ?? 0} întrebări</Text>
+            </View>
+          </View>
+          {askLoading ? (
+            <ActivityIndicator color={theme.colors.primary} style={{ marginTop: 40 }} />
+          ) : (
+            <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+              {(askViewer?.items || []).map((it, i) => (
+                <View key={it.id} style={styles.askCard} testID={`admin-ask-${i}`}>
+                  <Text style={styles.askQ}>{it.question}</Text>
+                  <View style={styles.askDivider} />
+                  <Markdown text={it.answer} />
+                  <Text style={styles.askDate}>{new Date(it.created_at).toLocaleString("ro-RO", { dateStyle: "medium", timeStyle: "short" })}</Text>
+                </View>
+              ))}
+              {askViewer && askViewer.items.length === 0 && (
+                <Text style={styles.emptyText}>Niciun rezultat.</Text>
+              )}
+            </ScrollView>
+          )}
+        </SafeAreaView>
+      </Modal>
     </View>
   );
 }
@@ -365,6 +422,7 @@ const styles = StyleSheet.create({
   tagAdminText: { color: "#B56B6B", fontSize: 9, fontWeight: "700" },
   userStats: { flexDirection: "row", gap: 12, marginBottom: 6 },
   userStat: { flexDirection: "row", alignItems: "center", gap: 3 },
+  userStatClickable: { backgroundColor: theme.colors.primary + "11", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 },
   userStatText: { fontSize: 11, color: theme.colors.textSecondary },
   userMeta: { fontSize: 10, color: theme.colors.textDisabled, marginBottom: 8 },
   userActions: { flexDirection: "row", gap: 6, marginTop: 4 },
@@ -381,4 +439,8 @@ const styles = StyleSheet.create({
   deleteBtnText: { color: "#B56B6B", fontWeight: "700", fontSize: 12 },
   empty: { alignItems: "center", paddingVertical: 40, paddingHorizontal: 24 },
   emptyText: { fontSize: 13, color: theme.colors.textSecondary, textAlign: "center" },
+  askCard: { backgroundColor: theme.colors.surface, borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: theme.colors.border },
+  askQ: { fontSize: 15, fontWeight: "700", color: theme.colors.textPrimary, lineHeight: 21 },
+  askDivider: { height: 1, backgroundColor: theme.colors.border, marginVertical: 12 },
+  askDate: { fontSize: 11, color: theme.colors.textDisabled, marginTop: 10 },
 });

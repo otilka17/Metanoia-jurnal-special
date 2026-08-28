@@ -103,6 +103,7 @@ export const api = {
   adminDeleteUser: (id: string) => request(`/admin/users/${id}`, { method: "DELETE" }),
   adminToggleAdmin: (id: string) => request(`/admin/users/${id}/toggle-admin`, { method: "POST" }),
   adminFlagged: () => request("/admin/forum/flagged"),
+  adminUserAskHistory: (id: string) => request(`/admin/users/${id}/ask-history`),
   adminDeleteForumPost: (id: string) => request(`/admin/forum/posts/${id}`, { method: "DELETE" }),
   adminDeleteForumAnswer: (id: string) => request(`/admin/forum/answers/${id}`, { method: "DELETE" }),
 
