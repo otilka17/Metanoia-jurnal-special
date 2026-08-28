@@ -270,7 +270,7 @@ export default function HomeScreen() {
       </TouchableOpacity>
 
       {reviews.length === 0 ? (
-        <Text style={styles.emptyCatsText}>Nicio recenzie încă. Fii prima!</Text>
+        <Text style={styles.emptyCatsText}>Nicio recenzie încă. Scrie tu prima recenzie!</Text>
       ) : reviews.map((r) => (
         <View key={r.id} style={styles.reviewCard} testID={`review-${r.id}`}>
           <View style={styles.reviewHeader}>
@@ -324,6 +324,16 @@ export default function HomeScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <View style={styles.legalFooter}>
+        <TouchableOpacity testID="open-privacy" onPress={() => router.push("/privacy")}>
+          <Text style={styles.legalLink}>Politica de Confidențialitate (GDPR)</Text>
+        </TouchableOpacity>
+        <Text style={styles.legalDot}>·</Text>
+        <TouchableOpacity testID="open-terms" onPress={() => router.push("/terms")}>
+          <Text style={styles.legalLink}>Termeni și Condiții</Text>
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 }
@@ -386,6 +396,9 @@ const styles = StyleSheet.create({
   modalBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
   modalBtnOutline: { flex: 1, paddingVertical: 14, borderRadius: 999, alignItems: "center", borderWidth: 1.5, borderColor: theme.colors.border },
   modalBtnOutlineText: { color: theme.colors.textPrimary, fontWeight: "600", fontSize: 14 },
+  legalFooter: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", alignItems: "center", gap: 8, marginTop: 28, paddingTop: 16, borderTopWidth: 1, borderTopColor: theme.colors.border },
+  legalLink: { fontSize: 12, color: theme.colors.textSecondary, textDecorationLine: "underline" },
+  legalDot: { fontSize: 12, color: theme.colors.textDisabled },
   quickRow: { flexDirection: "row", gap: 10, marginBottom: 16 },
   quickCard: { flex: 1, padding: 14, borderRadius: 14, alignItems: "flex-start" },
   quickTitle: { color: "#fff", fontWeight: "700", fontSize: 13, marginTop: 8 },
