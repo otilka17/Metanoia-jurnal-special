@@ -37,7 +37,7 @@ export default function AskScreen() {
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.root}>
       <View style={styles.header}>
         <Text style={styles.title}>Întreabă specialistul</Text>
-        <Text style={styles.sub}>AI specializat în copii supradotați și hiperactivi</Text>
+        <Text style={styles.sub}>AI specializat în copii cu profiluri atipice</Text>
       </View>
 
       <View style={styles.inputBox}>
