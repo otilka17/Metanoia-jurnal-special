@@ -99,7 +99,7 @@ export default function HomeScreen() {
         <View style={styles.guideIcon}><Ionicons name="library" size={22} color="#fff" /></View>
         <View style={{ flex: 1 }}>
           <Text style={styles.guideTitle}>Ghidul Specialistului</Text>
-          <Text style={styles.guideText}>"Navigând Lumea Copilului Supradotat" + Ghidul Avansat — 19 capitole</Text>
+          <Text style={styles.guideText}>"Navigând Lumea Copilului Supradotat" + Ghidul Avansat — 20 capitole</Text>
         </View>
         <Ionicons name="chevron-forward" size={22} color="#fff" />
       </TouchableOpacity>

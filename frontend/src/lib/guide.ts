@@ -150,8 +150,28 @@ export const GUIDE: GuideSection[] = [
     ],
   },
   {
-    id: "s4",
+    id: "s-diagnostic-medical",
     number: 6,
+    title: "Diagnostic Diferențial Medical: Cauze Fizice Care Imită ADHD sau Autismul",
+    content: [
+      "Înainte sau în paralel cu o evaluare psihologică pentru ADHD, autism sau alte profile atipice, merită verificate câteva cauze medicale frecvente și ieftine, care pot produce simptome aproape identice — agitație, neatenție, iritabilitate, somn agitat. Sunt situații în care copilul NU are de fapt ADHD sau autism, ci o problemă fizică ușor de tratat, care se „ascunde” în spatele acelorași manifestări.",
+      "Nu este vorba despre analize scumpe sau greu accesibile — sunt investigații uzuale, pe care orice medic de familie sau pediatru le poate recomanda, și care merită discutate înainte de a trage o concluzie definitivă. Această listă NU este un ghid de autodiagnostic și nu înlocuiește un medic — interpretarea rezultatelor și decizia privind orice tratament rămân exclusiv la medicul de familie/pediatru. Dacă rezultatele ies normale, ai eliminat o cauză fizică; dacă nu, uneori soluția e mult mai simplă decât se anticipa inițial.",
+    ],
+    bullets: [
+      {
+        title: "Analize simple, de discutat cu pediatrul",
+        items: [
+          "Hemoleucogramă + Sideremie + Feritină (anemia feriprivă): fierul scăzut — chiar și în jumătatea inferioară a intervalului normal, nu doar sub el — poate produce agitație, neastâmpăr și somn agitat, ușor confundate cu ADHD.",
+          "Profil tiroidian (TSH, T3, T4) — plus ecografie tiroidiană dacă există boli tiroidiene în familie: atât hipertiroidismul (agitație, neatenție), cât și hipotiroidismul (oboseală, lentoare) pot mima sau agrava un tablou de tip ADHD.",
+          "25-OH-Vitamina D: un nivel scăzut a fost asociat în mai multe studii cu dificultăți de atenție și reglare comportamentală la copii — analiză simplă și larg disponibilă.",
+          "Coproparazitologie (test de scaun pentru paraziți intestinali, inclusiv testul pentru oxiuri): paraziții intestinali sunt frecvenți la vârsta preșcolară/școlară și pot cauza iritabilitate, somn agitat și dificultăți de concentrare.",
+        ],
+      },
+    ],
+  },
+  {
+    id: "s4",
+    number: 7,
     title: "ADHD versus Energie Normală și Supradotare",
     content: [
       "Diferențierea corectă între un temperament activ, specific supradotării, și tulburarea de hiperactivitate cu deficit de atenție (ADHD) este vitală pentru a evita etichetarea eronată. Conform criteriilor „Rei Alternative Center”, diagnosticul de ADHD necesită persistența simptomelor în cel puțin două contexte diferite (de exemplu, atât acasă, cât și la școală).",
@@ -168,7 +188,7 @@ export const GUIDE: GuideSection[] = [
   },
   {
     id: "s5",
-    number: 7,
+    number: 8,
     title: "Profiluri Tipologice ale Copiilor Supradotați",
     content: [
       "Înțelegerea modului în care acești copii se raportează la sistemul educațional ne ajută să personalizăm sprijinul oferit:",
@@ -188,7 +208,7 @@ export const GUIDE: GuideSection[] = [
   },
   {
     id: "s6",
-    number: 8,
+    number: 9,
     title: "Gestionarea Emoțiilor și Riscurile Specifice",
     content: [
       "Identificarea tardivă sau absența unui suport adecvat expune copilul la riscuri psihosociale majore:",
@@ -206,7 +226,7 @@ export const GUIDE: GuideSection[] = [
   },
   {
     id: "s7",
-    number: 9,
+    number: 10,
     title: "Strategii Practice pentru Părinți: Disciplină și Comunicare",
     content: [
       "Rolul părintelui trebuie să evolueze de la cel de „judecător” la cel de „observator asertiv”. Disciplina în cazul copilului supradotat funcționează cel mai bine atunci când este colaborativă, nu punitivă.",
@@ -225,7 +245,7 @@ export const GUIDE: GuideSection[] = [
   },
   {
     id: "s8",
-    number: 10,
+    number: 11,
     title: "Identificarea și Evaluarea: Primii Pași spre Succes",
     content: [
       "Identificarea timpurie este esențială pentru a preveni pierderea disponibilităților aptitudinale. Un proces de evaluare riguros este multidimensional și include:",
@@ -251,7 +271,7 @@ export const GUIDE: GuideSection[] = [
   // ===== Ghidul Avansat =====
   {
     id: "s9",
-    number: 11,
+    number: 12,
     title: "Fundamentele Supradotării: Definiții și Paradigme",
     content: [
       "Supradotarea este o manifestare umană multidimensională, definită prin intersecția dintre potențialul biologic și mediul favorizant. Paradigmele actuale depășesc viziunea pur academică:",
@@ -270,7 +290,7 @@ export const GUIDE: GuideSection[] = [
   },
   {
     id: "s10",
-    number: 12,
+    number: 13,
     title: "Elevul Strălucitor vs. Elevul Supradotat",
     content: [
       "Erorile de diagnostic pedagogic apar adesea din confundarea conformismului academic cu supradotarea:",
@@ -298,7 +318,7 @@ export const GUIDE: GuideSection[] = [
   },
   {
     id: "s11",
-    number: 13,
+    number: 14,
     title: "Tipologia Supradotării (Betts & Neihart)",
     content: [
       "Cele 6 profiluri psihologice și nevoile lor specifice:",
@@ -318,7 +338,7 @@ export const GUIDE: GuideSection[] = [
   },
   {
     id: "s12",
-    number: 14,
+    number: 15,
     title: "Diagnostic Diferențial: Activ, Supradotat sau ADHD?",
     content: [
       "Diferența cheie rezidă în capacitatea de autoreglare și adaptabilitate la context:",
@@ -336,7 +356,7 @@ export const GUIDE: GuideSection[] = [
   },
   {
     id: "s13",
-    number: 15,
+    number: 16,
     title: "Riscuri Specifice și Dezvoltarea Asincronă",
     content: [
       "Conceptul de heterocronie explică decalajul dintre cognitivul avansat și motorul/emoționalul rămas în urmă. Riscurile majore:",
@@ -354,7 +374,7 @@ export const GUIDE: GuideSection[] = [
   },
   {
     id: "s14",
-    number: 16,
+    number: 17,
     title: "Strategii de Intervenție și Management Educațional",
     content: [
       "Trei categorii de soluții pentru personalizarea parcursului educațional:",
@@ -387,7 +407,7 @@ export const GUIDE: GuideSection[] = [
   },
   {
     id: "s15",
-    number: 17,
+    number: 18,
     title: "Clubul de Origami (6-10 ani)",
     content: [
       "Modelul „Clubului de Origami” este o strategie experiențială care folosește rigoarea pliului pentru a accesa „alfabetul emoțiilor”.",
@@ -415,7 +435,7 @@ export const GUIDE: GuideSection[] = [
   },
   {
     id: "s16",
-    number: 18,
+    number: 19,
     title: "Ghid de Îndrumare pentru Părinți — FAQ",
     content: [
       "Părinții trebuie să fie observatori, nu evaluatori. Evaluarea psihologică nu este o etichetă, ci o sursă de claritate pentru a oferi sprijinul adecvat.",
@@ -432,7 +452,7 @@ export const GUIDE: GuideSection[] = [
   },
   {
     id: "s17",
-    number: 19,
+    number: 20,
     title: "Concluzii: Dincolo de Performanță",
     content: [
       "Supradotarea este o invitație la răbdare și conectare reală. Copiii cu abilități înalte nu sunt „proiecte de succes”, ci ființe complexe care au nevoie să fie văzute în întregul lor — cu tot potențialul fantastic, dar și cu vulnerabilitățile lor profunde.",

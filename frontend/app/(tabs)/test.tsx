@@ -108,7 +108,7 @@ function computeProfile(scores: Record<Axis, number>): Profile {
       description: "Răspunsurile sugerează un profil de supradotare combinat cu trăsături de hiperactivitate/ADHD. Este o combinație care necesită evaluare specializată pentru a confirma — supradotarea poate masca dificultățile, iar ADHD poate masca supradotarea.",
       bettsType: "Tip V — Dublu-Etichetat (2e)",
       bettsDesc: "Supradotare + posibilă dificultate. Are nevoie de accent pe punctele tari, nu doar pe remedierea deficienței.",
-      recommendation: "Recomandare: evaluare psihopedagogică completă (IQ + atenție + funcții executive). Citește capitolele 3, 4 și 6 din Ghidul Specialistului.",
+      recommendation: "Recomandare: evaluare psihopedagogică completă (IQ + atenție + funcții executive). Citește capitolele 3, 4 și 7 din Ghidul Specialistului.",
     };
   }
   if (isHighGift) {
@@ -118,7 +118,7 @@ function computeProfile(scores: Record<Axis, number>): Profile {
       icon: "sparkles",
       description: "Răspunsurile sugerează un profil de supradotare cu sensibilitate ridicată. Heterocronia (decalaj cognitiv-emoțional) poate genera frustrare. Curiozitatea intensă și gândirea complexă sunt resurse, dar pot fi epuizante pentru copil.",
       bettsType, bettsDesc,
-      recommendation: "Recomandare: evaluare psihopedagogică pentru confirmare. Citește capitolele 1, 2 și 8 din Ghid. Curriculum diferențiat poate fi util.",
+      recommendation: "Recomandare: evaluare psihopedagogică pentru confirmare. Citește capitolele 1, 2 și 9 din Ghid. Curriculum diferențiat poate fi util.",
     };
   }
   if (isHighAdhd) {
@@ -127,7 +127,7 @@ function computeProfile(scores: Record<Axis, number>): Profile {
       color: "#DE8F6E",
       icon: "flash",
       description: "Răspunsurile indică trăsături compatibile cu ADHD: dificultăți de atenție/autoreglare în contexte multiple. Important: doar un specialist poate stabili un diagnostic. Multe trăsături similare apar și la copiii activi normali sau supradotați.",
-      recommendation: "Recomandare: consult psihologic/psihiatric pediatric pentru evaluare. Citește capitolul 4 (profilul ADHD complet) și capitolul 14 (diagnostic diferențial) din Ghidul Specialistului.",
+      recommendation: "Recomandare: consult psihologic/psihiatric pediatric pentru evaluare. Citește capitolul 4 (profilul ADHD complet) și capitolul 15 (diagnostic diferențial) din Ghidul Specialistului.",
     };
   }
   if (isHighEmo) {
@@ -136,7 +136,7 @@ function computeProfile(scores: Record<Axis, number>): Profile {
       color: "#E8C37C",
       icon: "heart",
       description: "Răspunsurile arată un copil cu sensibilitate emoțională marcată. Aceasta poate fi una dintre cele 5 supraexcitabilități descrise de Dabrowski (frecventă la copii supradotați), dar și un trait separat.",
-      recommendation: "Recomandare: citește capitolul 8 (Gestionarea Emoțiilor) și capitolul 2 din Ghid. Tehnicile de respirație și validare emoțională sunt esențiale.",
+      recommendation: "Recomandare: citește capitolul 9 (Gestionarea Emoțiilor) și capitolul 2 din Ghid. Tehnicile de respirație și validare emoțională sunt esențiale.",
     };
   }
   return {
