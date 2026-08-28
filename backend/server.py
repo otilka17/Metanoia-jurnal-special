@@ -349,7 +349,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         user = await db.users.find_one({"id": user_id}, {"_id": 0, "password": 0})
         if not user:
             raise HTTPException(status_code=401, detail="Utilizator inexistent")
-        now = datetime.now(timezone.utc)
+        now = datetime.utcnow()  # naive UTC, matches how Mongo returns stored dates (no tz_aware client)
         last_seen = user.get("last_seen")
         if not last_seen or (now - last_seen).total_seconds() > 60:
             await db.users.update_one({"id": user_id}, {"$set": {"last_seen": now}})
@@ -1468,7 +1468,7 @@ async def admin_list_users(limit: int = 200, skip: int = 0, q: Optional[str] = N
         counts_by_user(db.forum_posts, uids),
         last_activity_by_user(db.journal, uids),
     )
-    online_cutoff = datetime.now(timezone.utc) - timedelta(minutes=5)
+    online_cutoff = datetime.utcnow() - timedelta(minutes=5)  # naive UTC, matches last_seen as stored
 
     out = [{
         "id": u["id"],
