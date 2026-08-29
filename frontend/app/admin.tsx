@@ -10,7 +10,8 @@ import {
   RefreshControl,
   Modal,
   Pressable,
-  Image
+  Image,
+  Platform
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Alert } from "@/src/lib/alert";
@@ -72,6 +73,8 @@ export default function AdminScreen() {
   const [analyticsDays, setAnalyticsDays] = useState<AnalyticsDay[]>([]);
   const [categoryPopularity, setCategoryPopularity] = useState<CategoryPopularity[]>([]);
   const [feedbackItems, setFeedbackItems] = useState<FeedbackItem[]>([]);
+  const [feedbackRoleFilter, setFeedbackRoleFilter] = useState<string>("toate");
+  const [feedbackSortAsc, setFeedbackSortAsc] = useState(false);
 
   const loadAll = useCallback(async () => {
     try {
@@ -235,6 +238,41 @@ export default function AdminScreen() {
       { text: "Anulează", style: "cancel" },
       { text: "Șterge", style: "destructive", onPress: async () => { try { await api.adminDeleteForumAnswer(id); await loadAll(); } catch (e: any) { Alert.alert("Eroare", e.message || "Eroare"); } } },
     ]);
+  };
+
+  const visibleFeedback = feedbackItems
+    .filter((f) => feedbackRoleFilter === "toate" || f.role === feedbackRoleFilter)
+    .slice()
+    .sort((a, b) => {
+      const diff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      return feedbackSortAsc ? -diff : diff;
+    });
+
+  const csvEscape = (val: any): string => {
+    const s = String(val ?? "");
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+
+  const exportFeedbackCsv = () => {
+    const headers = ["Nume", "Email", "Data", "Rol", "Cum a aflat", "Utilă", "Motiv utilitate", "Utilizare", "Recomandă profesional", "Cel mai util", "De îmbunătățit"];
+    const rows = visibleFeedback.map((f) => [
+      f.user_name, f.user_email, new Date(f.created_at).toLocaleDateString("ro-RO"),
+      ROLE_LABELS[f.role] || f.role, f.how_found, USEFUL_LABELS[f.is_useful] || f.is_useful,
+      f.is_useful_reason, USAGE_LABELS[f.usage_context] || f.usage_context,
+      f.would_recommend === "da" ? "Da" : f.would_recommend === "nu" ? "Nu" : "",
+      f.most_useful.map((m) => MOST_USEFUL_LABELS[m] || m).join("; "),
+      f.improvement,
+    ]);
+    const csv = [headers, ...rows].map((r) => r.map(csvEscape).join(",")).join("\r\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `feedback-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   if (loading) {
@@ -533,13 +571,38 @@ export default function AdminScreen() {
 
         {tab === "feedback" && (
           <>
-            {feedbackItems.length === 0 ? (
+            {feedbackItems.length > 0 && (
+              <>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }} style={{ marginBottom: 10 }}>
+                  {["toate", "parinte", "specialist", "altceva"].map((r) => (
+                    <TouchableOpacity key={r} testID={`fb-filter-${r}`} onPress={() => setFeedbackRoleFilter(r)} style={[styles.fbFilterChip, feedbackRoleFilter === r && styles.fbFilterChipActive]}>
+                      <Text style={[styles.fbFilterChipText, feedbackRoleFilter === r && styles.fbFilterChipTextActive]}>
+                        {r === "toate" ? "Toate" : ROLE_LABELS[r]}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+                <View style={styles.fbToolbar}>
+                  <TouchableOpacity testID="fb-sort-toggle" onPress={() => setFeedbackSortAsc((v) => !v)} style={styles.fbToolbarBtn}>
+                    <Ionicons name={feedbackSortAsc ? "arrow-up" : "arrow-down"} size={14} color={theme.colors.primary} />
+                    <Text style={styles.fbToolbarBtnText}>{feedbackSortAsc ? "Cele mai vechi" : "Cele mai noi"}</Text>
+                  </TouchableOpacity>
+                  {Platform.OS === "web" && (
+                    <TouchableOpacity testID="fb-export-csv" onPress={exportFeedbackCsv} style={styles.fbToolbarBtn}>
+                      <Ionicons name="download-outline" size={14} color={theme.colors.primary} />
+                      <Text style={styles.fbToolbarBtnText}>Exportă CSV</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </>
+            )}
+            {visibleFeedback.length === 0 ? (
               <View style={styles.empty}>
                 <Ionicons name="chatbox-ellipses-outline" size={48} color={theme.colors.textDisabled} />
-                <Text style={[styles.emptyText, { marginTop: 12 }]}>Niciun feedback primit încă.</Text>
+                <Text style={[styles.emptyText, { marginTop: 12 }]}>{feedbackItems.length === 0 ? "Niciun feedback primit încă." : "Niciun feedback pentru acest filtru."}</Text>
               </View>
             ) : (
-              feedbackItems.map((f) => (
+              visibleFeedback.map((f) => (
                 <View key={f.id} style={styles.feedbackCard}>
                   <View style={styles.flagHeader}>
                     <Text style={styles.flagAuthor}>{f.user_name}</Text>
@@ -711,6 +774,13 @@ const styles = StyleSheet.create({
   feedbackCard: { backgroundColor: theme.colors.surface, borderRadius: 12, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: theme.colors.border, borderLeftWidth: 4, borderLeftColor: theme.colors.primary },
   fbLine: { fontSize: 12.5, color: theme.colors.textPrimary, lineHeight: 18 },
   fbLabel: { fontWeight: "700", color: theme.colors.textSecondary },
+  fbFilterChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface },
+  fbFilterChipActive: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
+  fbFilterChipText: { fontSize: 12, color: theme.colors.textPrimary, fontWeight: "600" },
+  fbFilterChipTextActive: { color: "#fff" },
+  fbToolbar: { flexDirection: "row", gap: 10, marginBottom: 14 },
+  fbToolbarBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: theme.colors.primary + "11", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999 },
+  fbToolbarBtnText: { fontSize: 12, fontWeight: "700", color: theme.colors.primary },
   empty: { alignItems: "center", paddingVertical: 40, paddingHorizontal: 24 },
   emptyText: { fontSize: 13, color: theme.colors.textSecondary, textAlign: "center" },
   pregenCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#6E8FD8", borderRadius: 16, padding: 14, marginBottom: 16 },
