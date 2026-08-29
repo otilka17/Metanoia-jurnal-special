@@ -924,6 +924,33 @@ async def generate_article(subtopic_id: str) -> dict:
     if not sub:
         raise HTTPException(status_code=404, detail="Subiect inexistent")
 
+    if cat["id"] == "cat-6":
+        content = {
+            "introducere": "", "puncte_cheie": [], "sfaturi_practice": [],
+            "exemplu_situatie": "", "cand_sa_cer_ajutor": "",
+        }
+        image_prompt = (
+            f"O ilustrație caldă, simplă, tip desen plat (flat illustration), care arată un părinte și un copil "
+            f"făcând exercițiul: \"{sub['title']}\". Stil prietenos, culori calme, fără text în imagine."
+        )
+        image = await generate_topic_image(image_prompt)
+        article = {
+            "id": str(uuid.uuid4()),
+            "subtopic_id": subtopic_id,
+            "category_id": cat["id"],
+            "title": sub["title"],
+            "category_title": cat["title"],
+            "color": cat["color"],
+            "content": content,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        if image:
+            article["image_data"] = image["data"]
+            article["image_mime"] = image["mime_type"]
+        await db.articles.insert_one(article.copy())
+        article.pop("_id", None)
+        return article
+
     points_str = "\n".join(f"- {p}" for p in sub["points"])
     system_msg = (
         "Ești un expert în psihologia copilului, specializat în copii supradotați și hiperactivi (ADHD/2e). "
@@ -931,29 +958,7 @@ async def generate_article(subtopic_id: str) -> dict:
         "Răspunzi strict în format JSON valid, fără text suplimentar."
     ) + RO_CAPITALIZATION_RULE
 
-    if cat["id"] == "cat-6":
-        prompt = f"""Scrie un exercițiu practic, ghidat pas cu pas, pe care un părinte îl poate face cu copilul, pe tema: "{sub['title']}"
-(din categoria "{cat['title']}").
-
-Aspecte de acoperit:
-{points_str}
-
-Răspunde STRICT în format JSON valid (fără markdown, fără ```json), cu structura:
-{{
-  "introducere": "2-3 paragrafe: de ce e util acest exercițiu, pentru ce vârstă/situații e potrivit (250-350 cuvinte)",
-  "puncte_cheie": [
-    {{"titlu": "...", "explicatie": "1-2 propoziții"}},
-    ... (3-4 elemente, ex: durată recomandată, materiale necesare, frecvență)
-  ],
-  "sfaturi_practice": [
-    "Pasul 1 al exercițiului, ca instrucțiune directă și concretă",
-    ... (5-7 pași, STRICT în ordinea în care se fac, fiecare un singur pas)
-  ],
-  "exemplu_situatie": "Un exemplu concret de cum decurge exercițiul cu un copil real (100-150 cuvinte)",
-  "cand_sa_cer_ajutor": "Când acest exercițiu nu e suficient și e nevoie de un specialist (2-3 propoziții)"
-}}"""
-    else:
-        prompt = f"""Scrie un articol educațional pentru părinți despre tema: "{sub['title']}"
+    prompt = f"""Scrie un articol educațional pentru părinți despre tema: "{sub['title']}"
 (din categoria "{cat['title']}").
 
 Puncte cheie de acoperit:
@@ -1006,16 +1011,6 @@ Răspunde STRICT în format JSON valid (fără markdown, fără ```json), cu str
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
 
-    if cat["id"] == "cat-6":
-        image_prompt = (
-            f"O ilustrație caldă, simplă, tip desen plat (flat illustration), care arată un părinte și un copil "
-            f"făcând exercițiul: \"{sub['title']}\". Stil prietenos, culori calme, fără text în imagine."
-        )
-        image = await generate_topic_image(image_prompt)
-        if image:
-            article["image_data"] = image["data"]
-            article["image_mime"] = image["mime_type"]
-
     await db.articles.insert_one(article.copy())
     article.pop("_id", None)
     return article
@@ -1040,6 +1035,14 @@ async def _pregenerate_all_articles():
             logger.info(f"Pre-generated article for {sid}")
         except Exception:
             logger.exception(f"Pre-generation failed for {sid}")
+
+
+async def _clear_old_format_exercise_articles():
+    """One-time migration: cat-6 used to carry full AI-written text; now it's title+image only.
+    Drops any article still in the old format so it regenerates lazily via the new lightweight path."""
+    result = await db.articles.delete_many({"category_id": "cat-6", "content.introducere": {"$ne": ""}})
+    if result.deleted_count:
+        logger.info(f"Cleared {result.deleted_count} old-format exercise articles for regeneration")
 
 
 async def _backfill_exercise_images():
@@ -1077,6 +1080,7 @@ async def _backfill_exercise_images():
 async def admin_pregenerate_articles(admin: dict = Depends(require_admin)):
     """Kicks off (in the background) generating+caching every subtopic article that isn't cached yet,
     plus backfilling any missing exercise images."""
+    await _clear_old_format_exercise_articles()
     all_subtopic_ids = [sub["id"] for cat in CATEGORIES for sub in cat["subtopics"]]
     cached_ids = set(await db.articles.distinct("subtopic_id", {"subtopic_id": {"$in": all_subtopic_ids}}))
     missing_count = len(all_subtopic_ids) - len(cached_ids)
@@ -2369,10 +2373,15 @@ async def create_indexes():
     await db.users.create_index("referral_code", unique=True, sparse=True)
 
 
+async def _exercise_migration_and_backfill():
+    await _clear_old_format_exercise_articles()
+    await _backfill_exercise_images()
+
+
 @app.on_event("startup")
 async def start_background_loops():
     asyncio.create_task(_weekly_recap_loop())
-    asyncio.create_task(_backfill_exercise_images())
+    asyncio.create_task(_exercise_migration_and_backfill())
 
 
 @app.on_event("shutdown")

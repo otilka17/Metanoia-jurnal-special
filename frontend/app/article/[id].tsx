@@ -123,56 +123,66 @@ export default function ArticleScreen() {
 
         <View style={[styles.colorBar, { backgroundColor: article.color }]} />
 
-        <Text style={styles.intro}>{c.introducere}</Text>
-
-        <Text style={styles.sectionTitle}>Puncte Cheie</Text>
-        {c.puncte_cheie?.map((p, i) => (
-          <View key={i} style={styles.pointRow}>
-            <View style={[styles.pointDot, { backgroundColor: article.color }]} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.pointTitle}>{p.titlu}</Text>
-              <Text style={styles.pointText}>{p.explicatie}</Text>
-            </View>
-          </View>
-        ))}
-
-        <View style={[styles.tipsBox, { borderColor: article.color }]}>
-          <View style={styles.tipsHeader}>
-            <Ionicons name="bulb" size={20} color={article.color} />
-            <Text style={[styles.tipsTitle, { color: article.color }]}>Sfaturi Practice</Text>
-          </View>
-          {article.image_data && (
+        {article.category_id === "cat-6" ? (
+          article.image_data ? (
             <Image
               source={{ uri: `data:${article.image_mime || "image/png"};base64,${article.image_data}` }}
-              style={styles.exerciseImage}
+              style={styles.exerciseImageLarge}
               resizeMode="cover"
             />
-          )}
-          {c.sfaturi_practice?.map((s, i) => (
-            <View key={i} style={styles.stepRow}>
-              <View style={styles.stepBadgeCol}>
-                <View style={[styles.stepBadge, { backgroundColor: article.color }]}>
-                  <Text style={styles.stepBadgeText}>{i + 1}</Text>
-                </View>
-                {i < c.sfaturi_practice.length - 1 && <View style={[styles.stepLine, { backgroundColor: article.color + "33" }]} />}
-              </View>
-              <Text style={styles.stepText}>{s}</Text>
+          ) : (
+            <View style={[styles.imagePlaceholder, { borderColor: article.color + "55" }]}>
+              <Ionicons name="image-outline" size={32} color={article.color} />
+              <Text style={styles.loadingSub}>Imaginea nu a putut fi generată încă.</Text>
             </View>
-          ))}
-        </View>
+          )
+        ) : (
+          <>
+            <Text style={styles.intro}>{c.introducere}</Text>
 
-        <Text style={styles.sectionTitle}>Exemplu de Situație</Text>
-        <View style={styles.exampleBox}>
-          <Text style={styles.exampleText}>{c.exemplu_situatie}</Text>
-        </View>
+            <Text style={styles.sectionTitle}>Puncte Cheie</Text>
+            {c.puncte_cheie?.map((p, i) => (
+              <View key={i} style={styles.pointRow}>
+                <View style={[styles.pointDot, { backgroundColor: article.color }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.pointTitle}>{p.titlu}</Text>
+                  <Text style={styles.pointText}>{p.explicatie}</Text>
+                </View>
+              </View>
+            ))}
 
-        <Text style={styles.sectionTitle}>Când să ceri ajutor</Text>
-        <Text style={styles.helpText}>{c.cand_sa_cer_ajutor}</Text>
+            <View style={[styles.tipsBox, { borderColor: article.color }]}>
+              <View style={styles.tipsHeader}>
+                <Ionicons name="bulb" size={20} color={article.color} />
+                <Text style={[styles.tipsTitle, { color: article.color }]}>Sfaturi Practice</Text>
+              </View>
+              {c.sfaturi_practice?.map((s, i) => (
+                <View key={i} style={styles.stepRow}>
+                  <View style={styles.stepBadgeCol}>
+                    <View style={[styles.stepBadge, { backgroundColor: article.color }]}>
+                      <Text style={styles.stepBadgeText}>{i + 1}</Text>
+                    </View>
+                    {i < c.sfaturi_practice.length - 1 && <View style={[styles.stepLine, { backgroundColor: article.color + "33" }]} />}
+                  </View>
+                  <Text style={styles.stepText}>{s}</Text>
+                </View>
+              ))}
+            </View>
 
-        <View style={styles.aiNote}>
-          <Ionicons name="sparkles" size={13} color={theme.colors.textDisabled} />
-          <Text style={styles.aiNoteText}>Conținut generat cu AI, supervizat de specialiști.</Text>
-        </View>
+            <Text style={styles.sectionTitle}>Exemplu de Situație</Text>
+            <View style={styles.exampleBox}>
+              <Text style={styles.exampleText}>{c.exemplu_situatie}</Text>
+            </View>
+
+            <Text style={styles.sectionTitle}>Când să ceri ajutor</Text>
+            <Text style={styles.helpText}>{c.cand_sa_cer_ajutor}</Text>
+
+            <View style={styles.aiNote}>
+              <Ionicons name="sparkles" size={13} color={theme.colors.textDisabled} />
+              <Text style={styles.aiNoteText}>Conținut generat cu AI, supervizat de specialiști.</Text>
+            </View>
+          </>
+        )}
 
         <View style={{ height: 32 }} />
       </ScrollView>
@@ -210,7 +220,12 @@ const styles = StyleSheet.create({
   },
   tipsHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
   tipsTitle: { fontSize: 16, fontWeight: "600" },
-  exerciseImage: { width: "100%", height: 180, borderRadius: 12, marginBottom: 16 },
+  exerciseImageLarge: { width: "100%", height: 280, borderRadius: 16, marginTop: 8 },
+  imagePlaceholder: {
+    width: "100%", height: 280, borderRadius: 16, marginTop: 8,
+    alignItems: "center", justifyContent: "center", gap: 10,
+    borderWidth: 1.5, borderStyle: "dashed",
+  },
   stepRow: { flexDirection: "row", gap: 12 },
   stepBadgeCol: { alignItems: "center", width: 28 },
   stepBadge: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
