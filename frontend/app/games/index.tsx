@@ -23,6 +23,30 @@ const GAMES = [
     icon: "eye" as const,
     color: "#DE8F6E",
   },
+  {
+    key: "numbers",
+    route: "/games/numbers",
+    title: "Ordinea Numerelor",
+    desc: "Apasă numerele în ordine crescătoare, cât mai repede, împrăștiate pe ecran. Antrenează atenția susținută și viteza de procesare.",
+    icon: "locate" as const,
+    color: "#7A9E9F",
+  },
+  {
+    key: "oddoneout",
+    route: "/games/oddoneout",
+    title: "Vânează Intrusul",
+    desc: "Găsește forma diferită ascunsă printre cele identice. Grila crește, timpul scade. Antrenează căutarea vizuală.",
+    icon: "search" as const,
+    color: "#9B8CC4",
+  },
+  {
+    key: "stroop",
+    route: "/games/stroop",
+    title: "Stroop Culori",
+    desc: "Apasă culoarea cernelii, nu cuvântul citit. Antrenează controlul impulsurilor, potrivit mai ales pentru copii mai mari.",
+    icon: "color-filter" as const,
+    color: "#E8B33C",
+  },
 ];
 
 export default function GamesHubScreen() {

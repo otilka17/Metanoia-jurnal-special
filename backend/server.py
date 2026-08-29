@@ -2361,7 +2361,7 @@ async def admin_list_feedback(admin: dict = Depends(require_admin)):
 
 
 # ============ CONCENTRATION GAMES ============
-VALID_GAMES = {"memory", "attention"}
+VALID_GAMES = {"memory", "attention", "numbers", "oddoneout", "stroop"}
 
 class GameScoreSubmit(BaseModel):
     game: str
