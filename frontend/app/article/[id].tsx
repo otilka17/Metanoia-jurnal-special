@@ -124,18 +124,40 @@ export default function ArticleScreen() {
         <View style={[styles.colorBar, { backgroundColor: article.color }]} />
 
         {article.category_id === "cat-6" ? (
-          article.image_data ? (
-            <Image
-              source={{ uri: `data:${article.image_mime || "image/png"};base64,${article.image_data}` }}
-              style={styles.exerciseImageLarge}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={[styles.imagePlaceholder, { borderColor: article.color + "55" }]}>
-              <Ionicons name="image-outline" size={32} color={article.color} />
-              <Text style={styles.loadingSub}>Imaginea nu a putut fi generată încă.</Text>
-            </View>
-          )
+          <>
+            {article.image_data ? (
+              <Image
+                source={{ uri: `data:${article.image_mime || "image/png"};base64,${article.image_data}` }}
+                style={styles.exerciseImageLarge}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={[styles.imagePlaceholder, { borderColor: article.color + "55" }]}>
+                <Ionicons name="image-outline" size={32} color={article.color} />
+                <Text style={styles.loadingSub}>Imaginea nu a putut fi generată încă.</Text>
+              </View>
+            )}
+
+            {c.sfaturi_practice?.length > 0 && (
+              <View style={[styles.tipsBox, { borderColor: article.color, marginTop: 20 }]}>
+                <View style={styles.tipsHeader}>
+                  <Ionicons name="footsteps" size={20} color={article.color} />
+                  <Text style={[styles.tipsTitle, { color: article.color }]}>Pașii Exercițiului</Text>
+                </View>
+                {c.sfaturi_practice.map((s, i) => (
+                  <View key={i} style={styles.stepRow}>
+                    <View style={styles.stepBadgeCol}>
+                      <View style={[styles.stepBadge, { backgroundColor: article.color }]}>
+                        <Text style={styles.stepBadgeText}>{i + 1}</Text>
+                      </View>
+                      {i < c.sfaturi_practice.length - 1 && <View style={[styles.stepLine, { backgroundColor: article.color + "33" }]} />}
+                    </View>
+                    <Text style={styles.stepText}>{s}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </>
         ) : (
           <>
             <Text style={styles.intro}>{c.introducere}</Text>

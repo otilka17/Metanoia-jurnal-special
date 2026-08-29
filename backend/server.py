@@ -925,8 +925,46 @@ async def generate_article(subtopic_id: str) -> dict:
         raise HTTPException(status_code=404, detail="Subiect inexistent")
 
     if cat["id"] == "cat-6":
+        points_str = "\n".join(f"- {p}" for p in sub["points"])
+        system_msg = (
+            "Ești un expert în psihologia copilului, specializat în copii supradotați și hiperactivi (ADHD/2e). "
+            "Scrii instrucțiuni pentru părinți români. Folosești limba română corectă, ton cald, empatic și practic. "
+            "Răspunzi strict în format JSON valid, fără text suplimentar."
+        ) + RO_CAPITALIZATION_RULE
+        prompt = f"""Scrie pașii unui exercițiu practic, ghidat, pe care un părinte îl poate face cu copilul, pe tema: "{sub['title']}"
+(din categoria "{cat['title']}").
+
+Aspecte de acoperit:
+{points_str}
+
+Răspunde STRICT în format JSON valid (fără markdown, fără ```json), cu structura:
+{{
+  "sfaturi_practice": [
+    "Pasul 1 al exercițiului, ca instrucțiune directă și concretă",
+    ... (5-7 pași, STRICT în ordinea în care se fac, fiecare un singur pas, fără numerotare în text)
+  ]
+}}"""
+        sfaturi_practice = []
+        try:
+            response_text = await call_claude(system_msg, [{"role": "user", "content": prompt}])
+            import json, re
+            cleaned = response_text.strip()
+            if cleaned.startswith("```"):
+                cleaned = re.sub(r"^```(?:json)?\n?", "", cleaned)
+                cleaned = re.sub(r"\n?```$", "", cleaned)
+            try:
+                parsed = json.loads(cleaned)
+            except json.JSONDecodeError:
+                m = re.search(r"\{[\s\S]*\}", cleaned)
+                if not m:
+                    raise
+                parsed = json.loads(m.group(0))
+            sfaturi_practice = parsed.get("sfaturi_practice", [])
+        except Exception:
+            logger.exception("Exercise steps generation failed")
+
         content = {
-            "introducere": "", "puncte_cheie": [], "sfaturi_practice": [],
+            "introducere": "", "puncte_cheie": [], "sfaturi_practice": sfaturi_practice,
             "exemplu_situatie": "", "cand_sa_cer_ajutor": "",
         }
         image_prompt = (
@@ -1038,11 +1076,67 @@ async def _pregenerate_all_articles():
 
 
 async def _clear_old_format_exercise_articles():
-    """One-time migration: cat-6 used to carry full AI-written text; now it's title+image only.
-    Drops any article still in the old format so it regenerates lazily via the new lightweight path."""
+    """One-time migration: cat-6 used to carry full AI-written text; now it's image+steps.
+    Drops any article still in the old full-text format so it regenerates via the current path."""
     result = await db.articles.delete_many({"category_id": "cat-6", "content.introducere": {"$ne": ""}})
     if result.deleted_count:
         logger.info(f"Cleared {result.deleted_count} old-format exercise articles for regeneration")
+
+
+async def _backfill_exercise_steps():
+    """Fills in sfaturi_practice for cat-6 articles generated during the image-only phase,
+    without touching their already-generated image (avoids re-spending on the image call)."""
+    exercise_subtopics = {sub["id"]: sub for sub in next(c for c in CATEGORIES if c["id"] == "cat-6")["subtopics"]}
+    docs = await db.articles.find(
+        {"subtopic_id": {"$in": list(exercise_subtopics.keys())}, "content.sfaturi_practice": {"$in": [None, []]}},
+        {"_id": 0, "subtopic_id": 1},
+    ).to_list(100)
+    if not docs:
+        return
+    logger.info(f"Backfilling steps for {len(docs)} exercise articles")
+    system_msg = (
+        "Ești un expert în psihologia copilului, specializat în copii supradotați și hiperactivi (ADHD/2e). "
+        "Scrii instrucțiuni pentru părinți români. Folosești limba română corectă, ton cald, empatic și practic. "
+        "Răspunzi strict în format JSON valid, fără text suplimentar."
+    ) + RO_CAPITALIZATION_RULE
+    for doc in docs:
+        sid = doc["subtopic_id"]
+        sub = exercise_subtopics.get(sid)
+        if not sub:
+            continue
+        points_str = "\n".join(f"- {p}" for p in sub["points"])
+        prompt = f"""Scrie pașii unui exercițiu practic, ghidat, pe care un părinte îl poate face cu copilul, pe tema: "{sub['title']}".
+
+Aspecte de acoperit:
+{points_str}
+
+Răspunde STRICT în format JSON valid (fără markdown, fără ```json), cu structura:
+{{
+  "sfaturi_practice": [
+    "Pasul 1 al exercițiului, ca instrucțiune directă și concretă",
+    ... (5-7 pași, STRICT în ordinea în care se fac, fiecare un singur pas, fără numerotare în text)
+  ]
+}}"""
+        try:
+            response_text = await call_claude(system_msg, [{"role": "user", "content": prompt}])
+            import json, re
+            cleaned = response_text.strip()
+            if cleaned.startswith("```"):
+                cleaned = re.sub(r"^```(?:json)?\n?", "", cleaned)
+                cleaned = re.sub(r"\n?```$", "", cleaned)
+            try:
+                parsed = json.loads(cleaned)
+            except json.JSONDecodeError:
+                m = re.search(r"\{[\s\S]*\}", cleaned)
+                if not m:
+                    raise
+                parsed = json.loads(m.group(0))
+            steps = parsed.get("sfaturi_practice", [])
+            if steps:
+                await db.articles.update_one({"subtopic_id": sid}, {"$set": {"content.sfaturi_practice": steps}})
+                logger.info(f"Backfilled steps for {sid}")
+        except Exception:
+            logger.exception(f"Step backfill failed for {sid}")
 
 
 async def _backfill_exercise_images():
@@ -1086,6 +1180,7 @@ async def admin_pregenerate_articles(admin: dict = Depends(require_admin)):
     missing_count = len(all_subtopic_ids) - len(cached_ids)
     asyncio.create_task(_pregenerate_all_articles())
     asyncio.create_task(_backfill_exercise_images())
+    asyncio.create_task(_backfill_exercise_steps())
     return {"ok": True, "total": len(all_subtopic_ids), "already_cached": len(cached_ids), "generating": missing_count}
 
 
@@ -2376,6 +2471,7 @@ async def create_indexes():
 async def _exercise_migration_and_backfill():
     await _clear_old_format_exercise_articles()
     await _backfill_exercise_images()
+    await _backfill_exercise_steps()
 
 
 @app.on_event("startup")
