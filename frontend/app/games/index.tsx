@@ -3,8 +3,10 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-nati
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { api } from "@/src/lib/api";
 import { theme } from "@/src/lib/theme";
+import { PressScale } from "@/src/components/games/PressScale";
 
 const GAMES = [
   {
@@ -13,7 +15,7 @@ const GAMES = [
     title: "Secvența memoriei",
     desc: "Repetă o secvență de culori care crește tot mai mult. Dezvoltă memoria de lucru și atenția susținută.",
     icon: "color-palette" as const,
-    color: "#5E8B7E",
+    colors: ["#5E8B7E", "#3D5A52"] as [string, string],
   },
   {
     key: "attention",
@@ -21,7 +23,7 @@ const GAMES = [
     title: "Vânătorul de forme",
     desc: "Apasă doar când apare forma-țintă și ignoră restul. Antrenează atenția selectivă și controlul impulsurilor.",
     icon: "eye" as const,
-    color: "#DE8F6E",
+    colors: ["#DE8F6E", "#B5654A"] as [string, string],
   },
   {
     key: "numbers",
@@ -29,7 +31,7 @@ const GAMES = [
     title: "Ordinea Numerelor",
     desc: "Apasă numerele în ordine crescătoare, cât mai repede, împrăștiate pe ecran. Antrenează atenția susținută și viteza de procesare.",
     icon: "locate" as const,
-    color: "#7A9E9F",
+    colors: ["#7A9E9F", "#4F6C6D"] as [string, string],
   },
   {
     key: "oddoneout",
@@ -37,7 +39,7 @@ const GAMES = [
     title: "Vânează Intrusul",
     desc: "Găsește forma diferită ascunsă printre cele identice. Grila crește, timpul scade. Antrenează căutarea vizuală.",
     icon: "search" as const,
-    color: "#9B8CC4",
+    colors: ["#9B8CC4", "#6F5FA0"] as [string, string],
   },
   {
     key: "stroop",
@@ -45,7 +47,7 @@ const GAMES = [
     title: "Stroop Culori",
     desc: "Apasă culoarea cernelii, nu cuvântul citit. Antrenează controlul impulsurilor, potrivit mai ales pentru copii mai mari.",
     icon: "color-filter" as const,
-    color: "#E8B33C",
+    colors: ["#E8B33C", "#C48A1E"] as [string, string],
   },
 ];
 
@@ -78,19 +80,19 @@ export default function GamesHubScreen() {
 
       <ScrollView contentContainerStyle={{ padding: 20 }}>
         {GAMES.map((g) => (
-          <TouchableOpacity key={g.key} testID={`game-${g.key}`} style={styles.card} onPress={() => router.push(g.route as any)}>
-            <View style={[styles.iconWrap, { backgroundColor: g.color + "22" }]}>
-              <Ionicons name={g.icon} size={26} color={g.color} />
-            </View>
+          <PressScale key={g.key} testID={`game-${g.key}`} onPress={() => router.push(g.route as any)} style={styles.card}>
+            <LinearGradient colors={g.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.iconWrap, { shadowColor: g.colors[1] }]}>
+              <Ionicons name={g.icon} size={26} color="#fff" />
+            </LinearGradient>
             <View style={{ flex: 1 }}>
               <Text style={styles.cardTitle}>{g.title}</Text>
               <Text style={styles.cardDesc}>{g.desc}</Text>
               {scores[g.key] !== undefined && (
-                <Text style={[styles.bestScore, { color: g.color }]}>Record: {scores[g.key]}</Text>
+                <Text style={[styles.bestScore, { color: g.colors[1] }]}>Record: {scores[g.key]}</Text>
               )}
             </View>
             <Ionicons name="chevron-forward" size={20} color={theme.colors.textDisabled} />
-          </TouchableOpacity>
+          </PressScale>
         ))}
       </ScrollView>
     </View>
@@ -102,8 +104,16 @@ const styles = StyleSheet.create({
   iconBtn: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
   title: { fontSize: 18, fontWeight: "700", color: theme.colors.textPrimary },
   subtitle: { fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 },
-  card: { flexDirection: "row", gap: 14, alignItems: "center", backgroundColor: theme.colors.surface, borderRadius: 16, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: theme.colors.border },
-  iconWrap: { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center" },
+  card: {
+    flexDirection: "row", gap: 14, alignItems: "center", backgroundColor: theme.colors.surface,
+    borderRadius: 20, padding: 16, marginBottom: 14,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12,
+    elevation: 3,
+  },
+  iconWrap: {
+    width: 56, height: 56, borderRadius: 18, alignItems: "center", justifyContent: "center",
+    shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 10, elevation: 5,
+  },
   cardTitle: { fontSize: 16, fontWeight: "700", color: theme.colors.textPrimary },
   cardDesc: { fontSize: 12.5, color: theme.colors.textSecondary, marginTop: 4, lineHeight: 17 },
   bestScore: { fontSize: 12, fontWeight: "700", marginTop: 6 },

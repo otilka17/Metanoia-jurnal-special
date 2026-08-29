@@ -3,8 +3,13 @@ import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { api } from "@/src/lib/api";
 import { theme } from "@/src/lib/theme";
+import { PressScale } from "@/src/components/games/PressScale";
+import { GradientButton } from "@/src/components/games/GradientButton";
+import { GradientCircleIcon } from "@/src/components/games/GradientCircleIcon";
+import { RecordBadge } from "@/src/components/games/RecordBadge";
 
 const SHAPES = ["ellipse", "square", "triangle", "star"] as const;
 type Shape = typeof SHAPES[number];
@@ -116,11 +121,9 @@ export default function AttentionGameScreen() {
       <View style={styles.body}>
         {phase === "idle" && (
           <View style={styles.center}>
-            <Ionicons name="eye" size={48} color={theme.colors.secondary} />
+            <GradientCircleIcon icon="eye" colors={["#DE8F6E", "#B5654A"]} />
             <Text style={styles.introText}>Îți arătăm o formă-țintă. Apasă butonul doar când apare exact acea formă, cu acea culoare — ignoră restul.</Text>
-            <TouchableOpacity testID="attention-start" style={styles.startBtn} onPress={startGame}>
-              <Text style={styles.startBtnText}>Începe jocul</Text>
-            </TouchableOpacity>
+            <GradientButton testID="attention-start" label="Începe jocul" colors={["#DE8F6E", "#B5654A"]} onPress={startGame} />
           </View>
         )}
 
@@ -143,20 +146,20 @@ export default function AttentionGameScreen() {
 
             <Text style={styles.scoreText}>Scor: {score}</Text>
 
-            <TouchableOpacity testID="attention-tap" style={styles.tapBtn} onPress={onTap} activeOpacity={0.7}>
-              <Text style={styles.tapBtnText}>Apasă!</Text>
-            </TouchableOpacity>
+            <PressScale testID="attention-tap" onPress={onTap} style={styles.tapBtnWrap}>
+              <LinearGradient colors={["#DE8F6E", "#B5654A"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.tapBtn}>
+                <Text style={styles.tapBtnText}>Apasă!</Text>
+              </LinearGradient>
+            </PressScale>
           </>
         )}
 
         {phase === "gameover" && (
           <View style={styles.center}>
-            <Ionicons name="ribbon" size={48} color={theme.colors.secondary} />
+            <GradientCircleIcon icon="ribbon" colors={["#DE8F6E", "#B5654A"]} />
             <Text style={styles.gameoverTitle}>Scor final: {score}</Text>
-            {score >= bestScore && score > 0 && <Text style={styles.newBestText}>Record nou! 🎉</Text>}
-            <TouchableOpacity testID="attention-retry" style={styles.startBtn} onPress={startGame}>
-              <Text style={styles.startBtnText}>Joacă din nou</Text>
-            </TouchableOpacity>
+            <RecordBadge visible={score >= bestScore && score > 0} />
+            <GradientButton testID="attention-retry" label="Joacă din nou" colors={["#DE8F6E", "#B5654A"]} onPress={startGame} />
           </View>
         )}
       </View>
@@ -172,16 +175,17 @@ const styles = StyleSheet.create({
   body: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
   center: { alignItems: "center", maxWidth: 320 },
   introText: { ...theme.font.body, color: theme.colors.textSecondary, textAlign: "center", marginTop: 16, marginBottom: 24 },
-  startBtn: { backgroundColor: theme.colors.primary, borderRadius: 999, paddingHorizontal: 32, paddingVertical: 14 },
-  startBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
   targetRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 28 },
   targetLabel: { fontSize: 13, color: theme.colors.textSecondary, fontWeight: "600" },
   progressText: { fontSize: 12, color: theme.colors.textDisabled, marginLeft: 12 },
   shapeArea: { width: 140, height: 140, alignItems: "center", justifyContent: "center", marginBottom: 8 },
   feedbackText: { position: "absolute", bottom: -6, fontSize: 14, fontWeight: "700" },
   scoreText: { fontSize: 15, fontWeight: "700", color: theme.colors.textPrimary, marginBottom: 24 },
-  tapBtn: { width: 140, height: 140, borderRadius: 70, backgroundColor: theme.colors.secondary, alignItems: "center", justifyContent: "center" },
+  tapBtnWrap: {
+    width: 140, height: 140, borderRadius: 70,
+    shadowColor: "#B5654A", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 14, elevation: 8,
+  },
+  tapBtn: { width: 140, height: 140, borderRadius: 70, alignItems: "center", justifyContent: "center" },
   tapBtnText: { color: "#fff", fontWeight: "700", fontSize: 18 },
   gameoverTitle: { ...theme.font.h2, color: theme.colors.textPrimary, textAlign: "center", marginTop: 16 },
-  newBestText: { fontSize: 14, fontWeight: "700", color: theme.colors.secondary, marginTop: 8, marginBottom: 8 },
 });

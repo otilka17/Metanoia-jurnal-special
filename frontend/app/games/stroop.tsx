@@ -5,6 +5,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/src/lib/api";
 import { theme } from "@/src/lib/theme";
+import { PressScale } from "@/src/components/games/PressScale";
+import { GradientButton } from "@/src/components/games/GradientButton";
+import { GradientCircleIcon } from "@/src/components/games/GradientCircleIcon";
+import { RecordBadge } from "@/src/components/games/RecordBadge";
+
+const STROOP_GRADIENT: [string, string] = ["#E8B33C", "#C48A1E"];
 
 const COLOR_DEFS = [
   { name: "ROȘU", hex: "#D9534F" },
@@ -102,11 +108,9 @@ export default function StroopGameScreen() {
       <View style={styles.body}>
         {phase === "idle" && (
           <View style={styles.center}>
-            <Ionicons name="color-filter" size={48} color={theme.colors.secondary} />
+            <GradientCircleIcon icon="color-filter" colors={STROOP_GRADIENT} />
             <Text style={styles.introText}>Vei vedea un cuvânt-culoare scris cu altă culoare de cerneală. Apasă culoarea cernelii, nu cuvântul citit — ignoră ce scrie!</Text>
-            <TouchableOpacity testID="stroop-start" style={styles.startBtn} onPress={startGame}>
-              <Text style={styles.startBtnText}>Începe jocul</Text>
-            </TouchableOpacity>
+            <GradientButton testID="stroop-start" label="Începe jocul" colors={STROOP_GRADIENT} onPress={startGame} />
           </View>
         )}
 
@@ -126,13 +130,14 @@ export default function StroopGameScreen() {
 
             <View style={styles.optionsRow}>
               {COLOR_DEFS.map((c) => (
-                <TouchableOpacity
+                <PressScale
                   key={c.name}
                   testID={`stroop-color-${c.name}`}
-                  style={[styles.colorBtn, { backgroundColor: c.hex }]}
+                  style={styles.colorBtnWrap}
                   onPress={() => onTapColor(c.hex)}
-                  activeOpacity={0.7}
-                />
+                >
+                  <View style={[styles.colorBtn, { backgroundColor: c.hex }]} />
+                </PressScale>
               ))}
             </View>
           </>
@@ -140,12 +145,10 @@ export default function StroopGameScreen() {
 
         {phase === "gameover" && (
           <View style={styles.center}>
-            <Ionicons name="ribbon" size={48} color={theme.colors.secondary} />
+            <GradientCircleIcon icon="ribbon" colors={STROOP_GRADIENT} />
             <Text style={styles.gameoverTitle}>Scor final: {score}/{ROUND_LENGTH}</Text>
-            {score >= bestScore && score > 0 && <Text style={styles.newBestText}>Record nou! 🎉</Text>}
-            <TouchableOpacity testID="stroop-retry" style={styles.startBtn} onPress={startGame}>
-              <Text style={styles.startBtnText}>Joacă din nou</Text>
-            </TouchableOpacity>
+            <RecordBadge visible={score >= bestScore && score > 0} />
+            <GradientButton testID="stroop-retry" label="Joacă din nou" colors={STROOP_GRADIENT} onPress={startGame} />
           </View>
         )}
       </View>
@@ -161,15 +164,16 @@ const styles = StyleSheet.create({
   body: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
   center: { alignItems: "center", maxWidth: 320 },
   introText: { ...theme.font.body, color: theme.colors.textSecondary, textAlign: "center", marginTop: 16, marginBottom: 24 },
-  startBtn: { backgroundColor: theme.colors.primary, borderRadius: 999, paddingHorizontal: 32, paddingVertical: 14 },
-  startBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
   progressText: { fontSize: 12, color: theme.colors.textDisabled, marginBottom: 20 },
   wordArea: { minHeight: 90, alignItems: "center", justifyContent: "center" },
   wordText: { fontSize: 40, fontWeight: "800" },
   feedbackText: { marginTop: 8, fontSize: 14, fontWeight: "700" },
   scoreText: { fontSize: 15, fontWeight: "700", color: theme.colors.textPrimary, marginTop: 8, marginBottom: 28 },
   optionsRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 14 },
+  colorBtnWrap: {
+    width: 56, height: 56, borderRadius: 28,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 6, elevation: 4,
+  },
   colorBtn: { width: 56, height: 56, borderRadius: 28 },
   gameoverTitle: { ...theme.font.h2, color: theme.colors.textPrimary, textAlign: "center", marginTop: 16 },
-  newBestText: { fontSize: 14, fontWeight: "700", color: theme.colors.secondary, marginTop: 8, marginBottom: 8 },
 });

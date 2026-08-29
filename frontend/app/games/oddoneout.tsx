@@ -5,6 +5,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/src/lib/api";
 import { theme } from "@/src/lib/theme";
+import { PressScale } from "@/src/components/games/PressScale";
+import { GradientButton } from "@/src/components/games/GradientButton";
+import { GradientCircleIcon } from "@/src/components/games/GradientCircleIcon";
+import { RecordBadge } from "@/src/components/games/RecordBadge";
+
+const ODDONEOUT_GRADIENT: [string, string] = ["#9B8CC4", "#6F5FA0"];
 
 const SHAPES = ["ellipse", "square", "triangle", "star"] as const;
 type Shape = typeof SHAPES[number];
@@ -120,11 +126,9 @@ export default function OddOneOutGameScreen() {
       <View style={styles.body}>
         {phase === "idle" && (
           <View style={styles.center}>
-            <Ionicons name="search" size={48} color={theme.colors.secondary} />
+            <GradientCircleIcon icon="search" colors={ODDONEOUT_GRADIENT} />
             <Text style={styles.introText}>Printre formele identice se ascunde una diferită — de culoare sau de formă. Găsește-o cât mai repede. La fiecare rundă apar mai multe forme și mai puțin timp.</Text>
-            <TouchableOpacity testID="oddoneout-start" style={styles.startBtn} onPress={startGame}>
-              <Text style={styles.startBtnText}>Începe jocul</Text>
-            </TouchableOpacity>
+            <GradientButton testID="oddoneout-start" label="Începe jocul" colors={ODDONEOUT_GRADIENT} onPress={startGame} />
           </View>
         )}
 
@@ -133,14 +137,14 @@ export default function OddOneOutGameScreen() {
             <Text style={styles.levelText}>Nivel {level}</Text>
             <View style={[styles.grid, { width: columns * (cellSize + 8) }]}>
               {items.map((item, i) => (
-                <TouchableOpacity
+                <PressScale
                   key={i}
                   testID={`oddoneout-item-${i}`}
                   onPress={() => onTapItem(i)}
                   style={[styles.cell, { width: cellSize, height: cellSize }]}
                 >
                   <Ionicons name={item.shape} size={cellSize * 0.6} color={item.color} />
-                </TouchableOpacity>
+                </PressScale>
               ))}
             </View>
           </>
@@ -148,12 +152,10 @@ export default function OddOneOutGameScreen() {
 
         {phase === "gameover" && (
           <View style={styles.center}>
-            <Ionicons name="ribbon" size={48} color={theme.colors.secondary} />
+            <GradientCircleIcon icon="ribbon" colors={ODDONEOUT_GRADIENT} />
             <Text style={styles.gameoverTitle}>Ai ajuns la nivelul {score}!</Text>
-            {score >= bestScore && score > 0 && <Text style={styles.newBestText}>Record nou! 🎉</Text>}
-            <TouchableOpacity testID="oddoneout-retry" style={styles.startBtn} onPress={startGame}>
-              <Text style={styles.startBtnText}>Joacă din nou</Text>
-            </TouchableOpacity>
+            <RecordBadge visible={score >= bestScore && score > 0} />
+            <GradientButton testID="oddoneout-retry" label="Joacă din nou" colors={ODDONEOUT_GRADIENT} onPress={startGame} />
           </View>
         )}
       </View>
@@ -169,11 +171,11 @@ const styles = StyleSheet.create({
   body: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
   center: { alignItems: "center", maxWidth: 320 },
   introText: { ...theme.font.body, color: theme.colors.textSecondary, textAlign: "center", marginTop: 16, marginBottom: 24 },
-  startBtn: { backgroundColor: theme.colors.primary, borderRadius: 999, paddingHorizontal: 32, paddingVertical: 14 },
-  startBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
   levelText: { ...theme.font.h2, color: theme.colors.textPrimary, marginBottom: 16 },
   grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8 },
-  cell: { alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.surfaceElevated, borderRadius: 14 },
+  cell: {
+    alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.surfaceElevated, borderRadius: 14,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.1, shadowRadius: 6, elevation: 2,
+  },
   gameoverTitle: { ...theme.font.h2, color: theme.colors.textPrimary, textAlign: "center", marginTop: 16 },
-  newBestText: { fontSize: 14, fontWeight: "700", color: theme.colors.secondary, marginTop: 8, marginBottom: 8 },
 });

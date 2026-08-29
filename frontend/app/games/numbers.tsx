@@ -3,8 +3,14 @@ import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { api } from "@/src/lib/api";
 import { theme } from "@/src/lib/theme";
+import { GradientButton } from "@/src/components/games/GradientButton";
+import { GradientCircleIcon } from "@/src/components/games/GradientCircleIcon";
+import { RecordBadge } from "@/src/components/games/RecordBadge";
+
+const NUMBERS_GRADIENT: [string, string] = ["#7A9E9F", "#4F6C6D"];
 
 const BOARD_W = 300;
 const BOARD_H = 380;
@@ -118,11 +124,9 @@ export default function NumbersGameScreen() {
       <View style={styles.body}>
         {phase === "idle" && (
           <View style={styles.center}>
-            <Ionicons name="locate" size={48} color={theme.colors.primary} />
+            <GradientCircleIcon icon="locate" colors={NUMBERS_GRADIENT} />
             <Text style={styles.introText}>Numerele sunt împrăștiate pe ecran. Apasă-le în ordine, de la 1 în sus, cât mai repede. La fiecare rundă se adaugă un număr în plus.</Text>
-            <TouchableOpacity testID="numbers-start" style={styles.startBtn} onPress={startGame}>
-              <Text style={styles.startBtnText}>Începe jocul</Text>
-            </TouchableOpacity>
+            <GradientButton testID="numbers-start" label="Începe jocul" colors={NUMBERS_GRADIENT} onPress={startGame} />
           </View>
         )}
 
@@ -141,12 +145,18 @@ export default function NumbersGameScreen() {
                     testID={`numbers-node-${n.num}`}
                     disabled={isTapped}
                     onPress={() => onTapNode(n.num)}
-                    style={[
-                      styles.node,
-                      { left: n.x, top: n.y, backgroundColor: isTapped ? theme.colors.border : theme.colors.primary },
-                    ]}
+                    activeOpacity={0.75}
+                    style={[styles.nodeWrap, { left: n.x, top: n.y, opacity: isTapped ? 0.35 : 1 }]}
                   >
-                    <Text style={[styles.nodeText, isTapped && { color: theme.colors.textDisabled }]}>{n.num}</Text>
+                    {isTapped ? (
+                      <View style={[styles.node, { backgroundColor: theme.colors.border }]}>
+                        <Text style={[styles.nodeText, { color: theme.colors.textDisabled }]}>{n.num}</Text>
+                      </View>
+                    ) : (
+                      <LinearGradient colors={NUMBERS_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.node}>
+                        <Text style={styles.nodeText}>{n.num}</Text>
+                      </LinearGradient>
+                    )}
                   </TouchableOpacity>
                 );
               })}
@@ -156,12 +166,10 @@ export default function NumbersGameScreen() {
 
         {phase === "gameover" && (
           <View style={styles.center}>
-            <Ionicons name="ribbon" size={48} color={theme.colors.secondary} />
+            <GradientCircleIcon icon="ribbon" colors={["#DE8F6E", "#B5654A"]} />
             <Text style={styles.gameoverTitle}>Ai ajuns la nivelul {score}!</Text>
-            {score >= bestScore && score > 0 && <Text style={styles.newBestText}>Record nou! 🎉</Text>}
-            <TouchableOpacity testID="numbers-retry" style={styles.startBtn} onPress={startGame}>
-              <Text style={styles.startBtnText}>Joacă din nou</Text>
-            </TouchableOpacity>
+            <RecordBadge visible={score >= bestScore && score > 0} />
+            <GradientButton testID="numbers-retry" label="Joacă din nou" colors={NUMBERS_GRADIENT} onPress={startGame} />
           </View>
         )}
       </View>
@@ -177,14 +185,15 @@ const styles = StyleSheet.create({
   body: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
   center: { alignItems: "center", maxWidth: 320 },
   introText: { ...theme.font.body, color: theme.colors.textSecondary, textAlign: "center", marginTop: 16, marginBottom: 24 },
-  startBtn: { backgroundColor: theme.colors.primary, borderRadius: 999, paddingHorizontal: 32, paddingVertical: 14 },
-  startBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
   statusRow: { flexDirection: "row", justifyContent: "space-between", width: BOARD_W, marginBottom: 12 },
   levelText: { fontSize: 15, fontWeight: "700", color: theme.colors.textPrimary },
   nextText: { fontSize: 13, color: theme.colors.textSecondary },
   board: { width: BOARD_W, height: BOARD_H, backgroundColor: theme.colors.surfaceElevated, borderRadius: 20, position: "relative", overflow: "hidden" },
-  node: { position: "absolute", width: NODE_SIZE, height: NODE_SIZE, borderRadius: NODE_SIZE / 2, alignItems: "center", justifyContent: "center" },
+  nodeWrap: {
+    position: "absolute", width: NODE_SIZE, height: NODE_SIZE,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.2, shadowRadius: 5, elevation: 3,
+  },
+  node: { width: NODE_SIZE, height: NODE_SIZE, borderRadius: NODE_SIZE / 2, alignItems: "center", justifyContent: "center" },
   nodeText: { color: "#fff", fontWeight: "700", fontSize: 16 },
   gameoverTitle: { ...theme.font.h2, color: theme.colors.textPrimary, textAlign: "center", marginTop: 16 },
-  newBestText: { fontSize: 14, fontWeight: "700", color: theme.colors.secondary, marginTop: 8, marginBottom: 8 },
 });
