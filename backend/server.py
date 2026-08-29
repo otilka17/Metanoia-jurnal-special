@@ -921,12 +921,57 @@ Răspunde STRICT în format JSON valid (fără markdown, fără ```json), cu str
     return article
 
 
+def _youtube_id(url: str) -> Optional[str]:
+    m = _re.search(r"(?:youtu\.be/|youtube\.com/(?:watch\?v=|embed/|shorts/))([A-Za-z0-9_-]{6,})", url)
+    return m.group(1) if m else None
+
+
 @api_router.get("/article/{subtopic_id}")
 async def get_article(subtopic_id: str, user: dict = Depends(get_current_user)):
     cached = await db.articles.find_one({"subtopic_id": subtopic_id}, {"_id": 0})
-    if cached:
-        return cached
-    return await generate_article(subtopic_id)
+    article = cached if cached else await generate_article(subtopic_id)
+    video = await db.subtopic_videos.find_one({"subtopic_id": subtopic_id}, {"_id": 0, "video_url": 1})
+    article["video_url"] = video["video_url"] if video else ""
+    return article
+
+
+class VideoSet(BaseModel):
+    video_url: str = ""
+
+
+@api_router.get("/admin/videos")
+async def admin_list_videos(admin: dict = Depends(require_admin)):
+    videos = await db.subtopic_videos.find({}, {"_id": 0}).to_list(500)
+    video_map = {v["subtopic_id"]: v["video_url"] for v in videos}
+    out = []
+    for cat in CATEGORIES:
+        for sub in cat["subtopics"]:
+            out.append({
+                "subtopic_id": sub["id"],
+                "subtopic_title": sub["title"],
+                "category_title": cat["title"],
+                "video_url": video_map.get(sub["id"], ""),
+            })
+    return {"subtopics": out}
+
+
+@api_router.put("/admin/videos/{subtopic_id}")
+async def admin_set_video(subtopic_id: str, data: VideoSet, admin: dict = Depends(require_admin)):
+    cat, sub = find_subtopic(subtopic_id)
+    if not sub:
+        raise HTTPException(status_code=404, detail="Subiect inexistent")
+    url = data.video_url.strip()
+    if not url:
+        await db.subtopic_videos.delete_one({"subtopic_id": subtopic_id})
+        return {"ok": True}
+    if not _youtube_id(url):
+        raise HTTPException(status_code=400, detail="Linkul trebuie să fie un link YouTube valid")
+    await db.subtopic_videos.update_one(
+        {"subtopic_id": subtopic_id},
+        {"$set": {"subtopic_id": subtopic_id, "video_url": url, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+    return {"ok": True}
 
 
 async def _pregenerate_all_articles():
