@@ -185,6 +185,36 @@ CATEGORIES = [
             ]},
         ]
     },
+    {
+        "id": "cat-6",
+        "title": "Exerciții Practice pentru Copil",
+        "subtitle": "Pași concreți, de exersat acasă",
+        "color": "#6B8CB5",
+        "icon": "body",
+        "profiles": ["supradotat", "adhd", "autism", "sensibil"],
+        "subtopics": [
+            {"id": "sub-6-1", "title": "Exerciții de Respirație și Calm", "points": [
+                "Tehnici de respirație adaptate vârstei",
+                "Relaxare musculară progresivă simplă",
+                "Rutină de \"resetare\" în momente de tensiune"
+            ]},
+            {"id": "sub-6-2", "title": "Exerciții de Concentrare și Atenție", "points": [
+                "Joc de atenție susținută, pas cu pas",
+                "Mindfulness scurt, potrivit pentru copii",
+                "Fragmentarea unei sarcini în pași mici"
+            ]},
+            {"id": "sub-6-3", "title": "Exerciții Senzoriale", "points": [
+                "Activitate de reglare senzorială ghidată",
+                "Exercițiu de conștientizare corporală",
+                "Tehnică de presiune profundă/greutate"
+            ]},
+            {"id": "sub-6-4", "title": "Exerciții de Comunicare Emoțională", "points": [
+                "Exercițiu de identificare a emoțiilor",
+                "Joc de exprimare prin cuvinte simple",
+                "Tehnică de ascultare activă părinte-copil"
+            ]},
+        ]
+    },
 ]
 
 
@@ -864,7 +894,30 @@ async def generate_article(subtopic_id: str) -> dict:
         "Scrii articole educaționale pentru părinți români. Folosești limba română corectă, ton cald, empatic și practic. "
         "Răspunzi strict în format JSON valid, fără text suplimentar."
     ) + RO_CAPITALIZATION_RULE
-    prompt = f"""Scrie un articol educațional pentru părinți despre tema: "{sub['title']}"
+
+    if cat["id"] == "cat-6":
+        prompt = f"""Scrie un exercițiu practic, ghidat pas cu pas, pe care un părinte îl poate face cu copilul, pe tema: "{sub['title']}"
+(din categoria "{cat['title']}").
+
+Aspecte de acoperit:
+{points_str}
+
+Răspunde STRICT în format JSON valid (fără markdown, fără ```json), cu structura:
+{{
+  "introducere": "2-3 paragrafe: de ce e util acest exercițiu, pentru ce vârstă/situații e potrivit (250-350 cuvinte)",
+  "puncte_cheie": [
+    {{"titlu": "...", "explicatie": "1-2 propoziții"}},
+    ... (3-4 elemente, ex: durată recomandată, materiale necesare, frecvență)
+  ],
+  "sfaturi_practice": [
+    "Pasul 1 al exercițiului, ca instrucțiune directă și concretă",
+    ... (5-7 pași, STRICT în ordinea în care se fac, fiecare un singur pas)
+  ],
+  "exemplu_situatie": "Un exemplu concret de cum decurge exercițiul cu un copil real (100-150 cuvinte)",
+  "cand_sa_cer_ajutor": "Când acest exercițiu nu e suficient și e nevoie de un specialist (2-3 propoziții)"
+}}"""
+    else:
+        prompt = f"""Scrie un articol educațional pentru părinți despre tema: "{sub['title']}"
 (din categoria "{cat['title']}").
 
 Puncte cheie de acoperit:
