@@ -921,55 +921,12 @@ Răspunde STRICT în format JSON valid (fără markdown, fără ```json), cu str
     return article
 
 
-GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "")
-GEMINI_IMAGE_MODEL = os.environ.get("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image")
-
-
-async def generate_topic_image(category_title: str, subtopic_title: str) -> Optional[str]:
-    """Generates an illustrative image via the Gemini API (Nano Banana). Returns a base64 data URI, or None on failure/missing key."""
-    if not GOOGLE_API_KEY:
-        return None
-    prompt = (
-        f"A warm, minimalist digital illustration representing the parenting topic '{subtopic_title}' "
-        f"(category: '{category_title}'). Soft pastel colors, gentle abstract shapes, no text, no realistic "
-        f"human faces, calming and reassuring style suitable for a parenting app, 16:9 aspect ratio."
-    )
-    try:
-        async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_IMAGE_MODEL}:generateContent",
-                headers={"x-goog-api-key": GOOGLE_API_KEY},
-                json={
-                    "contents": [{"parts": [{"text": prompt}]}],
-                    "generationConfig": {"responseModalities": ["IMAGE"]},
-                },
-            )
-        resp.raise_for_status()
-        data = resp.json()
-        parts = data["candidates"][0]["content"]["parts"]
-        for part in parts:
-            inline = part.get("inlineData") or part.get("inline_data")
-            if inline and inline.get("data"):
-                mime = inline.get("mimeType") or inline.get("mime_type") or "image/png"
-                return f"data:{mime};base64,{inline['data']}"
-        logger.error(f"Gemini image generation returned no inline image data: {data}")
-        return None
-    except Exception as e:
-        logger.error(f"Gemini image generation failed: {e}")
-        return None
-
-
 @api_router.get("/article/{subtopic_id}")
 async def get_article(subtopic_id: str, user: dict = Depends(get_current_user)):
     cached = await db.articles.find_one({"subtopic_id": subtopic_id}, {"_id": 0})
-    article = cached if cached else await generate_article(subtopic_id)
-    if not article.get("image_data"):
-        cat, sub = find_subtopic(subtopic_id)
-        image_data = await generate_topic_image(cat["title"], sub["title"]) if cat else None
-        if image_data:
-            await db.articles.update_one({"subtopic_id": subtopic_id}, {"$set": {"image_data": image_data}})
-            article["image_data"] = image_data
-    return article
+    if cached:
+        return cached
+    return await generate_article(subtopic_id)
 
 
 async def _pregenerate_all_articles():
@@ -983,23 +940,6 @@ async def _pregenerate_all_articles():
             logger.info(f"Pre-generated article for {sid}")
         except Exception:
             logger.exception(f"Pre-generation failed for {sid}")
-
-    missing_images = await db.articles.find(
-        {"subtopic_id": {"$in": all_subtopic_ids}, "image_data": {"$exists": False}}, {"_id": 0, "subtopic_id": 1}
-    ).to_list(len(all_subtopic_ids))
-    logger.info(f"Pre-generating {len(missing_images)} missing topic images")
-    for doc in missing_images:
-        sid = doc["subtopic_id"]
-        try:
-            cat, sub = find_subtopic(sid)
-            if not cat:
-                continue
-            image_data = await generate_topic_image(cat["title"], sub["title"])
-            if image_data:
-                await db.articles.update_one({"subtopic_id": sid}, {"$set": {"image_data": image_data}})
-                logger.info(f"Pre-generated image for {sid}")
-        except Exception:
-            logger.exception(f"Image pre-generation failed for {sid}")
 
 
 @api_router.post("/admin/articles/pregenerate")

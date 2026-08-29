@@ -5,8 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
-  Image
+  ActivityIndicator
 } from "react-native";
 import { Alert } from "@/src/lib/alert";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -21,7 +20,6 @@ type Article = {
   category_title: string;
   category_id: string;
   color: string;
-  image_data?: string;
   content: {
     introducere: string;
     puncte_cheie: { titlu: string; explicatie: string }[];
@@ -122,8 +120,6 @@ export default function ArticleScreen() {
 
         <View style={[styles.colorBar, { backgroundColor: article.color }]} />
 
-        {!!article.image_data && <Image source={{ uri: article.image_data }} style={styles.topicImage} />}
-
         <Text style={styles.intro}>{c.introducere}</Text>
 
         <Text style={styles.sectionTitle}>Puncte Cheie</Text>
@@ -187,7 +183,6 @@ const styles = StyleSheet.create({
   title: { ...theme.font.h1, color: theme.colors.textPrimary, marginBottom: 16 },
   colorBar: { height: 4, width: 60, borderRadius: 2, marginBottom: 20 },
   intro: { ...theme.font.bodyL, color: theme.colors.textPrimary, marginBottom: 24 },
-  topicImage: { width: "100%", aspectRatio: 16 / 9, borderRadius: 14, marginBottom: 20 },
   sectionTitle: { ...theme.font.h3, color: theme.colors.textPrimary, marginTop: 24, marginBottom: 12 },
   pointRow: { flexDirection: "row", gap: 12, marginBottom: 12 },
   pointDot: { width: 8, height: 8, borderRadius: 4, marginTop: 8 },
