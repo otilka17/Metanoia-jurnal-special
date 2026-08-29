@@ -139,9 +139,14 @@ export default function ArticleScreen() {
             <Text style={[styles.tipsTitle, { color: article.color }]}>Sfaturi Practice</Text>
           </View>
           {c.sfaturi_practice?.map((s, i) => (
-            <View key={i} style={styles.tipRow}>
-              <Text style={[styles.tipBullet, { color: article.color }]}>›</Text>
-              <Text style={styles.tipText}>{s}</Text>
+            <View key={i} style={styles.stepRow}>
+              <View style={styles.stepBadgeCol}>
+                <View style={[styles.stepBadge, { backgroundColor: article.color }]}>
+                  <Text style={styles.stepBadgeText}>{i + 1}</Text>
+                </View>
+                {i < c.sfaturi_practice.length - 1 && <View style={[styles.stepLine, { backgroundColor: article.color + "33" }]} />}
+              </View>
+              <Text style={styles.stepText}>{s}</Text>
             </View>
           ))}
         </View>
@@ -195,9 +200,12 @@ const styles = StyleSheet.create({
   },
   tipsHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
   tipsTitle: { fontSize: 16, fontWeight: "600" },
-  tipRow: { flexDirection: "row", gap: 8, marginBottom: 8 },
-  tipBullet: { fontSize: 20, fontWeight: "700", lineHeight: 20 },
-  tipText: { flex: 1, fontSize: 14, color: theme.colors.textPrimary, lineHeight: 20 },
+  stepRow: { flexDirection: "row", gap: 12 },
+  stepBadgeCol: { alignItems: "center", width: 28 },
+  stepBadge: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  stepBadgeText: { color: "#fff", fontWeight: "700", fontSize: 13 },
+  stepLine: { width: 2, flex: 1, marginVertical: 4, minHeight: 14 },
+  stepText: { flex: 1, fontSize: 14, color: theme.colors.textPrimary, lineHeight: 20, paddingBottom: 16 },
   exampleBox: {
     backgroundColor: theme.colors.surfaceElevated,
     borderRadius: 14, padding: 16,
