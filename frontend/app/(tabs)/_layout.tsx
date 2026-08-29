@@ -17,6 +17,7 @@ const MENU = [
   { label: "Întreabă specialistul", route: "/(tabs)/ask", icon: "chatbubbles" as const },
   { label: "Ghidul Specialistului", route: "/(tabs)/guide", icon: "library" as const },
   { label: "Mind Map", route: "/(tabs)/mindmap", icon: "git-network" as const },
+  { label: "Jocuri pentru concentrare", route: "/games", icon: "game-controller" as const },
   { label: "Jurnal", route: "/(tabs)/journal", icon: "book" as const },
   { label: "Feedback", route: "/feedback", icon: "chatbox-ellipses" as const },
   { label: "Profil", route: "/(tabs)/profile", icon: "person" as const },

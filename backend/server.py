@@ -2173,6 +2173,34 @@ async def admin_list_feedback(admin: dict = Depends(require_admin)):
     return {"feedback": items, "count": len(items)}
 
 
+# ============ CONCENTRATION GAMES ============
+VALID_GAMES = {"memory", "attention"}
+
+class GameScoreSubmit(BaseModel):
+    game: str
+    score: int = Field(ge=0)
+
+@api_router.get("/games/scores")
+async def my_game_scores(user: dict = Depends(get_current_user)):
+    items = await db.game_scores.find({"user_id": user["id"]}, {"_id": 0, "game": 1, "best_score": 1}).to_list(10)
+    return {"scores": {i["game"]: i["best_score"] for i in items}}
+
+
+@api_router.post("/games/score")
+async def submit_game_score(data: GameScoreSubmit, user: dict = Depends(get_current_user)):
+    if data.game not in VALID_GAMES:
+        raise HTTPException(status_code=400, detail="Joc invalid")
+    existing = await db.game_scores.find_one({"user_id": user["id"], "game": data.game})
+    is_new_best = not existing or data.score > existing["best_score"]
+    if is_new_best:
+        await db.game_scores.update_one(
+            {"user_id": user["id"], "game": data.game},
+            {"$set": {"best_score": data.score, "updated_at": datetime.now(timezone.utc).isoformat()}},
+            upsert=True,
+        )
+    return {"ok": True, "is_new_best": is_new_best, "best_score": data.score if is_new_best else existing["best_score"]}
+
+
 # ============ SPECIALISTS DIRECTORY ============
 @api_router.get("/specialists")
 async def list_specialists(user: dict = Depends(get_current_user)):

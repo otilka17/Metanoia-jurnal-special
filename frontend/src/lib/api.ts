@@ -149,6 +149,11 @@ export const api = {
   }) => request("/feedback", { method: "POST", body: data }),
   adminListFeedback: () => request("/admin/feedback"),
 
+  // Concentration games
+  myGameScores: () => request("/games/scores"),
+  submitGameScore: (game: string, score: number) =>
+    request("/games/score", { method: "POST", body: { game, score } }),
+
   // Comparison tables
   listComparisons: () => request("/compare"),
   getComparison: (id: string) => request(`/compare/${id}`),
