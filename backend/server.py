@@ -1197,6 +1197,38 @@ async def admin_pregenerate_articles(admin: dict = Depends(require_admin)):
     return {"ok": True, "total": len(all_subtopic_ids), "already_cached": len(cached_ids), "generating": missing_count}
 
 
+class BroadcastEmailRequest(BaseModel):
+    subject: str = Field(min_length=1, max_length=200)
+    body: str = Field(min_length=1, max_length=5000)
+
+
+async def _send_broadcast_email(subject: str, body: str):
+    users = await db.users.find({}, {"_id": 0, "email": 1}).to_list(10000)
+    paragraphs = "".join(
+        f'<p style="margin:0 0 14px;font-size:14px;line-height:20px">{html_escape(line)}</p>'
+        for line in body.split("\n") if line.strip()
+    )
+    html = _email_shell(paragraphs)
+    sent = 0
+    for i, u in enumerate(users):
+        if i > 0:
+            await asyncio.sleep(0.5)
+        try:
+            if await send_email(to=u["email"], subject=subject, html=html):
+                sent += 1
+        except Exception:
+            logger.exception(f"Broadcast email failed for {u.get('email')}")
+    logger.info(f"Broadcast email sent to {sent}/{len(users)} users")
+
+
+@api_router.post("/admin/broadcast-email")
+async def admin_broadcast_email(data: BroadcastEmailRequest, admin: dict = Depends(require_admin)):
+    """Sends the given subject/body (as an email, one paragraph per line) to every registered user, in the background."""
+    count = await db.users.count_documents({})
+    asyncio.create_task(_send_broadcast_email(data.subject, data.body))
+    return {"ok": True, "recipients": count}
+
+
 # ============ BOOKMARKS ============
 @api_router.get("/bookmarks")
 async def list_bookmarks(user: dict = Depends(get_current_user)):

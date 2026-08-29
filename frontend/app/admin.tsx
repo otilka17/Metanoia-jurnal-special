@@ -61,6 +61,11 @@ export default function AdminScreen() {
   const [askViewer, setAskViewer] = useState<{ user: AdminUser; items: AskItem[] } | null>(null);
   const [askLoading, setAskLoading] = useState(false);
   const [pregenLoading, setPregenLoading] = useState(false);
+  const [broadcastSubject, setBroadcastSubject] = useState("Noutăți în Ghid Părinte 💚");
+  const [broadcastBody, setBroadcastBody] = useState(
+    "Mulțumim că faci parte din comunitatea Ghid Părinte!\nAm adăugat două secțiuni noi: Exerciții — activități pas-cu-pas pentru copil, cu imagini și instrucțiuni clare — și Jocuri pentru concentrare, 5 jocuri pentru atenție și memorie.\nLe găsești direct din meniul aplicației.\nCu drag,\nEchipa Ghid Părinte"
+  );
+  const [broadcastLoading, setBroadcastLoading] = useState(false);
   const [specialists, setSpecialists] = useState<Specialist[]>([]);
   const [showSpecModal, setShowSpecModal] = useState(false);
   const [editingSpec, setEditingSpec] = useState<Specialist | null>(null);
@@ -164,6 +169,34 @@ export default function AdminScreen() {
     } finally {
       setPregenLoading(false);
     }
+  };
+
+  const sendBroadcastEmail = () => {
+    if (!broadcastSubject.trim() || !broadcastBody.trim()) {
+      Alert.alert("Completează subiectul și mesajul");
+      return;
+    }
+    Alert.alert(
+      "Trimite email la toți?",
+      `Vei trimite acest email către toți utilizatorii înregistrați (${stats?.users?.total ?? "toți"} conturi). Continui?`,
+      [
+        { text: "Anulează", style: "cancel" },
+        {
+          text: "Trimite",
+          onPress: async () => {
+            setBroadcastLoading(true);
+            try {
+              const r: any = await api.adminBroadcastEmail(broadcastSubject.trim(), broadcastBody);
+              Alert.alert("Pornit ✓", `Se trimite emailul către ${r.recipients} conturi, în fundal.`);
+            } catch (e: any) {
+              Alert.alert("Eroare", e.message || "Nu am putut trimite emailul");
+            } finally {
+              setBroadcastLoading(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const openAddSpecialist = () => {
@@ -327,6 +360,42 @@ export default function AdminScreen() {
                 <Text style={styles.pregenText}>Generează din timp articolele AI lipsă din Mind Map, ca niciun utilizator să nu mai aștepte</Text>
               </View>
             </TouchableOpacity>
+
+            <View style={styles.calendlyCard}>
+              <View style={styles.calendlyHeader}>
+                <Ionicons name="mail" size={18} color={theme.colors.primary} />
+                <Text style={styles.calendlyTitle}>Trimite email la toți utilizatorii</Text>
+              </View>
+              <TextInput
+                testID="broadcast-subject-input"
+                value={broadcastSubject}
+                onChangeText={setBroadcastSubject}
+                placeholder="Subiect"
+                placeholderTextColor={theme.colors.textDisabled}
+                style={styles.modalInput}
+              />
+              <TextInput
+                testID="broadcast-body-input"
+                value={broadcastBody}
+                onChangeText={setBroadcastBody}
+                placeholder="Mesaj (un paragraf pe linie)"
+                placeholderTextColor={theme.colors.textDisabled}
+                multiline
+                numberOfLines={6}
+                style={[styles.modalInput, { minHeight: 120, textAlignVertical: "top" }]}
+              />
+              <TouchableOpacity
+                testID="broadcast-send-btn"
+                style={[styles.pregenCard, { marginBottom: 0 }, broadcastLoading && { opacity: 0.6 }]}
+                onPress={sendBroadcastEmail}
+                disabled={broadcastLoading}
+              >
+                <View style={styles.pregenIcon}>
+                  {broadcastLoading ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="send" size={18} color="#fff" />}
+                </View>
+                <Text style={styles.pregenTitle}>Trimite email la toți</Text>
+              </TouchableOpacity>
+            </View>
 
             <View style={styles.calendlyCard}>
               <View style={styles.calendlyHeader}>

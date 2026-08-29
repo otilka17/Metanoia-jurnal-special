@@ -104,6 +104,8 @@ export const api = {
   adminFlagged: () => request("/admin/forum/flagged"),
   adminUserAskHistory: (id: string) => request(`/admin/users/${id}/ask-history`),
   adminPregenerateArticles: () => request("/admin/articles/pregenerate", { method: "POST" }),
+  adminBroadcastEmail: (subject: string, body: string) =>
+    request("/admin/broadcast-email", { method: "POST", body: { subject, body } }),
   adminAnalytics: () => request("/admin/analytics"),
   listSpecialists: () => request("/specialists"),
   adminCreateSpecialist: (data: { name: string; title: string; specialization: string; calendly_url: string; photo_url?: string }) =>
