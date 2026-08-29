@@ -5,7 +5,8 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator
+  ActivityIndicator,
+  Image
 } from "react-native";
 import { Alert } from "@/src/lib/alert";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -20,6 +21,8 @@ type Article = {
   category_title: string;
   category_id: string;
   color: string;
+  image_data?: string;
+  image_mime?: string;
   content: {
     introducere: string;
     puncte_cheie: { titlu: string; explicatie: string }[];
@@ -138,6 +141,13 @@ export default function ArticleScreen() {
             <Ionicons name="bulb" size={20} color={article.color} />
             <Text style={[styles.tipsTitle, { color: article.color }]}>Sfaturi Practice</Text>
           </View>
+          {article.image_data && (
+            <Image
+              source={{ uri: `data:${article.image_mime || "image/png"};base64,${article.image_data}` }}
+              style={styles.exerciseImage}
+              resizeMode="cover"
+            />
+          )}
           {c.sfaturi_practice?.map((s, i) => (
             <View key={i} style={styles.stepRow}>
               <View style={styles.stepBadgeCol}>
@@ -200,6 +210,7 @@ const styles = StyleSheet.create({
   },
   tipsHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
   tipsTitle: { fontSize: 16, fontWeight: "600" },
+  exerciseImage: { width: "100%", height: 180, borderRadius: 12, marginBottom: 16 },
   stepRow: { flexDirection: "row", gap: 12 },
   stepBadgeCol: { alignItems: "center", width: 28 },
   stepBadge: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },

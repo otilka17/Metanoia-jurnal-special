@@ -52,6 +52,39 @@ async def call_claude(system_message: str, messages: list, max_tokens: int = 300
     return "".join(block.text for block in resp.content if getattr(block, "type", None) == "text")
 
 
+GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY', '')
+GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image"
+
+
+async def generate_topic_image(prompt: str) -> Optional[dict]:
+    """Generates an illustrative image via Gemini. Returns {data, mime_type} or None on any failure."""
+    if not GOOGLE_API_KEY:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_IMAGE_MODEL}:generateContent",
+                headers={"x-goog-api-key": GOOGLE_API_KEY, "Content-Type": "application/json"},
+                json={
+                    "contents": [{"parts": [{"text": prompt}]}],
+                    "generationConfig": {"responseModalities": ["IMAGE"]},
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        parts = data["candidates"][0]["content"]["parts"]
+        for part in parts:
+            inline = part.get("inlineData") or part.get("inline_data")
+            if inline:
+                return {
+                    "data": inline.get("data"),
+                    "mime_type": inline.get("mimeType") or inline.get("mime_type") or "image/png",
+                }
+    except Exception:
+        logger.exception("Image generation failed")
+    return None
+
+
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 security = HTTPBearer()
@@ -969,6 +1002,17 @@ Răspunde STRICT în format JSON valid (fără markdown, fără ```json), cu str
         "content": content,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
+
+    if cat["id"] == "cat-6":
+        image_prompt = (
+            f"O ilustrație caldă, simplă, tip desen plat (flat illustration), care arată un părinte și un copil "
+            f"făcând exercițiul: \"{sub['title']}\". Stil prietenos, culori calme, fără text în imagine."
+        )
+        image = await generate_topic_image(image_prompt)
+        if image:
+            article["image_data"] = image["data"]
+            article["image_mime"] = image["mime_type"]
+
     await db.articles.insert_one(article.copy())
     article.pop("_id", None)
     return article
