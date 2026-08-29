@@ -922,31 +922,40 @@ Răspunde STRICT în format JSON valid (fără markdown, fără ```json), cu str
 
 
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "")
-IMAGEN_MODEL = os.environ.get("IMAGEN_MODEL", "imagen-3.0-generate-002")
+GEMINI_IMAGE_MODEL = os.environ.get("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image")
 
 
 async def generate_topic_image(category_title: str, subtopic_title: str) -> Optional[str]:
-    """Generates an illustrative image via Google Imagen. Returns a base64 data URI, or None on failure/missing key."""
+    """Generates an illustrative image via the Gemini API (Nano Banana). Returns a base64 data URI, or None on failure/missing key."""
     if not GOOGLE_API_KEY:
         return None
     prompt = (
         f"A warm, minimalist digital illustration representing the parenting topic '{subtopic_title}' "
         f"(category: '{category_title}'). Soft pastel colors, gentle abstract shapes, no text, no realistic "
-        f"human faces, calming and reassuring style suitable for a parenting app."
+        f"human faces, calming and reassuring style suitable for a parenting app, 16:9 aspect ratio."
     )
     try:
         async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/{IMAGEN_MODEL}:predict",
-                params={"key": GOOGLE_API_KEY},
-                json={"instances": [{"prompt": prompt}], "parameters": {"sampleCount": 1, "aspectRatio": "16:9"}},
+                f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_IMAGE_MODEL}:generateContent",
+                headers={"x-goog-api-key": GOOGLE_API_KEY},
+                json={
+                    "contents": [{"parts": [{"text": prompt}]}],
+                    "generationConfig": {"responseModalities": ["IMAGE"]},
+                },
             )
         resp.raise_for_status()
         data = resp.json()
-        b64 = data["predictions"][0]["bytesBase64Encoded"]
-        return f"data:image/png;base64,{b64}"
+        parts = data["candidates"][0]["content"]["parts"]
+        for part in parts:
+            inline = part.get("inlineData") or part.get("inline_data")
+            if inline and inline.get("data"):
+                mime = inline.get("mimeType") or inline.get("mime_type") or "image/png"
+                return f"data:{mime};base64,{inline['data']}"
+        logger.error(f"Gemini image generation returned no inline image data: {data}")
+        return None
     except Exception as e:
-        logger.error(f"Imagen generation failed: {e}")
+        logger.error(f"Gemini image generation failed: {e}")
         return None
 
 
