@@ -54,6 +54,8 @@ const DAILY_TIPS: { age: "3-6" | "6-10" | "10-14" | "14+" | "all"; text: string 
 ];
 
 const AGE_KEY = "child_age_group";
+const FEEDBACK_SNOOZE_KEY = "feedback_prompt_snooze_until";
+const FEEDBACK_DISMISSED_KEY = "feedback_prompt_dismissed";
 
 function getDailyTip(filter: string): { text: string; age: string } {
   const pool = filter === "all" ? DAILY_TIPS : DAILY_TIPS.filter(t => t.age === filter || t.age === "all");
@@ -79,6 +81,7 @@ export default function HomeScreen() {
   const [myRating, setMyRating] = useState(0);
   const [myComment, setMyComment] = useState("");
   const [savingReview, setSavingReview] = useState(false);
+  const [showFeedbackPrompt, setShowFeedbackPrompt] = useState(false);
 
   const load = async () => {
     try { const res: any = await api.getCategories(); setCats(res.categories); } catch (e) { console.warn(e); }
@@ -101,6 +104,33 @@ export default function HomeScreen() {
       setLoading(false);
     })();
   }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const dismissed = await storage.getItem(FEEDBACK_DISMISSED_KEY, false);
+        if (dismissed) return;
+        const snoozeUntil = await storage.getItem(FEEDBACK_SNOOZE_KEY, 0);
+        if (snoozeUntil && Date.now() < snoozeUntil) return;
+        const res: any = await api.myFeedback();
+        if (res.feedback) return;
+        setTimeout(() => setShowFeedbackPrompt(true), 1500);
+      } catch (e) { console.warn(e); }
+    })();
+  }, []);
+
+  const snoozeFeedbackPrompt = async () => {
+    setShowFeedbackPrompt(false);
+    await storage.setItem(FEEDBACK_SNOOZE_KEY, Date.now() + 7 * 24 * 60 * 60 * 1000);
+  };
+  const dismissFeedbackPromptForever = async () => {
+    setShowFeedbackPrompt(false);
+    await storage.setItem(FEEDBACK_DISMISSED_KEY, true);
+  };
+  const goToFeedback = () => {
+    setShowFeedbackPrompt(false);
+    router.push("/feedback");
+  };
   const onRefresh = async () => { setRefreshing(true); await Promise.all([load(), loadReviews()]); setRefreshing(false); };
   const changeAge = async (a: string) => { setAgeGroup(a); await storage.setItem(AGE_KEY, a); };
 
@@ -325,6 +355,29 @@ export default function HomeScreen() {
         </Pressable>
       </Modal>
 
+      <Modal visible={showFeedbackPrompt} transparent animationType="fade" onRequestClose={snoozeFeedbackPrompt}>
+        <Pressable style={styles.modalBg} onPress={snoozeFeedbackPrompt}>
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            <View style={[styles.modalIconWrap, { backgroundColor: theme.colors.primary + "18" }]}>
+              <Ionicons name="chatbox-ellipses" size={26} color={theme.colors.primary} />
+            </View>
+            <Text style={styles.modalTitle}>Ne ajuți cu un feedback rapid? 🌱</Text>
+            <Text style={styles.modalText}>2 minute, ca să știm ce funcționează bine și ce ar trebui să îmbunătățim.</Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity testID="feedback-prompt-later" style={styles.modalBtnOutline} onPress={snoozeFeedbackPrompt}>
+                <Text style={styles.modalBtnOutlineText}>Mai târziu</Text>
+              </TouchableOpacity>
+              <TouchableOpacity testID="feedback-prompt-go" style={styles.modalBtn} onPress={goToFeedback}>
+                <Text style={styles.modalBtnText}>Completează</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity testID="feedback-prompt-dismiss" onPress={dismissFeedbackPromptForever} style={{ marginTop: 14 }}>
+              <Text style={styles.dismissForeverText}>Nu mă mai întreba</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       <View style={styles.legalFooter}>
         <TouchableOpacity testID="open-privacy" onPress={() => router.push("/privacy")}>
           <Text style={styles.legalLink}>Politica de Confidențialitate (GDPR)</Text>
@@ -388,7 +441,10 @@ const styles = StyleSheet.create({
   reviewComment: { fontSize: 13, color: theme.colors.textSecondary, lineHeight: 19, marginTop: 8 },
   modalBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "center", paddingHorizontal: 28 },
   modalCard: { backgroundColor: theme.colors.surface, borderRadius: 20, padding: 24, alignItems: "center" },
+  modalIconWrap: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", marginBottom: 14 },
   modalTitle: { ...theme.font.h3, color: theme.colors.textPrimary, marginBottom: 16, textAlign: "center" },
+  modalText: { ...theme.font.body, color: theme.colors.textSecondary, textAlign: "center", marginBottom: 20 },
+  dismissForeverText: { fontSize: 12, color: theme.colors.textDisabled, textDecorationLine: "underline" },
   starPicker: { flexDirection: "row", marginBottom: 18 },
   modalInput: { alignSelf: "stretch", backgroundColor: theme.colors.surfaceElevated, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: theme.colors.textPrimary, marginBottom: 16, minHeight: 70, textAlignVertical: "top" },
   modalActions: { flexDirection: "row", gap: 10, alignSelf: "stretch" },
