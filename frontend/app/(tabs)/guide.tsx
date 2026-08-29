@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Share, Modal, Pressable } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Modal, Pressable } from "react-native";
 import { Alert } from "@/src/lib/alert";
 import { Ionicons } from "@expo/vector-icons";
 import * as Print from "expo-print";
@@ -7,6 +7,7 @@ import * as Sharing from "expo-sharing";
 import * as Clipboard from "expo-clipboard";
 import { storage } from "@/src/utils/storage";
 import { theme } from "@/src/lib/theme";
+import { shareOrCopy } from "@/src/lib/share";
 import { GUIDE, GUIDE_INTRO, GUIDE_SUBTITLE, GUIDE_TITLE } from "@/src/lib/guide";
 import { GUIDES, GuideMeta } from "@/src/lib/guides_extra";
 
@@ -53,10 +54,8 @@ export default function GuideScreen() {
 
   const onShare = async () => {
     if (!actionText) return;
-    try {
-      await Share.share({ message: actionText });
-      setActionText(null);
-    } catch {}
+    await shareOrCopy(actionText);
+    setActionText(null);
   };
 
   useEffect(() => {

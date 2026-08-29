@@ -10,8 +10,7 @@ import {
   Pressable,
   TextInput,
   KeyboardAvoidingView,
-  Platform,
-  Share
+  Platform
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { Alert } from "@/src/lib/alert";
@@ -22,6 +21,7 @@ import { api } from "@/src/lib/api";
 import { useAuth } from "@/src/lib/auth";
 import { theme } from "@/src/lib/theme";
 import { exportArticlePdf } from "@/src/lib/pdf";
+import { shareOrCopy } from "@/src/lib/share";
 import { canPromptInstall, promptInstall, isPwaInstalled, isIos, subscribeInstallAvailability } from "@/src/lib/pwaInstall";
 
 type Bookmark = {
@@ -106,11 +106,9 @@ export default function ProfileScreen() {
 
   const shareReferralCode = async () => {
     if (!referralInfo) return;
-    try {
-      await Share.share({
-        message: `Te invit să încerci Ghid Părinte, o aplicație de parenting conștient cu sfaturi AI personalizate! La înregistrare, introdu codul meu de recomandare: ${referralInfo.code}.\n\nhttps://otilka17.github.io/Metanoia-psihologiacopilului/`,
-      });
-    } catch (e) { console.warn(e); }
+    await shareOrCopy(
+      `Te invit să încerci Ghid Părinte, o aplicație de parenting conștient cu sfaturi AI personalizate! La înregistrare, introdu codul meu de recomandare: ${referralInfo.code}.\n\nhttps://otilka17.github.io/Metanoia-psihologiacopilului/`
+    );
   };
 
   useEffect(() => {

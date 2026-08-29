@@ -8,8 +8,7 @@ import {
   TextInput,
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform,
-  Share
+  Platform
 } from "react-native";
 import { Alert } from "@/src/lib/alert";
 import * as Clipboard from "expo-clipboard";
@@ -18,6 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/src/lib/api";
 import { theme } from "@/src/lib/theme";
+import { shareOrCopy } from "@/src/lib/share";
 
 type Member = { id: string; name: string; email: string; is_me: boolean };
 type Family = { id: string; code: string; members: Member[]; created_at: string };
@@ -82,11 +82,9 @@ export default function FamilyScreen() {
 
   const shareCode = async () => {
     if (!family) return;
-    try {
-      await Share.share({
-        message: `Te invit să te alături familiei mele în aplicația Ghid Părinte! Folosește codul: ${family.code} pentru a vedea jurnalul partajat și testul copilului nostru.`,
-      });
-    } catch (e) { console.warn(e); }
+    await shareOrCopy(
+      `Te invit să te alături familiei mele în aplicația Ghid Părinte! Folosește codul: ${family.code} pentru a vedea jurnalul partajat și testul copilului nostru.`
+    );
   };
 
   if (loading) {
