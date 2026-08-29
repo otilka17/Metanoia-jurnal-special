@@ -58,7 +58,7 @@ GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image"
 
 async def generate_topic_image(prompt: str) -> Optional[dict]:
     """Generates an illustrative image via Gemini. Returns {data, mime_type} or None on any failure.
-    Retries on 429 (rate limit) with backoff, since this model's quota is per-minute and low."""
+    Retries on 429 (rate limit) and 5xx (transient server errors) with backoff."""
     if not GOOGLE_API_KEY:
         return None
     backoff_seconds = [20, 40]
@@ -73,8 +73,8 @@ async def generate_topic_image(prompt: str) -> Optional[dict]:
                         "generationConfig": {"responseModalities": ["IMAGE"]},
                     },
                 )
-                if resp.status_code == 429:
-                    logger.warning(f"Image generation rate-limited (attempt {attempt + 1}): {resp.text[:500]}")
+                if resp.status_code == 429 or resp.status_code >= 500:
+                    logger.warning(f"Image generation retryable HTTP {resp.status_code} (attempt {attempt + 1}): {resp.text[:500]}")
                     if attempt < len(backoff_seconds):
                         await asyncio.sleep(backoff_seconds[attempt])
                         continue
