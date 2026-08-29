@@ -57,33 +57,44 @@ GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image"
 
 
 async def generate_topic_image(prompt: str) -> Optional[dict]:
-    """Generates an illustrative image via Gemini. Returns {data, mime_type} or None on any failure."""
+    """Generates an illustrative image via Gemini. Returns {data, mime_type} or None on any failure.
+    Retries on 429 (rate limit) with backoff, since this model's quota is per-minute and low."""
     if not GOOGLE_API_KEY:
         return None
-    try:
-        async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_IMAGE_MODEL}:generateContent",
-                headers={"x-goog-api-key": GOOGLE_API_KEY, "Content-Type": "application/json"},
-                json={
-                    "contents": [{"parts": [{"text": prompt}]}],
-                    "generationConfig": {"responseModalities": ["IMAGE"]},
-                },
-            )
-            if resp.status_code >= 400:
-                logger.error(f"Image generation HTTP {resp.status_code}: {resp.text[:2000]}")
-            resp.raise_for_status()
-            data = resp.json()
-        parts = data["candidates"][0]["content"]["parts"]
-        for part in parts:
-            inline = part.get("inlineData") or part.get("inline_data")
-            if inline:
-                return {
-                    "data": inline.get("data"),
-                    "mime_type": inline.get("mimeType") or inline.get("mime_type") or "image/png",
-                }
-    except Exception:
-        logger.exception("Image generation failed")
+    backoff_seconds = [20, 40]
+    for attempt in range(len(backoff_seconds) + 1):
+        try:
+            async with httpx.AsyncClient(timeout=60) as client:
+                resp = await client.post(
+                    f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_IMAGE_MODEL}:generateContent",
+                    headers={"x-goog-api-key": GOOGLE_API_KEY, "Content-Type": "application/json"},
+                    json={
+                        "contents": [{"parts": [{"text": prompt}]}],
+                        "generationConfig": {"responseModalities": ["IMAGE"]},
+                    },
+                )
+                if resp.status_code == 429:
+                    logger.warning(f"Image generation rate-limited (attempt {attempt + 1}): {resp.text[:500]}")
+                    if attempt < len(backoff_seconds):
+                        await asyncio.sleep(backoff_seconds[attempt])
+                        continue
+                    return None
+                if resp.status_code >= 400:
+                    logger.error(f"Image generation HTTP {resp.status_code}: {resp.text[:2000]}")
+                resp.raise_for_status()
+                data = resp.json()
+            parts = data["candidates"][0]["content"]["parts"]
+            for part in parts:
+                inline = part.get("inlineData") or part.get("inline_data")
+                if inline:
+                    return {
+                        "data": inline.get("data"),
+                        "mime_type": inline.get("mimeType") or inline.get("mime_type") or "image/png",
+                    }
+            return None
+        except Exception:
+            logger.exception("Image generation failed")
+            return None
     return None
 
 
@@ -1150,7 +1161,9 @@ async def _backfill_exercise_images():
     if not docs:
         return
     logger.info(f"Backfilling images for {len(docs)} exercise articles")
-    for doc in docs:
+    for i, doc in enumerate(docs):
+        if i > 0:
+            await asyncio.sleep(15)  # spread requests out, this model's quota is per-minute
         sid = doc["subtopic_id"]
         sub = exercise_subtopics.get(sid)
         if not sub:
