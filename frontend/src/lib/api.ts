@@ -105,9 +105,6 @@ export const api = {
   adminUserAskHistory: (id: string) => request(`/admin/users/${id}/ask-history`),
   adminPregenerateArticles: () => request("/admin/articles/pregenerate", { method: "POST" }),
   adminAnalytics: () => request("/admin/analytics"),
-  adminListVideos: () => request("/admin/videos"),
-  adminSetVideo: (subtopicId: string, video_url: string) =>
-    request(`/admin/videos/${subtopicId}`, { method: "PUT", body: { video_url } }),
   listSpecialists: () => request("/specialists"),
   adminCreateSpecialist: (data: { name: string; title: string; specialization: string; calendly_url: string; photo_url?: string }) =>
     request("/admin/specialists", { method: "POST", body: data }),

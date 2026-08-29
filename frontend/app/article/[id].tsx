@@ -1,4 +1,4 @@
-import { createElement, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -6,8 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Platform,
-  Linking
+  Image
 } from "react-native";
 import { Alert } from "@/src/lib/alert";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -22,7 +21,7 @@ type Article = {
   category_title: string;
   category_id: string;
   color: string;
-  video_url?: string;
+  image_data?: string;
   content: {
     introducere: string;
     puncte_cheie: { titlu: string; explicatie: string }[];
@@ -31,35 +30,6 @@ type Article = {
     cand_sa_cer_ajutor: string;
   };
 };
-
-function toYoutubeEmbedUrl(url: string): string | null {
-  const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([A-Za-z0-9_-]{6,})/);
-  return m ? `https://www.youtube.com/embed/${m[1]}` : null;
-}
-
-function VideoEmbed({ url }: { url: string }) {
-  const embedUrl = toYoutubeEmbedUrl(url);
-  if (!embedUrl) return null;
-  if (Platform.OS === "web") {
-    return (
-      <View style={styles.videoWrap}>
-        {createElement("iframe", {
-          src: embedUrl,
-          style: { width: "100%", height: "100%", border: "none" },
-          allow: "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture",
-          allowFullScreen: true,
-          title: "Videoclip explicativ",
-        })}
-      </View>
-    );
-  }
-  return (
-    <TouchableOpacity style={styles.videoFallbackBtn} onPress={() => Linking.openURL(url)}>
-      <Ionicons name="play-circle" size={22} color="#fff" />
-      <Text style={styles.videoFallbackText}>Vezi videoclipul explicativ</Text>
-    </TouchableOpacity>
-  );
-}
 
 export default function ArticleScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -152,9 +122,9 @@ export default function ArticleScreen() {
 
         <View style={[styles.colorBar, { backgroundColor: article.color }]} />
 
-        <Text style={styles.intro}>{c.introducere}</Text>
+        {!!article.image_data && <Image source={{ uri: article.image_data }} style={styles.topicImage} />}
 
-        {!!article.video_url && <VideoEmbed url={article.video_url} />}
+        <Text style={styles.intro}>{c.introducere}</Text>
 
         <Text style={styles.sectionTitle}>Puncte Cheie</Text>
         {c.puncte_cheie?.map((p, i) => (
@@ -217,9 +187,7 @@ const styles = StyleSheet.create({
   title: { ...theme.font.h1, color: theme.colors.textPrimary, marginBottom: 16 },
   colorBar: { height: 4, width: 60, borderRadius: 2, marginBottom: 20 },
   intro: { ...theme.font.bodyL, color: theme.colors.textPrimary, marginBottom: 24 },
-  videoWrap: { width: "100%", aspectRatio: 16 / 9, borderRadius: 14, overflow: "hidden", backgroundColor: "#000", marginBottom: 24 },
-  videoFallbackBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: theme.colors.primary, borderRadius: 12, paddingVertical: 14, marginBottom: 24 },
-  videoFallbackText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  topicImage: { width: "100%", aspectRatio: 16 / 9, borderRadius: 14, marginBottom: 20 },
   sectionTitle: { ...theme.font.h3, color: theme.colors.textPrimary, marginTop: 24, marginBottom: 12 },
   pointRow: { flexDirection: "row", gap: 12, marginBottom: 12 },
   pointDot: { width: 8, height: 8, borderRadius: 4, marginTop: 8 },

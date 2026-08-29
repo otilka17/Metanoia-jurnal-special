@@ -23,14 +23,13 @@ import { useAuth } from "@/src/lib/auth";
 import { theme } from "@/src/lib/theme";
 import { Markdown } from "@/src/lib/Markdown";
 
-type Tab = "overview" | "users" | "flagged" | "feedback" | "videos";
+type Tab = "overview" | "users" | "flagged" | "feedback";
 type FeedbackItem = {
   id: string; user_name: string; user_email: string; how_found: string;
   role: string; role_other: string; is_useful: string; is_useful_reason: string;
   usage_context: string; would_recommend: string; improvement: string;
   most_useful: string[]; created_at: string;
 };
-type VideoSubtopic = { subtopic_id: string; subtopic_title: string; category_title: string; video_url: string };
 
 type Stats = any;
 type AdminUser = {
@@ -76,21 +75,16 @@ export default function AdminScreen() {
   const [feedbackItems, setFeedbackItems] = useState<FeedbackItem[]>([]);
   const [feedbackRoleFilter, setFeedbackRoleFilter] = useState<string>("toate");
   const [feedbackSortAsc, setFeedbackSortAsc] = useState(false);
-  const [videoSubtopics, setVideoSubtopics] = useState<VideoSubtopic[]>([]);
-  const [videoInputs, setVideoInputs] = useState<Record<string, string>>({});
-  const [videoSaving, setVideoSaving] = useState<Record<string, boolean>>({});
-  const [videoSearch, setVideoSearch] = useState("");
 
   const loadAll = useCallback(async () => {
     try {
-      const [s, u, f, sp, an, fb, vids]: any = await Promise.all([
+      const [s, u, f, sp, an, fb]: any = await Promise.all([
         api.adminStats(),
         api.adminUsers(),
         api.adminFlagged(),
         api.listSpecialists(),
         api.adminAnalytics(),
         api.adminListFeedback(),
-        api.adminListVideos(),
       ]);
       setStats(s);
       setUsers(u.users || []);
@@ -99,8 +93,6 @@ export default function AdminScreen() {
       setAnalyticsDays(an.days || []);
       setCategoryPopularity(an.category_popularity || []);
       setFeedbackItems(fb.feedback || []);
-      setVideoSubtopics(vids.subtopics || []);
-      setVideoInputs(Object.fromEntries((vids.subtopics || []).map((v: VideoSubtopic) => [v.subtopic_id, v.video_url])));
     } catch (e: any) {
       Alert.alert("Eroare admin", e.message || "Nu am putut încărca datele");
     }
@@ -256,23 +248,6 @@ export default function AdminScreen() {
       return feedbackSortAsc ? -diff : diff;
     });
 
-  const saveVideo = async (subtopicId: string) => {
-    const url = (videoInputs[subtopicId] || "").trim();
-    setVideoSaving((prev) => ({ ...prev, [subtopicId]: true }));
-    try {
-      await api.adminSetVideo(subtopicId, url);
-      setVideoSubtopics((prev) => prev.map((v) => (v.subtopic_id === subtopicId ? { ...v, video_url: url } : v)));
-    } catch (e: any) {
-      Alert.alert("Eroare", e.message || "Nu am putut salva link-ul");
-    } finally {
-      setVideoSaving((prev) => ({ ...prev, [subtopicId]: false }));
-    }
-  };
-
-  const visibleVideoSubtopics = videoSubtopics.filter((v) =>
-    !videoSearch.trim() || v.subtopic_title.toLowerCase().includes(videoSearch.trim().toLowerCase()) || v.category_title.toLowerCase().includes(videoSearch.trim().toLowerCase())
-  );
-
   const csvEscape = (val: any): string => {
     const s = String(val ?? "");
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -326,11 +301,11 @@ export default function AdminScreen() {
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexShrink: 0 }} contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 10, gap: 8 }}>
-          {(["overview", "users", "flagged", "feedback", "videos"] as Tab[]).map(t => (
+          {(["overview", "users", "flagged", "feedback"] as Tab[]).map(t => (
             <TouchableOpacity key={t} testID={`tab-${t}`} onPress={() => setTab(t)} style={[styles.tab, tab === t && styles.tabActive]}>
-              <Ionicons name={t === "overview" ? "stats-chart" : t === "users" ? "people" : t === "flagged" ? "flag" : t === "feedback" ? "chatbox-ellipses" : "videocam"} size={14} color={tab === t ? "#fff" : theme.colors.textPrimary} />
+              <Ionicons name={t === "overview" ? "stats-chart" : t === "users" ? "people" : t === "flagged" ? "flag" : "chatbox-ellipses"} size={14} color={tab === t ? "#fff" : theme.colors.textPrimary} />
               <Text style={[styles.tabText, tab === t && { color: "#fff", fontWeight: "700" }]}>
-                {t === "overview" ? "Statistici" : t === "users" ? `Utilizatori (${users.length})` : t === "flagged" ? `Moderare (${flagged.posts.length + flagged.answers.length})` : t === "feedback" ? `Feedback (${feedbackItems.length})` : `Video (${videoSubtopics.filter(v => v.video_url).length}/${videoSubtopics.length})`}
+                {t === "overview" ? "Statistici" : t === "users" ? `Utilizatori (${users.length})` : t === "flagged" ? `Moderare (${flagged.posts.length + flagged.answers.length})` : `Feedback (${feedbackItems.length})`}
               </Text>
             </TouchableOpacity>
           ))}
@@ -649,49 +624,6 @@ export default function AdminScreen() {
           </>
         )}
 
-        {tab === "videos" && (
-          <>
-            <View style={styles.searchRow}>
-              <TextInput
-                testID="video-search"
-                value={videoSearch}
-                onChangeText={setVideoSearch}
-                placeholder="Caută o temă..."
-                placeholderTextColor={theme.colors.textDisabled}
-                style={styles.searchInput}
-              />
-            </View>
-            {visibleVideoSubtopics.map((v) => (
-              <View key={v.subtopic_id} style={styles.videoRow}>
-                <Text style={styles.videoCatLabel}>{v.category_title.toUpperCase()}</Text>
-                <Text style={styles.videoTitle}>{v.subtopic_title}</Text>
-                <View style={styles.videoInputRow}>
-                  <TextInput
-                    testID={`video-input-${v.subtopic_id}`}
-                    value={videoInputs[v.subtopic_id] ?? ""}
-                    onChangeText={(t) => setVideoInputs((prev) => ({ ...prev, [v.subtopic_id]: t }))}
-                    placeholder="Link YouTube (ex. https://youtu.be/...)"
-                    placeholderTextColor={theme.colors.textDisabled}
-                    autoCapitalize="none"
-                    style={styles.videoInput}
-                  />
-                  <TouchableOpacity
-                    testID={`video-save-${v.subtopic_id}`}
-                    onPress={() => saveVideo(v.subtopic_id)}
-                    disabled={videoSaving[v.subtopic_id]}
-                    style={[styles.videoSaveBtn, videoSaving[v.subtopic_id] && { opacity: 0.5 }]}
-                  >
-                    {videoSaving[v.subtopic_id] ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="checkmark" size={18} color="#fff" />}
-                  </TouchableOpacity>
-                </View>
-                {!!v.video_url && <Text style={styles.videoSetLabel}>✓ videoclip setat</Text>}
-              </View>
-            ))}
-            {visibleVideoSubtopics.length === 0 && (
-              <View style={styles.empty}><Text style={styles.emptyText}>Nicio temă găsită</Text></View>
-            )}
-          </>
-        )}
       </ScrollView>
 
       <Modal visible={!!askViewer} animationType="slide" onRequestClose={() => setAskViewer(null)}>
@@ -850,13 +782,6 @@ const styles = StyleSheet.create({
   fbToolbar: { flexDirection: "row", gap: 10, marginBottom: 14 },
   fbToolbarBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: theme.colors.primary + "11", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999 },
   fbToolbarBtnText: { fontSize: 12, fontWeight: "700", color: theme.colors.primary },
-  videoRow: { backgroundColor: theme.colors.surface, borderRadius: 12, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: theme.colors.border },
-  videoCatLabel: { fontSize: 10, fontWeight: "700", letterSpacing: 0.5, color: theme.colors.textDisabled },
-  videoTitle: { fontSize: 14, fontWeight: "600", color: theme.colors.textPrimary, marginTop: 2, marginBottom: 8 },
-  videoInputRow: { flexDirection: "row", gap: 8, alignItems: "center" },
-  videoInput: { flex: 1, backgroundColor: theme.colors.surfaceElevated, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontSize: 12.5, color: theme.colors.textPrimary, borderWidth: 1, borderColor: theme.colors.border },
-  videoSaveBtn: { width: 38, height: 38, borderRadius: 10, backgroundColor: theme.colors.primary, alignItems: "center", justifyContent: "center" },
-  videoSetLabel: { fontSize: 11, color: theme.colors.primary, fontWeight: "600", marginTop: 6 },
   empty: { alignItems: "center", paddingVertical: 40, paddingHorizontal: 24 },
   emptyText: { fontSize: 13, color: theme.colors.textSecondary, textAlign: "center" },
   pregenCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#6E8FD8", borderRadius: 16, padding: 14, marginBottom: 16 },
