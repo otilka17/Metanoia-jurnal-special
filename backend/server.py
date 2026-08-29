@@ -70,6 +70,8 @@ async def generate_topic_image(prompt: str) -> Optional[dict]:
                     "generationConfig": {"responseModalities": ["IMAGE"]},
                 },
             )
+            if resp.status_code >= 400:
+                logger.error(f"Image generation HTTP {resp.status_code}: {resp.text[:2000]}")
             resp.raise_for_status()
             data = resp.json()
         parts = data["candidates"][0]["content"]["parts"]
