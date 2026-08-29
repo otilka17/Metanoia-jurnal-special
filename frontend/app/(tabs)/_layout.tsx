@@ -1,26 +1,51 @@
 import { useEffect, useState } from "react";
 import { Stack, useRouter, usePathname } from "expo-router";
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable, ScrollView } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "@/src/lib/theme";
 import { useAuth } from "@/src/lib/auth";
 import { api } from "@/src/lib/api";
 
-const MENU = [
-  { label: "Acasă", route: "/(tabs)", icon: "home" as const },
-  { label: "Familie", route: "/family", icon: "people-circle" as const },
-  { label: "Comunitate", route: "/forum", icon: "people" as const },
-  { label: "Tabele comparative", route: "/compare", icon: "grid" as const },
-  { label: "Contactează un specialist", route: "/specialist", icon: "calendar" as const },
-  { label: "Test profil copil", route: "/(tabs)/test", icon: "clipboard" as const },
-  { label: "Întreabă specialistul", route: "/(tabs)/ask", icon: "chatbubbles" as const },
-  { label: "Ghidul Specialistului", route: "/(tabs)/guide", icon: "library" as const },
-  { label: "Mind Map", route: "/(tabs)/mindmap", icon: "git-network" as const },
-  { label: "Jocuri pentru concentrare", route: "/games", icon: "game-controller" as const },
-  { label: "Jurnal", route: "/(tabs)/journal", icon: "book" as const },
-  { label: "Feedback", route: "/feedback", icon: "chatbox-ellipses" as const },
-  { label: "Profil", route: "/(tabs)/profile", icon: "person" as const },
+const MENU_GROUPS = [
+  {
+    title: null as string | null,
+    items: [
+      { label: "Acasă", route: "/(tabs)", icon: "home" as const },
+    ],
+  },
+  {
+    title: "Comunitate",
+    items: [
+      { label: "Familie", route: "/family", icon: "people-circle" as const },
+      { label: "Comunitate", route: "/forum", icon: "people" as const },
+      { label: "Contactează un specialist", route: "/specialist", icon: "calendar" as const },
+    ],
+  },
+  {
+    title: "Conținut",
+    items: [
+      { label: "Mind Map", route: "/(tabs)/mindmap", icon: "git-network" as const },
+      { label: "Ghidul Specialistului", route: "/(tabs)/guide", icon: "library" as const },
+      { label: "Tabele comparative", route: "/compare", icon: "grid" as const },
+    ],
+  },
+  {
+    title: "Instrumente",
+    items: [
+      { label: "Test profil copil", route: "/(tabs)/test", icon: "clipboard" as const },
+      { label: "Întreabă specialistul", route: "/(tabs)/ask", icon: "chatbubbles" as const },
+      { label: "Jocuri pentru concentrare", route: "/games", icon: "game-controller" as const },
+      { label: "Jurnal", route: "/(tabs)/journal", icon: "book" as const },
+    ],
+  },
+  {
+    title: "Cont",
+    items: [
+      { label: "Feedback", route: "/feedback", icon: "chatbox-ellipses" as const },
+      { label: "Profil", route: "/(tabs)/profile", icon: "person" as const },
+    ],
+  },
 ];
 
 const ADMIN_ITEM = { label: "Admin", route: "/admin", icon: "shield-checkmark" as const };
@@ -70,7 +95,9 @@ export default function TabsLayout() {
   const [unreadCount, setUnreadCount] = useState(0);
   const go = (r: string) => { setOpen(false); router.push(r as any); };
 
-  const menuItems = user?.is_admin ? [...MENU, ADMIN_ITEM] : MENU;
+  const menuGroups = user?.is_admin
+    ? [...MENU_GROUPS, { title: null as string | null, items: [ADMIN_ITEM] }]
+    : MENU_GROUPS;
 
   useEffect(() => {
     if (!user) return;
@@ -101,21 +128,28 @@ export default function TabsLayout() {
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable style={styles.drawerBg} onPress={() => setOpen(false)}>
           <Pressable style={styles.drawer} onPress={(e) => e.stopPropagation()}>
-            <SafeAreaView edges={["top"]}>
+            <SafeAreaView edges={["top"]} style={{ flex: 1 }}>
               <View style={styles.drawerHeader}>
                 <Text style={styles.drawerBrand}>Meniu</Text>
                 <TouchableOpacity onPress={() => setOpen(false)}><Ionicons name="close" size={24} color={theme.colors.textPrimary} /></TouchableOpacity>
               </View>
-              {menuItems.map((m) => {
-                const active = pathname === m.route || (m.route === "/(tabs)" && pathname === "/");
-                const isAdmin = m.route === "/admin";
-                return (
-                  <TouchableOpacity key={m.route} testID={`menu-${m.icon}`} style={[styles.menuItem, active && styles.menuItemActive, isAdmin && { borderTopWidth: 1, borderTopColor: theme.colors.border, marginTop: 8 }]} onPress={() => go(m.route)}>
-                    <Ionicons name={m.icon} size={20} color={active ? theme.colors.primary : (isAdmin ? "#B56B6B" : theme.colors.textPrimary)} />
-                    <Text style={[styles.menuText, active && { color: theme.colors.primary, fontWeight: "700" }, isAdmin && !active && { color: "#B56B6B", fontWeight: "600" }]}>{m.label}</Text>
-                  </TouchableOpacity>
-                );
-              })}
+              <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+                {menuGroups.map((g, gi) => (
+                  <View key={gi}>
+                    {g.title && <Text style={styles.menuSectionTitle}>{g.title}</Text>}
+                    {g.items.map((m) => {
+                      const active = pathname === m.route || (m.route === "/(tabs)" && pathname === "/");
+                      const isAdmin = m.route === "/admin";
+                      return (
+                        <TouchableOpacity key={m.route} testID={`menu-${m.icon}`} style={[styles.menuItem, active && styles.menuItemActive, isAdmin && { borderTopWidth: 1, borderTopColor: theme.colors.border, marginTop: 8 }]} onPress={() => go(m.route)}>
+                          <Ionicons name={m.icon} size={20} color={active ? theme.colors.primary : (isAdmin ? "#B56B6B" : theme.colors.textPrimary)} />
+                          <Text style={[styles.menuText, active && { color: theme.colors.primary, fontWeight: "700" }, isAdmin && !active && { color: "#B56B6B", fontWeight: "600" }]}>{m.label}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                ))}
+              </ScrollView>
             </SafeAreaView>
           </Pressable>
         </Pressable>
@@ -138,6 +172,10 @@ const styles = StyleSheet.create({
   drawer: { width: 280, backgroundColor: theme.colors.surface, height: "100%" },
   drawerHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
   drawerBrand: { fontSize: 18, fontWeight: "700", color: theme.colors.textPrimary },
+  menuSectionTitle: {
+    fontSize: 12, fontWeight: "700", letterSpacing: 0.6, textTransform: "uppercase",
+    color: theme.colors.textSecondary, paddingHorizontal: 20, paddingTop: 18, paddingBottom: 6,
+  },
   menuItem: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 20, paddingVertical: 14 },
   menuItemActive: { backgroundColor: theme.colors.primary + "11", borderLeftWidth: 4, borderLeftColor: theme.colors.primary },
   menuText: { fontSize: 15, color: theme.colors.textPrimary },
