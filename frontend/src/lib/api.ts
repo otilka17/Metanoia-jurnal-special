@@ -136,6 +136,16 @@ export const api = {
   markNotificationRead: (id: string) => request(`/notifications/${id}/read`, { method: "POST" }),
   markAllNotificationsRead: () => request("/notifications/read-all", { method: "POST" }),
 
+  // Feedback
+  myFeedback: () => request("/feedback/mine"),
+  upsertFeedback: (data: {
+    how_found: string; role: string; role_other?: string;
+    is_useful: string; is_useful_reason?: string;
+    usage_context: string; would_recommend?: string;
+    improvement?: string; most_useful: string[];
+  }) => request("/feedback", { method: "POST", body: data }),
+  adminListFeedback: () => request("/admin/feedback"),
+
   // Comparison tables
   listComparisons: () => request("/compare"),
   getComparison: (id: string) => request(`/compare/${id}`),

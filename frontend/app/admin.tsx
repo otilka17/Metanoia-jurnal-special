@@ -22,7 +22,13 @@ import { useAuth } from "@/src/lib/auth";
 import { theme } from "@/src/lib/theme";
 import { Markdown } from "@/src/lib/Markdown";
 
-type Tab = "overview" | "users" | "flagged";
+type Tab = "overview" | "users" | "flagged" | "feedback";
+type FeedbackItem = {
+  id: string; user_name: string; user_email: string; how_found: string;
+  role: string; role_other: string; is_useful: string; is_useful_reason: string;
+  usage_context: string; would_recommend: string; improvement: string;
+  most_useful: string[]; created_at: string;
+};
 
 type Stats = any;
 type AdminUser = {
@@ -35,6 +41,11 @@ type CategoryPopularity = { category_id: string; title: string; count: number };
 type FlaggedItem = { id: string; content: string; display_name: string; flag_count: number; created_at: string; title?: string; category?: string; post_id?: string };
 type AskItem = { id: string; question: string; answer: string; created_at: string };
 type Specialist = { id: string; name: string; title: string; specialization: string; calendly_url: string; photo_url?: string };
+
+const ROLE_LABELS: Record<string, string> = { parinte: "Părinte", specialist: "Specialist", altceva: "Altceva" };
+const USEFUL_LABELS: Record<string, string> = { da: "Da", partial: "Parțial", nu: "Nu" };
+const USAGE_LABELS: Record<string, string> = { copil_propriu: "Pentru copilul propriu", altii: "Pentru alții (elevi, pacienți)", ambele: "Ambele" };
+const MOST_USEFUL_LABELS: Record<string, string> = { mindmap: "Mind Map", ghid: "Ghidul Specialistului", test: "Test profil", ask: "Întreabă AI", comunitate: "Comunitate" };
 
 export default function AdminScreen() {
   const router = useRouter();
@@ -60,15 +71,17 @@ export default function AdminScreen() {
   const [specSaving, setSpecSaving] = useState(false);
   const [analyticsDays, setAnalyticsDays] = useState<AnalyticsDay[]>([]);
   const [categoryPopularity, setCategoryPopularity] = useState<CategoryPopularity[]>([]);
+  const [feedbackItems, setFeedbackItems] = useState<FeedbackItem[]>([]);
 
   const loadAll = useCallback(async () => {
     try {
-      const [s, u, f, sp, an]: any = await Promise.all([
+      const [s, u, f, sp, an, fb]: any = await Promise.all([
         api.adminStats(),
         api.adminUsers(),
         api.adminFlagged(),
         api.listSpecialists(),
         api.adminAnalytics(),
+        api.adminListFeedback(),
       ]);
       setStats(s);
       setUsers(u.users || []);
@@ -76,6 +89,7 @@ export default function AdminScreen() {
       setSpecialists(sp.specialists || []);
       setAnalyticsDays(an.days || []);
       setCategoryPopularity(an.category_popularity || []);
+      setFeedbackItems(fb.feedback || []);
     } catch (e: any) {
       Alert.alert("Eroare admin", e.message || "Nu am putut încărca datele");
     }
@@ -249,11 +263,11 @@ export default function AdminScreen() {
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexShrink: 0 }} contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 10, gap: 8 }}>
-          {(["overview", "users", "flagged"] as Tab[]).map(t => (
+          {(["overview", "users", "flagged", "feedback"] as Tab[]).map(t => (
             <TouchableOpacity key={t} testID={`tab-${t}`} onPress={() => setTab(t)} style={[styles.tab, tab === t && styles.tabActive]}>
-              <Ionicons name={t === "overview" ? "stats-chart" : t === "users" ? "people" : "flag"} size={14} color={tab === t ? "#fff" : theme.colors.textPrimary} />
+              <Ionicons name={t === "overview" ? "stats-chart" : t === "users" ? "people" : t === "flagged" ? "flag" : "chatbox-ellipses"} size={14} color={tab === t ? "#fff" : theme.colors.textPrimary} />
               <Text style={[styles.tabText, tab === t && { color: "#fff", fontWeight: "700" }]}>
-                {t === "overview" ? "Statistici" : t === "users" ? `Utilizatori (${users.length})` : `Moderare (${flagged.posts.length + flagged.answers.length})`}
+                {t === "overview" ? "Statistici" : t === "users" ? `Utilizatori (${users.length})` : t === "flagged" ? `Moderare (${flagged.posts.length + flagged.answers.length})` : `Feedback (${feedbackItems.length})`}
               </Text>
             </TouchableOpacity>
           ))}
@@ -516,6 +530,36 @@ export default function AdminScreen() {
             )}
           </>
         )}
+
+        {tab === "feedback" && (
+          <>
+            {feedbackItems.length === 0 ? (
+              <View style={styles.empty}>
+                <Ionicons name="chatbox-ellipses-outline" size={48} color={theme.colors.textDisabled} />
+                <Text style={[styles.emptyText, { marginTop: 12 }]}>Niciun feedback primit încă.</Text>
+              </View>
+            ) : (
+              feedbackItems.map((f) => (
+                <View key={f.id} style={styles.feedbackCard}>
+                  <View style={styles.flagHeader}>
+                    <Text style={styles.flagAuthor}>{f.user_name}</Text>
+                    <Text style={styles.userEmail}>{f.user_email}</Text>
+                  </View>
+                  <Text style={styles.userMeta}>{new Date(f.created_at).toLocaleDateString("ro-RO")}</Text>
+                  <View style={{ marginTop: 8, gap: 4 }}>
+                    <Text style={styles.fbLine}><Text style={styles.fbLabel}>Rol: </Text>{ROLE_LABELS[f.role] || f.role}{f.role_other ? ` (${f.role_other})` : ""}</Text>
+                    {!!f.how_found && <Text style={styles.fbLine}><Text style={styles.fbLabel}>Cum a aflat: </Text>{f.how_found}</Text>}
+                    <Text style={styles.fbLine}><Text style={styles.fbLabel}>Utilă: </Text>{USEFUL_LABELS[f.is_useful] || f.is_useful}{f.is_useful_reason ? ` — ${f.is_useful_reason}` : ""}</Text>
+                    <Text style={styles.fbLine}><Text style={styles.fbLabel}>Utilizare: </Text>{USAGE_LABELS[f.usage_context] || f.usage_context}</Text>
+                    {!!f.would_recommend && <Text style={styles.fbLine}><Text style={styles.fbLabel}>Ar recomanda-o profesional: </Text>{f.would_recommend === "da" ? "Da" : "Nu"}</Text>}
+                    {f.most_useful.length > 0 && <Text style={styles.fbLine}><Text style={styles.fbLabel}>Cel mai util: </Text>{f.most_useful.map((m) => MOST_USEFUL_LABELS[m] || m).join(", ")}</Text>}
+                    {!!f.improvement && <Text style={styles.fbLine}><Text style={styles.fbLabel}>De îmbunătățit: </Text>{f.improvement}</Text>}
+                  </View>
+                </View>
+              ))
+            )}
+          </>
+        )}
       </ScrollView>
 
       <Modal visible={!!askViewer} animationType="slide" onRequestClose={() => setAskViewer(null)}>
@@ -664,6 +708,9 @@ const styles = StyleSheet.create({
   flagContent: { fontSize: 13, color: theme.colors.textPrimary, lineHeight: 19, marginBottom: 10 },
   deleteBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, backgroundColor: "#B56B6B22", paddingVertical: 8, borderRadius: 999 },
   deleteBtnText: { color: "#B56B6B", fontWeight: "700", fontSize: 12 },
+  feedbackCard: { backgroundColor: theme.colors.surface, borderRadius: 12, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: theme.colors.border, borderLeftWidth: 4, borderLeftColor: theme.colors.primary },
+  fbLine: { fontSize: 12.5, color: theme.colors.textPrimary, lineHeight: 18 },
+  fbLabel: { fontWeight: "700", color: theme.colors.textSecondary },
   empty: { alignItems: "center", paddingVertical: 40, paddingHorizontal: 24 },
   emptyText: { fontSize: 13, color: theme.colors.textSecondary, textAlign: "center" },
   pregenCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#6E8FD8", borderRadius: 16, padding: 14, marginBottom: 16 },

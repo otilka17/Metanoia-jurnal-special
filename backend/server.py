@@ -257,6 +257,19 @@ class ReviewCreate(BaseModel):
     comment: str = ""
 
 
+# ============ FEEDBACK MODELS ============
+class FeedbackCreate(BaseModel):
+    how_found: str = ""
+    role: str  # "parinte" | "specialist" | "altceva"
+    role_other: str = ""
+    is_useful: str  # "da" | "partial" | "nu"
+    is_useful_reason: str = ""
+    usage_context: str  # "copil_propriu" | "altii" | "ambele"
+    would_recommend: str = ""  # "da" | "nu" | ""
+    improvement: str = ""
+    most_useful: List[str] = []
+
+
 # ============ SPECIALISTS (admin-editable directory) ============
 class SpecialistCreate(BaseModel):
     name: str
@@ -2063,6 +2076,56 @@ async def admin_delete_review(review_id: str, admin: dict = Depends(require_admi
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Recenzie inexistentă")
     return {"ok": True}
+
+
+# ============ FEEDBACK ============
+VALID_MOST_USEFUL = {"mindmap", "ghid", "test", "ask", "comunitate"}
+
+@api_router.get("/feedback/mine")
+async def my_feedback(user: dict = Depends(get_current_user)):
+    existing = await db.feedback.find_one({"user_id": user["id"]}, {"_id": 0})
+    return {"feedback": existing}
+
+
+@api_router.post("/feedback")
+async def upsert_feedback(data: FeedbackCreate, user: dict = Depends(get_current_user)):
+    if data.role not in {"parinte", "specialist", "altceva"}:
+        raise HTTPException(status_code=400, detail="Rol invalid")
+    if data.is_useful not in {"da", "partial", "nu"}:
+        raise HTTPException(status_code=400, detail="Răspuns invalid la utilitate")
+    if data.usage_context not in {"copil_propriu", "altii", "ambele"}:
+        raise HTTPException(status_code=400, detail="Răspuns invalid la utilizare")
+    if data.would_recommend not in {"da", "nu", ""}:
+        raise HTTPException(status_code=400, detail="Răspuns invalid la recomandare")
+    most_useful = [m for m in data.most_useful if m in VALID_MOST_USEFUL]
+    doc = {
+        "user_id": user["id"],
+        "user_name": user["name"],
+        "user_email": user["email"],
+        "how_found": data.how_found.strip()[:300],
+        "role": data.role,
+        "role_other": data.role_other.strip()[:120] if data.role == "altceva" else "",
+        "is_useful": data.is_useful,
+        "is_useful_reason": data.is_useful_reason.strip()[:500],
+        "usage_context": data.usage_context,
+        "would_recommend": data.would_recommend,
+        "improvement": data.improvement.strip()[:1000],
+        "most_useful": most_useful,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    existing = await db.feedback.find_one({"user_id": user["id"]})
+    if existing:
+        await db.feedback.update_one({"user_id": user["id"]}, {"$set": doc})
+    else:
+        doc["id"] = str(uuid.uuid4())
+        await db.feedback.insert_one(doc)
+    return {"ok": True}
+
+
+@api_router.get("/admin/feedback")
+async def admin_list_feedback(admin: dict = Depends(require_admin)):
+    items = await db.feedback.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return {"feedback": items, "count": len(items)}
 
 
 # ============ SPECIALISTS DIRECTORY ============
