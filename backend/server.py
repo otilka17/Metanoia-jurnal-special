@@ -1039,13 +1039,46 @@ async def _pregenerate_all_articles():
             logger.exception(f"Pre-generation failed for {sid}")
 
 
+async def _backfill_exercise_images():
+    """Fills in image_data for cat-6 (Exerciții) articles that got cached before GOOGLE_API_KEY was set,
+    or whose image generation failed earlier. Never re-generates the text."""
+    exercise_subtopics = {sub["id"]: sub for sub in next(c for c in CATEGORIES if c["id"] == "cat-6")["subtopics"]}
+    docs = await db.articles.find(
+        {"subtopic_id": {"$in": list(exercise_subtopics.keys())}, "image_data": {"$in": [None, ""]}},
+        {"_id": 0, "subtopic_id": 1},
+    ).to_list(100)
+    if not docs:
+        return
+    logger.info(f"Backfilling images for {len(docs)} exercise articles")
+    for doc in docs:
+        sid = doc["subtopic_id"]
+        sub = exercise_subtopics.get(sid)
+        if not sub:
+            continue
+        image_prompt = (
+            f"O ilustrație caldă, simplă, tip desen plat (flat illustration), care arată un părinte și un copil "
+            f"făcând exercițiul: \"{sub['title']}\". Stil prietenos, culori calme, fără text în imagine."
+        )
+        image = await generate_topic_image(image_prompt)
+        if image:
+            await db.articles.update_one(
+                {"subtopic_id": sid},
+                {"$set": {"image_data": image["data"], "image_mime": image["mime_type"]}},
+            )
+            logger.info(f"Backfilled image for {sid}")
+        else:
+            logger.warning(f"Image backfill still failing for {sid} (check GOOGLE_API_KEY)")
+
+
 @api_router.post("/admin/articles/pregenerate")
 async def admin_pregenerate_articles(admin: dict = Depends(require_admin)):
-    """Kicks off (in the background) generating+caching every subtopic article that isn't cached yet."""
+    """Kicks off (in the background) generating+caching every subtopic article that isn't cached yet,
+    plus backfilling any missing exercise images."""
     all_subtopic_ids = [sub["id"] for cat in CATEGORIES for sub in cat["subtopics"]]
     cached_ids = set(await db.articles.distinct("subtopic_id", {"subtopic_id": {"$in": all_subtopic_ids}}))
     missing_count = len(all_subtopic_ids) - len(cached_ids)
     asyncio.create_task(_pregenerate_all_articles())
+    asyncio.create_task(_backfill_exercise_images())
     return {"ok": True, "total": len(all_subtopic_ids), "already_cached": len(cached_ids), "generating": missing_count}
 
 
@@ -2336,6 +2369,7 @@ async def create_indexes():
 @app.on_event("startup")
 async def start_background_loops():
     asyncio.create_task(_weekly_recap_loop())
+    asyncio.create_task(_backfill_exercise_images())
 
 
 @app.on_event("shutdown")
