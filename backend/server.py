@@ -224,6 +224,7 @@ CATEGORIES = [
         "id": "cat-6",
         "title": "Exerciții Practice pentru Copil",
         "subtitle": "Pași concreți, de exersat acasă",
+        "hidden_from_mindmap": True,
         "color": "#6B8CB5",
         "icon": "body",
         "profiles": ["supradotat", "adhd", "autism", "sensibil"],

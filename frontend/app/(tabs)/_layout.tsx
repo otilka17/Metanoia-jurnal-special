@@ -35,6 +35,7 @@ const MENU_GROUPS = [
     items: [
       { label: "Test profil copil", route: "/(tabs)/test", icon: "clipboard" as const },
       { label: "Întreabă specialistul", route: "/(tabs)/ask", icon: "chatbubbles" as const },
+      { label: "Exerciții", route: "/exercises", icon: "body" as const },
       { label: "Jocuri pentru concentrare", route: "/games", icon: "game-controller" as const },
       { label: "Jurnal", route: "/(tabs)/journal", icon: "book" as const },
     ],

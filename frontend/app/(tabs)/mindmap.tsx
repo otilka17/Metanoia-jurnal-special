@@ -14,7 +14,7 @@ if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 type Sub = { id: string; title: string; points: string[] };
-type Cat = { id: string; title: string; subtitle: string; color: string; icon: string; subtopics: Sub[] };
+type Cat = { id: string; title: string; subtitle: string; color: string; icon: string; subtopics: Sub[]; hidden_from_mindmap?: boolean };
 
 const MM_BG = "#0E1412";
 const NODE_ROOT = "#3A4A52";
@@ -45,8 +45,9 @@ export default function MindMapScreen() {
     (async () => {
       try {
         const res: any = await api.getCategories();
-        setCats(res.categories);
-        if (res.categories[0]) setExpandedCat({ [res.categories[0].id]: true });
+        const visible = res.categories.filter((c: Cat) => !c.hidden_from_mindmap);
+        setCats(visible);
+        if (visible[0]) setExpandedCat({ [visible[0].id]: true });
       } catch (e) { console.warn(e); }
       finally { setLoading(false); }
     })();
