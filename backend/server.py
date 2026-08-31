@@ -533,7 +533,7 @@ def _assert_safe_email(subject: str, html: str) -> None:
                 raise ValueError(f"Anchor text {m.group(1)!r} ≠ real link host {real!r} (G3)")
 
 
-async def send_email(*, to: str, subject: str, html: str) -> Optional[str]:
+async def send_email(*, to: str, subject: str, html: str, headers: Optional[dict] = None) -> Optional[str]:
     _assert_safe_email(subject, html)
     payload = {
         "from": f"{EMAIL_FROM_NAME} <{EMAIL_FROM_ADDRESS}>",
@@ -541,6 +541,8 @@ async def send_email(*, to: str, subject: str, html: str) -> Optional[str]:
         "subject": subject,
         "html": html,
     }
+    if headers:
+        payload["headers"] = headers
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(
@@ -565,6 +567,17 @@ def _unsubscribe_token(email: str) -> str:
 def _unsubscribe_link(email: str) -> str:
     token = _unsubscribe_token(email)
     return f"{BACKEND_PUBLIC_URL}/api/email/unsubscribe?email={_url_quote(email.strip().lower())}&token={token}"
+
+
+def _unsubscribe_headers(email: str) -> dict:
+    """RFC 8058 one-click unsubscribe headers. Gmail/Outlook/Yahoo weigh these
+    heavily when deciding inbox vs spam for bulk mail — without them, a single
+    spam complaint can tank deliverability fast."""
+    link = _unsubscribe_link(email)
+    return {
+        "List-Unsubscribe": f"<{link}>, <mailto:{EMAIL_FROM_ADDRESS}?subject=unsubscribe>",
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    }
 
 
 def _email_shell(inner_html: str, unsubscribe_email: Optional[str] = None) -> str:
@@ -690,7 +703,7 @@ async def _send_weekly_recap_for_user(u: dict, since: datetime) -> None:
         f'<ul style="margin:0 0 20px;padding-left:20px;font-size:13px;color:#555;line-height:22px">{"".join(items_html)}</ul>'
         f'<p style="margin:0;font-size:13px;color:#666">Continuă tot așa — fiecare notă contează.</p>'
     )
-    await send_email(to=u["email"], subject=f"Recapitularea ta săptămânală — {EMAIL_FROM_NAME}", html=_email_shell(inner, unsubscribe_email=u["email"]))
+    await send_email(to=u["email"], subject=f"Recapitularea ta săptămânală — {EMAIL_FROM_NAME}", html=_email_shell(inner, unsubscribe_email=u["email"]), headers=_unsubscribe_headers(u["email"]))
 
 
 async def _maybe_send_weekly_recaps() -> None:
@@ -1256,7 +1269,7 @@ async def _send_broadcast_email(subject: str, body: str):
             await asyncio.sleep(0.5)
         try:
             html = _email_shell(paragraphs, unsubscribe_email=u["email"])
-            if await send_email(to=u["email"], subject=subject, html=html):
+            if await send_email(to=u["email"], subject=subject, html=html, headers=_unsubscribe_headers(u["email"])):
                 sent += 1
         except Exception:
             logger.exception(f"Broadcast email failed for {u.get('email')}")
@@ -1854,7 +1867,7 @@ async def set_email_preferences(data: EmailPreferences, user: dict = Depends(get
     return {"ok": True, "opt_out": data.opt_out}
 
 
-@api_router.get("/email/unsubscribe", response_class=HTMLResponse)
+@api_router.api_route("/email/unsubscribe", methods=["GET", "POST"], response_class=HTMLResponse)
 async def email_unsubscribe(email: str, token: str):
     """Public one-click unsubscribe link, clicked directly from an email — no login required.
     Token is an HMAC of the email so an arbitrary visitor can't opt out someone else's address."""
