@@ -75,6 +75,10 @@ export default function LoginScreen() {
                   <Ionicons name="book" size={18} color={theme.colors.primary} />
                   <Text style={styles.featureText}>Jurnal părinte cu statistici</Text>
                 </View>
+                <View style={styles.featureRow}>
+                  <Ionicons name="people" size={18} color={theme.colors.primary} />
+                  <Text style={styles.featureText}>Poți înrola și specialistul copilului</Text>
+                </View>
               </View>
 
               <TouchableOpacity testID="show-login-form" style={styles.btn} onPress={() => setShowForm(true)}>

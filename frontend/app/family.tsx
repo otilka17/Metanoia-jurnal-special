@@ -83,7 +83,7 @@ export default function FamilyScreen() {
   const shareCode = async () => {
     if (!family) return;
     await shareOrCopy(
-      `Te invit să te alături familiei mele în aplicația Jurnal Părinte! Folosește codul: ${family.code} pentru a vedea jurnalul partajat și testul copilului nostru.`
+      `Te invit să te alături în aplicația Jurnal Părinte (ca partener sau specialist) pentru a vedea jurnalul partajat și testul copilului! Folosește codul: ${family.code}.`
     );
   };
 
@@ -104,7 +104,7 @@ export default function FamilyScreen() {
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={styles.title}>Familie</Text>
-            <Text style={styles.subtitle}>Partajează progresul cu partenerul</Text>
+            <Text style={styles.subtitle}>Partajează progresul cu partenerul sau cu specialistul copilului</Text>
           </View>
         </View>
       </SafeAreaView>
@@ -115,7 +115,7 @@ export default function FamilyScreen() {
             <View style={styles.codeCard}>
               <Text style={styles.codeLabel}>CODUL FAMILIEI</Text>
               <Text style={styles.codeBig}>{family.code}</Text>
-              <Text style={styles.codeHint}>Partajează-l cu partenerul pentru a se alătura</Text>
+              <Text style={styles.codeHint}>Partajează-l cu partenerul sau specialistul copilului pentru a se alătura</Text>
               <View style={styles.codeActions}>
                 <TouchableOpacity testID="copy-code" onPress={copyCode} style={styles.actionBtn}>
                   <Ionicons name="copy-outline" size={18} color={theme.colors.primary} />
@@ -138,7 +138,7 @@ export default function FamilyScreen() {
                   <Text style={styles.memberName}>{m.name}{m.is_me ? " (tu)" : ""}</Text>
                   <Text style={styles.memberEmail}>{m.email}</Text>
                 </View>
-                {!m.is_me && <View style={styles.partnerBadge}><Text style={styles.partnerBadgeText}>partener</Text></View>}
+                {!m.is_me && <View style={styles.partnerBadge}><Text style={styles.partnerBadgeText}>partener / specialist</Text></View>}
               </View>
             ))}
             {family.members.length < 2 && (
@@ -168,9 +168,9 @@ export default function FamilyScreen() {
           <>
             <View style={styles.heroBox}>
               <View style={styles.heroIcon}><Ionicons name="people" size={36} color={theme.colors.primary} /></View>
-              <Text style={styles.heroTitle}>Conectează-te cu partenerul</Text>
+              <Text style={styles.heroTitle}>Invită partenerul sau specialistul</Text>
               <Text style={styles.heroDesc}>
-                Vedeți împreună jurnalul observațiilor despre copil și rezultatul testului — pentru o imagine completă a nevoilor lui.
+                Poți înrola aici și specialistul care monitorizează copilul (psiholog, terapeut etc.) — vedeți împreună jurnalul observațiilor și rezultatul testului, pentru o imagine completă a nevoilor lui.
               </Text>
             </View>
 
