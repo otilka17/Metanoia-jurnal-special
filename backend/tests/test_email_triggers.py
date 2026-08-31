@@ -164,26 +164,46 @@ class TestFamilyJoinEmail:
             "code": code, "family_id": family["id"],
         }
 
-    def test_family_join_success_fast_and_returns_two_members(self, session, pair):
+    def test_family_join_is_pending_not_immediate(self, session, pair):
+        """Joining no longer adds the member immediately — it creates a
+        pending request that the existing member must approve."""
         headers_b = {"Authorization": f"Bearer {pair['token_b']}"}
         t0 = time.perf_counter()
         r = session.post(f"{BASE_URL}/api/family/join",
                          json={"code": pair["code"]}, headers=headers_b)
         dt = time.perf_counter() - t0
         assert r.status_code == 200, r.text
-        # Non-blocking: 2 emails were scheduled but response is fast
+        # Non-blocking: the approval-request email was scheduled but response is fast
         assert dt < NON_BLOCKING_BUDGET_S, f"Join took {dt:.2f}s (expected <{NON_BLOCKING_BUDGET_S}s) — emails may be blocking"
+        assert r.json().get("pending") is True
 
+        # A should now see B in the pending list, not yet as a member
+        headers_a = {"Authorization": f"Bearer {pair['token_a']}"}
+        r_fam = session.get(f"{BASE_URL}/api/family/me", headers=headers_a)
+        assert r_fam.status_code == 200
+        fam = r_fam.json()["family"]
+        assert len(fam["members"]) == 1
+        assert len(fam["pending"]) == 1
+        assert fam["pending"][0]["email"] == pair["email_b"].lower()
+
+    def test_family_approve_adds_second_member(self, session, pair):
+        """A approves B's pending request -> B becomes a full member."""
+        headers_a = {"Authorization": f"Bearer {pair['token_a']}"}
+        headers_b = {"Authorization": f"Bearer {pair['token_b']}"}
+        b_id = session.get(f"{BASE_URL}/api/auth/me", headers=headers_b).json()["id"]
+
+        r = session.post(f"{BASE_URL}/api/family/requests/{b_id}/approve", headers=headers_a)
+        assert r.status_code == 200, r.text
         fam = r.json()["family"]
         assert len(fam["members"]) == 2
-        # Find B (is_me from B's perspective)
+        assert len(fam["pending"]) == 0
         me = next((m for m in fam["members"] if m["is_me"]), None)
         other = next((m for m in fam["members"] if not m["is_me"]), None)
-        assert me is not None and me["email"] == pair["email_b"].lower()
-        assert other is not None and other["email"] == pair["email_a"].lower()
+        assert me is not None and me["email"] == pair["email_a"].lower()
+        assert other is not None and other["email"] == pair["email_b"].lower()
 
     def test_family_join_already_in_400(self, session, pair):
-        """After joining, B cannot join again."""
+        """After being approved, B cannot join again."""
         headers_b = {"Authorization": f"Bearer {pair['token_b']}"}
         r = session.post(f"{BASE_URL}/api/family/join",
                          json={"code": pair["code"]}, headers=headers_b)
@@ -251,6 +271,7 @@ def _cleanup(db):
             db.forum_answers.delete_many({"user_id": uid})
             db.guide_progress.delete_many({"user_id": uid})
             db.families.update_many({"member_ids": uid}, {"$pull": {"member_ids": uid}})
+            db.families.update_many({"pending_ids": uid}, {"$pull": {"pending_ids": uid}})
         db.password_reset_codes.delete_many({"email": email})
         db.password_reset_requests.delete_many({"email": email})
     # Remove any empty family docs

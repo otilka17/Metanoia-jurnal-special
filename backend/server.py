@@ -588,10 +588,21 @@ async def send_welcome_email(to: str, name: str) -> None:
 
 
 async def send_family_join_notice(to: str, addressee_name: str, other_name: str, code: str, kind: str) -> None:
-    """kind = 'joined' (I joined a family) or 'partner_joined' (someone joined MY family)."""
+    """kind = 'joined' (I joined a family), 'partner_joined' (someone joined MY family),
+    or 'join_request' (someone wants to join MY family and needs my approval)."""
     safe_addressee = html_escape(addressee_name or "Părinte")
     safe_other = html_escape(other_name or "Partenerul tău")
     safe_code = html_escape(code)
+    if kind == "join_request":
+        title = "Cineva vrea să se alăture familiei tale 🔔"
+        body = (
+            f'<p style="margin:0 0 16px;font-size:14px;line-height:20px">Salut, {safe_addressee}!</p>'
+            f'<p style="margin:0 0 16px;font-size:14px;line-height:20px"><strong>{safe_other}</strong> a folosit codul familiei tale (<strong>{safe_code}</strong>) și cere să se alăture, în {html_escape(EMAIL_FROM_NAME)}.</p>'
+            f'<p style="margin:0 0 16px;font-size:14px;line-height:20px">Nu a fost adăugat/ă automat — trebuie să aprobi tu cererea din aplicație (ecranul Familie) înainte ca persoana să vadă jurnalul și testele copilului.</p>'
+        )
+        inner = f'<h1 style="margin:0 0 12px;color:#7A9E9F;font-size:20px">{title}</h1>{body}'
+        await send_email(to=to, subject=title, html=_email_shell(inner))
+        return
     if kind == "joined":
         title = "Te-ai alăturat familiei! 👨‍👩‍👧"
         body = (
@@ -1886,10 +1897,16 @@ async def _enrich_family(fam: dict, current_user_id: str) -> dict:
                 "email": u.get("email", ""),
                 "is_me": uid == current_user_id,
             })
+    pending = []
+    for uid in fam.get("pending_ids", []):
+        u = await db.users.find_one({"id": uid}, {"_id": 0, "id": 1, "name": 1, "email": 1})
+        if u:
+            pending.append({"id": u["id"], "name": u.get("name", "Părinte"), "email": u.get("email", "")})
     return {
         "id": fam["id"],
         "code": fam["code"],
         "members": members,
+        "pending": pending,
         "created_at": fam.get("created_at"),
     }
 
@@ -1897,9 +1914,14 @@ async def _enrich_family(fam: dict, current_user_id: str) -> dict:
 @api_router.get("/family/me")
 async def family_me(user: dict = Depends(get_current_user)):
     fam = await _family_for(user["id"])
-    if not fam:
-        return {"family": None}
-    return {"family": await _enrich_family(fam, user["id"])}
+    if fam:
+        return {"family": await _enrich_family(fam, user["id"]), "pending_request": None}
+    pend_fam = await db.families.find_one({"pending_ids": user["id"]}, {"_id": 0})
+    if pend_fam:
+        owner_id = pend_fam.get("member_ids", [None])[0]
+        owner = await db.users.find_one({"id": owner_id}, {"_id": 0, "name": 1}) if owner_id else None
+        return {"family": None, "pending_request": {"code": pend_fam["code"], "owner_name": owner.get("name", "Părinte") if owner else "Părinte"}}
+    return {"family": None, "pending_request": None}
 
 
 @api_router.post("/family")
@@ -1919,6 +1941,7 @@ async def family_create(user: dict = Depends(get_current_user)):
         "id": str(uuid.uuid4()),
         "code": code,
         "member_ids": [user["id"]],
+        "pending_ids": [],
         "created_by": user["id"],
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -1932,6 +1955,9 @@ async def family_join(data: FamilyJoinRequest, user: dict = Depends(get_current_
     existing = await _family_for(user["id"])
     if existing:
         raise HTTPException(status_code=400, detail="Ești deja într-o familie. Părăsește-o întâi.")
+    already_pending = await db.families.find_one({"pending_ids": user["id"]})
+    if already_pending:
+        raise HTTPException(status_code=400, detail="Ai deja o cerere în așteptare pentru o familie")
     code = data.code.strip().upper()
     if not code or len(code) < 4:
         raise HTTPException(status_code=400, detail="Cod invalid")
@@ -1939,41 +1965,85 @@ async def family_join(data: FamilyJoinRequest, user: dict = Depends(get_current_
     if not fam:
         raise HTTPException(status_code=404, detail="Cod inexistent")
     members = fam.get("member_ids", [])
+    pending_ids = fam.get("pending_ids", [])
     if user["id"] in members:
         raise HTTPException(status_code=400, detail="Deja faci parte din această familie")
-    if len(members) >= MAX_FAMILY_MEMBERS:
+    if user["id"] in pending_ids:
+        raise HTTPException(status_code=400, detail="Ai deja o cerere trimisă pentru acest cod")
+    if len(members) + len(pending_ids) >= MAX_FAMILY_MEMBERS:
+        raise HTTPException(status_code=400, detail="Familia are deja numărul maxim de membri sau o cerere în așteptare")
+    await db.families.update_one({"id": fam["id"]}, {"$addToSet": {"pending_ids": user["id"]}})
+
+    # Notify existing members that approval is needed — the requester is NOT added automatically
+    try:
+        for uid in members:
+            owner = await db.users.find_one({"id": uid}, {"_id": 0, "name": 1, "email": 1})
+            if owner and owner.get("email"):
+                asyncio.create_task(send_family_join_notice(owner["email"], owner.get("name", "Părinte"), user.get("name", "Cineva"), fam["code"], "join_request"))
+    except Exception as e:
+        logger.warning(f"family join_request notify schedule failed: {e}")
+
+    return {"pending": True, "message": "Cerere trimisă. Așteaptă aprobarea celuilalt membru din aplicație."}
+
+
+@api_router.post("/family/requests/{req_user_id}/approve")
+async def family_approve_request(req_user_id: str, user: dict = Depends(get_current_user)):
+    fam = await _family_for(user["id"])
+    if not fam:
+        raise HTTPException(status_code=404, detail="Nu ești într-o familie")
+    if req_user_id not in fam.get("pending_ids", []):
+        raise HTTPException(status_code=404, detail="Cererea nu (mai) există")
+    if len(fam.get("member_ids", [])) >= MAX_FAMILY_MEMBERS:
         raise HTTPException(status_code=400, detail="Familia are deja numărul maxim de membri")
-    await db.families.update_one({"id": fam["id"]}, {"$addToSet": {"member_ids": user["id"]}})
+    await db.families.update_one(
+        {"id": fam["id"]},
+        {"$pull": {"pending_ids": req_user_id}, "$addToSet": {"member_ids": req_user_id}},
+    )
     fresh = await db.families.find_one({"id": fam["id"]}, {"_id": 0})
     enriched = await _enrich_family(fresh, user["id"])
 
-    # Notify: joiner + existing members (fire and forget)
     try:
-        existing_members = [m for m in enriched["members"] if not m["is_me"]]
-        partner_name = existing_members[0]["name"] if existing_members else "partenerul tău"
-        # Email to the joiner
-        asyncio.create_task(send_family_join_notice(user["email"], user["name"], partner_name, fam["code"], "joined"))
-        # Emails to existing members
+        requester = await db.users.find_one({"id": req_user_id}, {"_id": 0, "name": 1, "email": 1})
+        existing_members = [m for m in enriched["members"] if not m["is_me"] and m["id"] != req_user_id]
+        approver_name = user.get("name", "Un părinte")
+        if requester and requester.get("email"):
+            asyncio.create_task(send_family_join_notice(requester["email"], requester.get("name", "Părinte"), approver_name, fam["code"], "joined"))
         for m in existing_members:
-            asyncio.create_task(send_family_join_notice(m["email"], m["name"], user.get("name", "Un părinte"), fam["code"], "partner_joined"))
+            asyncio.create_task(send_family_join_notice(m["email"], m["name"], requester.get("name", "Cineva") if requester else "Cineva", fam["code"], "partner_joined"))
     except Exception as e:
-        logger.warning(f"family notify schedule failed: {e}")
+        logger.warning(f"family approve notify schedule failed: {e}")
 
     return {"family": enriched}
+
+
+@api_router.post("/family/requests/{req_user_id}/decline")
+async def family_decline_request(req_user_id: str, user: dict = Depends(get_current_user)):
+    fam = await _family_for(user["id"])
+    if not fam:
+        raise HTTPException(status_code=404, detail="Nu ești într-o familie")
+    if req_user_id not in fam.get("pending_ids", []):
+        raise HTTPException(status_code=404, detail="Cererea nu (mai) există")
+    await db.families.update_one({"id": fam["id"]}, {"$pull": {"pending_ids": req_user_id}})
+    return {"ok": True}
 
 
 @api_router.delete("/family/leave")
 async def family_leave(user: dict = Depends(get_current_user)):
     fam = await _family_for(user["id"])
-    if not fam:
-        raise HTTPException(status_code=404, detail="Nu ești într-o familie")
-    new_members = [m for m in fam.get("member_ids", []) if m != user["id"]]
-    if not new_members:
-        # Delete family entirely + cascade test results owned by family creation
-        await db.families.delete_one({"id": fam["id"]})
-    else:
-        await db.families.update_one({"id": fam["id"]}, {"$set": {"member_ids": new_members}})
-    return {"ok": True}
+    if fam:
+        new_members = [m for m in fam.get("member_ids", []) if m != user["id"]]
+        if not new_members:
+            # Delete family entirely + cascade test results owned by family creation
+            await db.families.delete_one({"id": fam["id"]})
+        else:
+            await db.families.update_one({"id": fam["id"]}, {"$set": {"member_ids": new_members}})
+        return {"ok": True}
+    # Not a member — maybe this is a pending request being cancelled
+    pend_fam = await db.families.find_one({"pending_ids": user["id"]}, {"_id": 0})
+    if pend_fam:
+        await db.families.update_one({"id": pend_fam["id"]}, {"$pull": {"pending_ids": user["id"]}})
+        return {"ok": True}
+    raise HTTPException(status_code=404, detail="Nu ești într-o familie")
 
 
 # ============ TEST RESULT (Shared with family) ============

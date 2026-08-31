@@ -88,6 +88,8 @@ export const api = {
   familyCreate: () => request("/family", { method: "POST" }),
   familyJoin: (code: string) => request("/family/join", { method: "POST", body: { code } }),
   familyLeave: () => request("/family/leave", { method: "DELETE" }),
+  familyApprove: (userId: string) => request(`/family/requests/${userId}/approve`, { method: "POST" }),
+  familyDecline: (userId: string) => request(`/family/requests/${userId}/decline`, { method: "POST" }),
 
   // Test result
   saveTestResult: (data: any) => request("/test/result", { method: "POST", body: data }),
