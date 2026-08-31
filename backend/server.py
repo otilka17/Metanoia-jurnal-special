@@ -2380,6 +2380,22 @@ async def admin_reply_review(review_id: str, data: ReviewReply, admin: dict = De
             "is_read": False,
             "created_at": datetime.now(timezone.utc).isoformat(),
         })
+        author = await db.users.find_one({"id": review["user_id"]}, {"_id": 0, "email": 1, "name": 1})
+        if author and author.get("email"):
+            safe_name = html_escape(author.get("name", ""))
+            safe_reply = html_escape(reply)
+            safe_comment = html_escape(review.get("comment", ""))
+            inner = (
+                f'<h2 style="margin:0 0 12px;font-size:20px;color:#5E8B7E">Ai primit un răspuns la recenzia ta 💬</h2>'
+                f'<p style="margin:0 0 16px;font-size:14px;line-height:20px">Salut, {safe_name}! Mulțumim pentru recenzia ta'
+                + (f' — <em>"{safe_comment}"</em>' if safe_comment else '')
+                + ':</p>'
+                f'<div style="background:#f7f5f0;border-radius:10px;padding:14px;margin:0 0 16px">'
+                f'<p style="margin:0;font-size:14px;line-height:20px">{safe_reply}</p>'
+                f'</div>'
+                f'<p style="margin:0;font-size:13px;color:#666">Cu drag,<br>Echipa {html_escape(EMAIL_FROM_NAME)}</p>'
+            )
+            await send_email(to=author["email"], subject=f"Am răspuns la recenzia ta — {EMAIL_FROM_NAME}", html=_email_shell(inner))
     return {"ok": True}
 
 
