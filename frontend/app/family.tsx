@@ -19,10 +19,13 @@ import { api } from "@/src/lib/api";
 import { theme } from "@/src/lib/theme";
 import { shareOrCopy } from "@/src/lib/share";
 
-type Member = { id: string; name: string; email: string; is_me: boolean };
-type PendingMember = { id: string; name: string; email: string };
+type Role = "partener" | "specialist";
+type Member = { id: string; name: string; email: string; is_me: boolean; role: Role };
+type PendingMember = { id: string; name: string; email: string; role: Role };
 type Family = { id: string; code: string; members: Member[]; pending: PendingMember[]; created_at: string };
 type MyPendingRequest = { code: string; owner_name: string };
+
+const ROLE_LABEL: Record<Role, string> = { partener: "partener (acces complet)", specialist: "specialist (doar vizualizare)" };
 
 export default function FamilyScreen() {
   const router = useRouter();
@@ -31,6 +34,7 @@ export default function FamilyScreen() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [code, setCode] = useState("");
+  const [joinRole, setJoinRole] = useState<Role>("partener");
 
   const load = async () => {
     try {
@@ -56,7 +60,7 @@ export default function FamilyScreen() {
     if (c.length < 4) { Alert.alert("Cod invalid", "Codul are minim 4 caractere."); return; }
     setBusy(true);
     try {
-      await api.familyJoin(c);
+      await api.familyJoin(c, joinRole);
       setCode("");
       await load();
       Alert.alert("Cerere trimisă ✓", "Așteaptă ca celălalt membru să aprobe cererea din aplicație.");
@@ -84,9 +88,12 @@ export default function FamilyScreen() {
   };
 
   const approveRequest = (m: PendingMember) => {
+    const accessText = m.role === "specialist"
+      ? "va vedea jurnalul, testele și statisticile, dar NU va putea adăuga însemnări sau teste noi (doar vizualizare)."
+      : "va vedea jurnalul, testele și statisticile — la fel ca tine, cu acces complet.";
     Alert.alert(
       "Aprobi cererea?",
-      `${m.name} (${m.email}) va vedea jurnalul, testele și statisticile — la fel ca tine.`,
+      `${m.name} (${m.email}), ca ${ROLE_LABEL[m.role]}, ${accessText}`,
       [
         { text: "Anulează", style: "cancel" },
         {
@@ -112,6 +119,24 @@ export default function FamilyScreen() {
             setBusy(true);
             try { await api.familyDecline(m.id); await load(); }
             catch (e: any) { Alert.alert("Eroare", e.message || "Nu am putut respinge cererea"); }
+            finally { setBusy(false); }
+          }
+        },
+      ]
+    );
+  };
+
+  const removeMember = (m: Member) => {
+    Alert.alert(
+      "Elimini acest membru?",
+      `${m.name} (${m.email}) va pierde imediat accesul la jurnalul și testele partajate. Tu rămâi în familie și poți invita pe altcineva cu același cod.`,
+      [
+        { text: "Anulează", style: "cancel" },
+        {
+          text: "Elimină", style: "destructive", onPress: async () => {
+            setBusy(true);
+            try { const r: any = await api.familyRemoveMember(m.id); setFamily(r.family); }
+            catch (e: any) { Alert.alert("Eroare", e.message || "Nu am putut elimina membrul"); }
             finally { setBusy(false); }
           }
         },
@@ -201,7 +226,14 @@ export default function FamilyScreen() {
                   <Text style={styles.memberName}>{m.name}{m.is_me ? " (tu)" : ""}</Text>
                   <Text style={styles.memberEmail}>{m.email}</Text>
                 </View>
-                {!m.is_me && <View style={styles.partnerBadge}><Text style={styles.partnerBadgeText}>partener / specialist</Text></View>}
+                {!m.is_me && (
+                  <>
+                    <View style={styles.partnerBadge}><Text style={styles.partnerBadgeText}>{m.role === "specialist" ? "specialist · doar vizualizare" : "partener"}</Text></View>
+                    <TouchableOpacity testID={`remove-${m.id}`} onPress={() => removeMember(m)} disabled={busy} style={styles.removeBtn}>
+                      <Ionicons name="person-remove-outline" size={16} color="#B56B6B" />
+                    </TouchableOpacity>
+                  </>
+                )}
               </View>
             ))}
 
@@ -216,6 +248,7 @@ export default function FamilyScreen() {
                     <View style={{ flex: 1 }}>
                       <Text style={styles.memberName}>{m.name}</Text>
                       <Text style={styles.memberEmail}>{m.email}</Text>
+                      <Text style={styles.pendingRole}>cere rol: {m.role === "specialist" ? "specialist (doar vizualizare)" : "partener (acces complet)"}</Text>
                     </View>
                     <View style={{ flexDirection: "row", gap: 8 }}>
                       <TouchableOpacity testID={`decline-${m.id}`} onPress={() => declineRequest(m)} disabled={busy} style={styles.declineBtn}>
@@ -242,6 +275,7 @@ export default function FamilyScreen() {
               <Text style={styles.sharedItem}>• Toate însemnările din Jurnal (cu autorul vizibil)</Text>
               <Text style={styles.sharedItem}>• Rezultatul Testului profil copil (cel mai recent)</Text>
               <Text style={styles.sharedItem}>• Statisticile lunare combinate</Text>
+              <Text style={styles.sharedItem}>• Un membru cu rol de <Text style={{ fontWeight: "700" }}>specialist</Text> vede tot, dar nu poate adăuga însemnări sau teste noi</Text>
             </View>
 
             <TouchableOpacity testID="leave-family" onPress={leave} disabled={busy} style={[styles.leaveBtn, busy && { opacity: 0.5 }]}>
@@ -296,7 +330,7 @@ export default function FamilyScreen() {
               <View style={styles.dividerLine} />
             </View>
 
-            <Text style={styles.label}>AM PRIMIT UN COD DE LA PARTENER</Text>
+            <Text style={styles.label}>AM PRIMIT UN COD</Text>
             <View style={styles.joinRow}>
               <TextInput
                 testID="code-input"
@@ -309,7 +343,27 @@ export default function FamilyScreen() {
                 style={styles.codeInput}
               />
               <TouchableOpacity testID="join-family" onPress={join} disabled={busy || code.length < 4} style={[styles.joinBtn, (busy || code.length < 4) && { opacity: 0.5 }]}>
-                {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.joinBtnText}>Intră</Text>}
+                {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.joinBtnText}>Trimite cerere</Text>}
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.label, { marginTop: 20 }]}>MĂ ALĂTUR CA</Text>
+            <View style={styles.roleRow}>
+              <TouchableOpacity
+                testID="role-partener"
+                onPress={() => setJoinRole("partener")}
+                style={[styles.roleOption, joinRole === "partener" && styles.roleOptionActive]}
+              >
+                <Ionicons name="people-outline" size={16} color={joinRole === "partener" ? "#fff" : theme.colors.primary} />
+                <Text style={[styles.roleOptionText, joinRole === "partener" && { color: "#fff" }]}>Partener{"\n"}(acces complet)</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                testID="role-specialist"
+                onPress={() => setJoinRole("specialist")}
+                style={[styles.roleOption, joinRole === "specialist" && styles.roleOptionActive]}
+              >
+                <Ionicons name="eye-outline" size={16} color={joinRole === "specialist" ? "#fff" : theme.colors.primary} />
+                <Text style={[styles.roleOptionText, joinRole === "specialist" && { color: "#fff" }]}>Specialist{"\n"}(doar vizualizare)</Text>
               </TouchableOpacity>
             </View>
           </>
@@ -355,8 +409,14 @@ const styles = StyleSheet.create({
   waitingCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: theme.colors.surface, padding: 14, borderRadius: 14, marginTop: 8, borderWidth: 1, borderColor: theme.colors.border, borderStyle: "dashed" },
   waitingText: { flex: 1, fontSize: 12, color: theme.colors.textSecondary, lineHeight: 17 },
   pendingCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#DE8F6E11", padding: 14, borderRadius: 14, marginBottom: 8, borderWidth: 1, borderColor: "#DE8F6E44", borderStyle: "dashed" },
+  pendingRole: { fontSize: 11, color: theme.colors.primary, marginTop: 3, fontWeight: "600" },
   approveBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: theme.colors.primary, alignItems: "center", justifyContent: "center" },
   declineBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#B56B6B22", alignItems: "center", justifyContent: "center" },
+  removeBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: "#B56B6B22", alignItems: "center", justifyContent: "center", marginLeft: 8 },
+  roleRow: { flexDirection: "row", gap: 10 },
+  roleOption: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1.5, borderColor: theme.colors.primary, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 10 },
+  roleOptionActive: { backgroundColor: theme.colors.primary },
+  roleOptionText: { fontSize: 12, color: theme.colors.primary, fontWeight: "600", lineHeight: 16 },
   sharedInfo: { backgroundColor: theme.colors.primary + "11", borderRadius: 12, padding: 14, marginTop: 24, borderLeftWidth: 3, borderLeftColor: theme.colors.primary },
   sharedTitle: { fontSize: 13, fontWeight: "700", color: theme.colors.textPrimary, marginBottom: 8 },
   sharedItem: { fontSize: 12, color: theme.colors.textSecondary, lineHeight: 19 },

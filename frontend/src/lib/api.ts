@@ -86,10 +86,11 @@ export const api = {
   // Family
   familyMe: () => request("/family/me"),
   familyCreate: () => request("/family", { method: "POST" }),
-  familyJoin: (code: string) => request("/family/join", { method: "POST", body: { code } }),
+  familyJoin: (code: string, role: "partener" | "specialist" = "partener") => request("/family/join", { method: "POST", body: { code, role } }),
   familyLeave: () => request("/family/leave", { method: "DELETE" }),
   familyApprove: (userId: string) => request(`/family/requests/${userId}/approve`, { method: "POST" }),
   familyDecline: (userId: string) => request(`/family/requests/${userId}/decline`, { method: "POST" }),
+  familyRemoveMember: (userId: string) => request(`/family/members/${userId}`, { method: "DELETE" }),
 
   // Test result
   saveTestResult: (data: any) => request("/test/result", { method: "POST", body: data }),

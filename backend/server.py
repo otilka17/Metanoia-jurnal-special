@@ -360,6 +360,7 @@ class SpecialistCreate(BaseModel):
 # ============ FAMILY MODELS ============
 class FamilyJoinRequest(BaseModel):
     code: str
+    role: str = "partener"  # "partener" (acces complet) sau "specialist" (doar vizualizare)
 
 class TestResultCreate(BaseModel):
     scores: dict          # {"gift": 12, "adhd": 5, "emo": 7}
@@ -589,10 +590,20 @@ async def send_welcome_email(to: str, name: str) -> None:
 
 async def send_family_join_notice(to: str, addressee_name: str, other_name: str, code: str, kind: str) -> None:
     """kind = 'joined' (I joined a family), 'partner_joined' (someone joined MY family),
-    or 'join_request' (someone wants to join MY family and needs my approval)."""
+    'join_request' (someone wants to join MY family and needs my approval),
+    or 'removed' (I was removed from a family by another member)."""
     safe_addressee = html_escape(addressee_name or "Părinte")
     safe_other = html_escape(other_name or "Partenerul tău")
     safe_code = html_escape(code)
+    if kind == "removed":
+        title = "Ai fost scos/scoasă dintr-o familie"
+        body = (
+            f'<p style="margin:0 0 16px;font-size:14px;line-height:20px">Salut, {safe_addressee}!</p>'
+            f'<p style="margin:0 0 16px;font-size:14px;line-height:20px"><strong>{safe_other}</strong> te-a scos din familia sa în {html_escape(EMAIL_FROM_NAME)}. Nu mai ai acces la jurnalul și testele partajate.</p>'
+        )
+        inner = f'<h1 style="margin:0 0 12px;color:#7A9E9F;font-size:20px">{title}</h1>{body}'
+        await send_email(to=to, subject=title, html=_email_shell(inner))
+        return
     if kind == "join_request":
         title = "Cineva vrea să se alăture familiei tale 🔔"
         body = (
@@ -1300,6 +1311,7 @@ async def list_journal(user: dict = Depends(get_current_user)):
 
 @api_router.post("/journal", response_model=JournalEntry)
 async def create_journal(data: JournalCreate, user: dict = Depends(get_current_user)):
+    await _require_full_access(user["id"])
     doc = {
         "id": str(uuid.uuid4()),
         "user_id": user["id"],
@@ -1884,9 +1896,24 @@ async def _family_for(user_id: str):
     return await db.families.find_one({"member_ids": user_id}, {"_id": 0})
 
 
+async def _get_family_role(user_id: str) -> str:
+    """'partener' (full access, default) or 'specialist' (read-only) for this user's current family."""
+    fam = await _family_for(user_id)
+    if not fam:
+        return "partener"
+    return fam.get("member_roles", {}).get(user_id, "partener")
+
+
+async def _require_full_access(user_id: str) -> None:
+    if await _get_family_role(user_id) == "specialist":
+        raise HTTPException(status_code=403, detail="Specialiștii au acces doar de vizualizare — nu pot adăuga însemnări sau teste noi.")
+
+
 async def _enrich_family(fam: dict, current_user_id: str) -> dict:
     if not fam:
         return None
+    member_roles = fam.get("member_roles", {})
+    pending_roles = fam.get("pending_roles", {})
     members = []
     for uid in fam.get("member_ids", []):
         u = await db.users.find_one({"id": uid}, {"_id": 0, "id": 1, "name": 1, "email": 1})
@@ -1896,12 +1923,13 @@ async def _enrich_family(fam: dict, current_user_id: str) -> dict:
                 "name": u.get("name", "Părinte"),
                 "email": u.get("email", ""),
                 "is_me": uid == current_user_id,
+                "role": member_roles.get(uid, "partener"),
             })
     pending = []
     for uid in fam.get("pending_ids", []):
         u = await db.users.find_one({"id": uid}, {"_id": 0, "id": 1, "name": 1, "email": 1})
         if u:
-            pending.append({"id": u["id"], "name": u.get("name", "Părinte"), "email": u.get("email", "")})
+            pending.append({"id": u["id"], "name": u.get("name", "Părinte"), "email": u.get("email", ""), "role": pending_roles.get(uid, "partener")})
     return {
         "id": fam["id"],
         "code": fam["code"],
@@ -1942,6 +1970,8 @@ async def family_create(user: dict = Depends(get_current_user)):
         "code": code,
         "member_ids": [user["id"]],
         "pending_ids": [],
+        "member_roles": {user["id"]: "partener"},
+        "pending_roles": {},
         "created_by": user["id"],
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -1972,7 +2002,11 @@ async def family_join(data: FamilyJoinRequest, user: dict = Depends(get_current_
         raise HTTPException(status_code=400, detail="Ai deja o cerere trimisă pentru acest cod")
     if len(members) + len(pending_ids) >= MAX_FAMILY_MEMBERS:
         raise HTTPException(status_code=400, detail="Familia are deja numărul maxim de membri sau o cerere în așteptare")
-    await db.families.update_one({"id": fam["id"]}, {"$addToSet": {"pending_ids": user["id"]}})
+    role = data.role if data.role in ("partener", "specialist") else "partener"
+    await db.families.update_one(
+        {"id": fam["id"]},
+        {"$addToSet": {"pending_ids": user["id"]}, "$set": {f"pending_roles.{user['id']}": role}},
+    )
 
     # Notify existing members that approval is needed — the requester is NOT added automatically
     try:
@@ -1995,9 +2029,15 @@ async def family_approve_request(req_user_id: str, user: dict = Depends(get_curr
         raise HTTPException(status_code=404, detail="Cererea nu (mai) există")
     if len(fam.get("member_ids", [])) >= MAX_FAMILY_MEMBERS:
         raise HTTPException(status_code=400, detail="Familia are deja numărul maxim de membri")
+    req_role = fam.get("pending_roles", {}).get(req_user_id, "partener")
     await db.families.update_one(
         {"id": fam["id"]},
-        {"$pull": {"pending_ids": req_user_id}, "$addToSet": {"member_ids": req_user_id}},
+        {
+            "$pull": {"pending_ids": req_user_id},
+            "$addToSet": {"member_ids": req_user_id},
+            "$set": {f"member_roles.{req_user_id}": req_role},
+            "$unset": {f"pending_roles.{req_user_id}": ""},
+        },
     )
     fresh = await db.families.find_one({"id": fam["id"]}, {"_id": 0})
     enriched = await _enrich_family(fresh, user["id"])
@@ -2023,8 +2063,35 @@ async def family_decline_request(req_user_id: str, user: dict = Depends(get_curr
         raise HTTPException(status_code=404, detail="Nu ești într-o familie")
     if req_user_id not in fam.get("pending_ids", []):
         raise HTTPException(status_code=404, detail="Cererea nu (mai) există")
-    await db.families.update_one({"id": fam["id"]}, {"$pull": {"pending_ids": req_user_id}})
+    await db.families.update_one(
+        {"id": fam["id"]},
+        {"$pull": {"pending_ids": req_user_id}, "$unset": {f"pending_roles.{req_user_id}": ""}},
+    )
     return {"ok": True}
+
+
+@api_router.delete("/family/members/{member_id}")
+async def family_remove_member(member_id: str, user: dict = Depends(get_current_user)):
+    """Directly remove another member from your family (you keep the family/code)."""
+    fam = await _family_for(user["id"])
+    if not fam:
+        raise HTTPException(status_code=404, detail="Nu ești într-o familie")
+    if member_id == user["id"]:
+        raise HTTPException(status_code=400, detail="Folosește „Părăsește familia” pentru propriul cont")
+    if member_id not in fam.get("member_ids", []):
+        raise HTTPException(status_code=404, detail="Acest membru nu face parte din familia ta")
+    await db.families.update_one(
+        {"id": fam["id"]},
+        {"$pull": {"member_ids": member_id}, "$unset": {f"member_roles.{member_id}": ""}},
+    )
+    try:
+        removed = await db.users.find_one({"id": member_id}, {"_id": 0, "name": 1, "email": 1})
+        if removed and removed.get("email"):
+            asyncio.create_task(send_family_join_notice(removed["email"], removed.get("name", "Părinte"), user.get("name", "Un membru"), fam["code"], "removed"))
+    except Exception as e:
+        logger.warning(f"family remove notify schedule failed: {e}")
+    fresh = await db.families.find_one({"id": fam["id"]}, {"_id": 0})
+    return {"family": await _enrich_family(fresh, user["id"])}
 
 
 @api_router.delete("/family/leave")
@@ -2036,12 +2103,18 @@ async def family_leave(user: dict = Depends(get_current_user)):
             # Delete family entirely + cascade test results owned by family creation
             await db.families.delete_one({"id": fam["id"]})
         else:
-            await db.families.update_one({"id": fam["id"]}, {"$set": {"member_ids": new_members}})
+            await db.families.update_one(
+                {"id": fam["id"]},
+                {"$set": {"member_ids": new_members}, "$unset": {f"member_roles.{user['id']}": ""}},
+            )
         return {"ok": True}
     # Not a member — maybe this is a pending request being cancelled
     pend_fam = await db.families.find_one({"pending_ids": user["id"]}, {"_id": 0})
     if pend_fam:
-        await db.families.update_one({"id": pend_fam["id"]}, {"$pull": {"pending_ids": user["id"]}})
+        await db.families.update_one(
+            {"id": pend_fam["id"]},
+            {"$pull": {"pending_ids": user["id"]}, "$unset": {f"pending_roles.{user['id']}": ""}},
+        )
         return {"ok": True}
     raise HTTPException(status_code=404, detail="Nu ești într-o familie")
 
@@ -2049,6 +2122,7 @@ async def family_leave(user: dict = Depends(get_current_user)):
 # ============ TEST RESULT (Shared with family) ============
 @api_router.post("/test/result")
 async def save_test_result(data: TestResultCreate, user: dict = Depends(get_current_user)):
+    await _require_full_access(user["id"])
     doc = {
         "id": str(uuid.uuid4()),
         "user_id": user["id"],
