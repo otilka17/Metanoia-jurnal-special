@@ -1,4 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, status
+from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -15,13 +16,14 @@ from datetime import datetime, timedelta, timezone
 import jwt
 import bcrypt
 import hashlib
+import hmac as _hmac
 import secrets as py_secrets
 import re as _re
 import ipaddress as _ipaddress
 import httpx
 from html import escape as html_escape
 from html.parser import HTMLParser
-from urllib.parse import urlparse as _urlparse
+from urllib.parse import urlparse as _urlparse, quote as _url_quote
 
 import anthropic
 from comparison_tables import COMPARISON_TABLES, COMPARISON_MAP
@@ -459,6 +461,7 @@ SUPER_ADMIN_EMAIL = "otilia.ioana96@gmail.com"
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "Jurnal Părinte")
 EMAIL_FROM_ADDRESS = os.environ.get("EMAIL_FROM_ADDRESS", "salut@hategalternativ.ro")
+BACKEND_PUBLIC_URL = os.environ.get("BACKEND_PUBLIC_URL", "https://metanoia-backend-uc7s.onrender.com")
 
 _SHORTENERS = ("bit.ly", "tinyurl.com", "t.co", "is.gd", "cutt.ly", "goo.gl", "rebrand.ly")
 _CRED_ASK = ("reply with your password", "reply with the code", "send your password", "cvv",
@@ -555,8 +558,23 @@ async def send_email(*, to: str, subject: str, html: str) -> Optional[str]:
         return None
 
 
-def _email_shell(inner_html: str) -> str:
-    """Wraps content in the standard branded email shell."""
+def _unsubscribe_token(email: str) -> str:
+    return _hmac.new(JWT_SECRET.encode(), email.strip().lower().encode(), hashlib.sha256).hexdigest()[:24]
+
+
+def _unsubscribe_link(email: str) -> str:
+    token = _unsubscribe_token(email)
+    return f"{BACKEND_PUBLIC_URL}/api/email/unsubscribe?email={_url_quote(email.strip().lower())}&token={token}"
+
+
+def _email_shell(inner_html: str, unsubscribe_email: Optional[str] = None) -> str:
+    """Wraps content in the standard branded email shell. Pass unsubscribe_email
+    only for non-essential emails (broadcast, weekly recap) — never for
+    transactional emails (welcome, password reset, family notices)."""
+    unsubscribe_html = ""
+    if unsubscribe_email:
+        link = _unsubscribe_link(unsubscribe_email)
+        unsubscribe_html = f'<p style="margin:8px 0 0;font-size:11px;color:#999">Nu mai vrei să primești acest tip de email? <a href="{link}" style="color:#7A9E9F">Dezabonează-te aici</a>.</p>'
     return (
         f'<table role="presentation" width="100%" style="background:#f7f5f0"><tr><td align="center" style="padding:24px">'
         f'<table role="presentation" width="480" style="background:#ffffff;border-radius:12px;font-family:Arial,sans-serif;color:#2f2f33">'
@@ -564,6 +582,7 @@ def _email_shell(inner_html: str) -> str:
         f'{inner_html}'
         f'<hr style="border:none;border-top:1px solid #eee;margin:24px 0">'
         f'<p style="margin:0;font-size:11px;color:#999">Acest mesaj a fost trimis de {html_escape(EMAIL_FROM_NAME)}. Nu vom cere niciodată parola sau codul prin email.</p>'
+        f'{unsubscribe_html}'
         f'</td></tr></table></td></tr></table>'
     )
 
@@ -582,7 +601,7 @@ async def send_welcome_email(to: str, name: str) -> None:
         f'<li>💬 <strong>Comunitate anonimă</strong> — întreabă alți părinți</li>'
         f'<li>👨‍👩‍👧 <strong>Familie partajată</strong> — cu partenerul tău</li>'
         f'</ul>'
-        f'<p style="margin:0 0 8px;font-size:13px;color:#666;line-height:19px">Deschide aplicația și începe cu <strong>Testul profil copil</strong> — durează 3 minute și îți oferă direcție.</p>'
+        f'<p style="margin:0 0 8px;font-size:13px;color:#666;line-height:19px">Deschide aplicația și începe cu <strong>Chestionarul de auto-reflecție</strong> — durează 3 minute și îți oferă direcție.</p>'
         f'<p style="margin:0;font-size:13px;color:#666">Cu drag,<br>Echipa {html_escape(EMAIL_FROM_NAME)}</p>'
     )
     await send_email(to=to, subject=f"Bun venit la {EMAIL_FROM_NAME}! 🌱", html=_email_shell(inner))
@@ -671,7 +690,7 @@ async def _send_weekly_recap_for_user(u: dict, since: datetime) -> None:
         f'<ul style="margin:0 0 20px;padding-left:20px;font-size:13px;color:#555;line-height:22px">{"".join(items_html)}</ul>'
         f'<p style="margin:0;font-size:13px;color:#666">Continuă tot așa — fiecare notă contează.</p>'
     )
-    await send_email(to=u["email"], subject=f"Recapitularea ta săptămânală — {EMAIL_FROM_NAME}", html=_email_shell(inner))
+    await send_email(to=u["email"], subject=f"Recapitularea ta săptămânală — {EMAIL_FROM_NAME}", html=_email_shell(inner, unsubscribe_email=u["email"]))
 
 
 async def _maybe_send_weekly_recaps() -> None:
@@ -1231,12 +1250,12 @@ async def _send_broadcast_email(subject: str, body: str):
         f'<p style="margin:0 0 14px;font-size:14px;line-height:20px">{html_escape(line)}</p>'
         for line in body.split("\n") if line.strip()
     )
-    html = _email_shell(paragraphs)
     sent = 0
     for i, u in enumerate(users):
         if i > 0:
             await asyncio.sleep(0.5)
         try:
+            html = _email_shell(paragraphs, unsubscribe_email=u["email"])
             if await send_email(to=u["email"], subject=subject, html=html):
                 sent += 1
         except Exception:
@@ -1833,6 +1852,28 @@ class EmailPreferences(BaseModel):
 async def set_email_preferences(data: EmailPreferences, user: dict = Depends(get_current_user)):
     await db.users.update_one({"id": user["id"]}, {"$set": {"email_opt_out": data.opt_out}})
     return {"ok": True, "opt_out": data.opt_out}
+
+
+@api_router.get("/email/unsubscribe", response_class=HTMLResponse)
+async def email_unsubscribe(email: str, token: str):
+    """Public one-click unsubscribe link, clicked directly from an email — no login required.
+    Token is an HMAC of the email so an arbitrary visitor can't opt out someone else's address."""
+    email_lc = email.strip().lower()
+    page = lambda title, body: (
+        f'<!DOCTYPE html><html lang="ro"><head><meta charset="utf-8">'
+        f'<meta name="viewport" content="width=device-width, initial-scale=1">'
+        f'<title>{html_escape(title)}</title>'
+        f'<style>body{{font-family:-apple-system,system-ui,sans-serif;background:#F9F8F6;color:#2D3A35;'
+        f'display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:24px}}'
+        f'.card{{background:#fff;border-radius:16px;padding:32px;max-width:420px;text-align:center;'
+        f'box-shadow:0 2px 12px rgba(0,0,0,0.08)}}h1{{font-size:20px;margin:0 0 12px}}'
+        f'p{{font-size:14px;color:#5C6B64;line-height:20px}}</style></head>'
+        f'<body><div class="card"><h1>{html_escape(title)}</h1><p>{body}</p></div></body></html>'
+    )
+    if not _hmac.compare_digest(token, _unsubscribe_token(email_lc)):
+        return HTMLResponse(page("Link invalid", "Acest link de dezabonare nu este valid sau a expirat."), status_code=400)
+    await db.users.update_one({"email": email_lc}, {"$set": {"email_opt_out": True}})
+    return HTMLResponse(page("Te-ai dezabonat ✓", f"Adresa {html_escape(email_lc)} nu va mai primi emailuri de tip newsletter/recapitulare de la {html_escape(EMAIL_FROM_NAME)}. Emailurile esențiale de cont (resetare parolă, notificări de familie) rămân active."))
 
 
 @api_router.post("/admin/users/{user_id}/toggle-admin")
