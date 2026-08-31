@@ -2399,6 +2399,95 @@ async def admin_reply_review(review_id: str, data: ReviewReply, admin: dict = De
     return {"ok": True}
 
 
+# ============ DIRECT MESSAGES ============
+def _conversation_id(a: str, b: str) -> str:
+    return "_".join(sorted([a, b]))
+
+
+class MessageCreate(BaseModel):
+    recipient_id: str
+    text: str = Field(min_length=1, max_length=2000)
+
+
+@api_router.get("/messages/conversations")
+async def list_conversations(user: dict = Depends(get_current_user)):
+    docs = await db.messages.find(
+        {"$or": [{"sender_id": user["id"]}, {"recipient_id": user["id"]}]},
+        {"_id": 0},
+    ).sort("created_at", 1).to_list(5000)
+    convos: dict = {}
+    for m in docs:
+        is_mine = m["sender_id"] == user["id"]
+        other_id = m["recipient_id"] if is_mine else m["sender_id"]
+        other_name = m["recipient_name"] if is_mine else m["sender_name"]
+        c = convos.setdefault(other_id, {
+            "user_id": other_id, "name": other_name,
+            "last_message": "", "last_at": "", "unread_count": 0,
+        })
+        c["last_message"] = m["text"]
+        c["last_at"] = m["created_at"]
+        if not is_mine and not m.get("is_read"):
+            c["unread_count"] += 1
+    items = sorted(convos.values(), key=lambda c: c["last_at"], reverse=True)
+    return {"conversations": items}
+
+
+@api_router.get("/messages/thread/{other_user_id}")
+async def get_thread(other_user_id: str, user: dict = Depends(get_current_user)):
+    cid = _conversation_id(user["id"], other_user_id)
+    msgs = await db.messages.find({"conversation_id": cid}, {"_id": 0}).sort("created_at", 1).to_list(2000)
+    await db.messages.update_many(
+        {"conversation_id": cid, "recipient_id": user["id"], "is_read": False},
+        {"$set": {"is_read": True}},
+    )
+    other = await db.users.find_one({"id": other_user_id}, {"_id": 0, "name": 1})
+    if not other:
+        raise HTTPException(status_code=404, detail="Utilizator inexistent")
+    return {"messages": msgs, "other_name": other["name"]}
+
+
+@api_router.post("/messages")
+async def send_message(data: MessageCreate, user: dict = Depends(get_current_user)):
+    if data.recipient_id == user["id"]:
+        raise HTTPException(status_code=400, detail="Nu îți poți trimite mesaj ție însuți")
+    recipient = await db.users.find_one({"id": data.recipient_id}, {"_id": 0, "name": 1})
+    if not recipient:
+        raise HTTPException(status_code=404, detail="Destinatar inexistent")
+    text = data.text.strip()[:2000]
+    doc = {
+        "id": str(uuid.uuid4()),
+        "conversation_id": _conversation_id(user["id"], data.recipient_id),
+        "sender_id": user["id"],
+        "sender_name": user["name"],
+        "recipient_id": data.recipient_id,
+        "recipient_name": recipient["name"],
+        "text": text,
+        "is_read": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.messages.insert_one(doc.copy())
+    doc.pop("_id", None)
+    await db.notifications.insert_one({
+        "id": str(uuid.uuid4()),
+        "user_id": data.recipient_id,
+        "kind": "direct_message",
+        "title": f"Mesaj nou de la {user['name']}",
+        "body": text[:120],
+        "route": f"/messages/{user['id']}",
+        "is_read": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return {"ok": True, "message": doc}
+
+
+@api_router.get("/messages/support-contact")
+async def support_contact(user: dict = Depends(get_current_user)):
+    admin_user = await db.users.find_one({"is_admin": True}, {"_id": 0, "id": 1, "name": 1})
+    if not admin_user:
+        raise HTTPException(status_code=404, detail="Niciun admin disponibil")
+    return admin_user
+
+
 # ============ FEEDBACK ============
 VALID_MOST_USEFUL = {"mindmap", "ghid", "test", "ask", "comunitate"}
 

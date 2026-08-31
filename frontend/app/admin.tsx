@@ -567,6 +567,10 @@ export default function AdminScreen() {
                 </Text>
                 {u.email !== user?.email && (
                   <View style={styles.userActions}>
+                    <TouchableOpacity testID={`message-user-${u.id}`} onPress={() => router.push(`/messages/${u.id}` as any)} style={styles.actionBtn}>
+                      <Ionicons name="mail-outline" size={14} color={theme.colors.primary} />
+                      <Text style={[styles.actionBtnText, { color: theme.colors.primary }]}>Trimite mesaj</Text>
+                    </TouchableOpacity>
                     <TouchableOpacity onPress={() => toggleAdmin(u)} style={[styles.actionBtn, u.is_admin && { backgroundColor: "#B56B6B22" }]}>
                       <Ionicons name={u.is_admin ? "shield-outline" : "shield-checkmark"} size={14} color={u.is_admin ? "#B56B6B" : theme.colors.primary} />
                       <Text style={[styles.actionBtnText, { color: u.is_admin ? "#B56B6B" : theme.colors.primary }]}>{u.is_admin ? "Retrage admin" : "Fă admin"}</Text>

@@ -155,6 +155,13 @@ export const api = {
   submitGameScore: (game: string, score: number) =>
     request("/games/score", { method: "POST", body: { game, score } }),
 
+  // Direct messages
+  listConversations: () => request("/messages/conversations"),
+  getThread: (otherUserId: string) => request(`/messages/thread/${otherUserId}`),
+  sendMessage: (recipient_id: string, text: string) =>
+    request("/messages", { method: "POST", body: { recipient_id, text } }),
+  supportContact: () => request("/messages/support-contact"),
+
   // Comparison tables
   listComparisons: () => request("/compare"),
   getComparison: (id: string) => request(`/compare/${id}`),

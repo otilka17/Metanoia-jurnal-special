@@ -43,6 +43,7 @@ const MENU_GROUPS = [
   {
     title: "Cont",
     items: [
+      { label: "Mesaje", route: "/messages", icon: "mail-outline" as const },
       { label: "Feedback", route: "/feedback", icon: "chatbox-ellipses" as const },
       { label: "Profil", route: "/(tabs)/profile", icon: "person" as const },
     ],
