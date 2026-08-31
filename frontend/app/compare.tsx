@@ -138,7 +138,7 @@ export default function CompareScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.detailTitle} numberOfLines={2}>{detail?.title || "Se încarcă..."}</Text>
               {detail?.custom && (
-                <View style={styles.customBadge}><Ionicons name="sparkles" size={10} color="#fff" /><Text style={styles.customBadgeText}>Generat AI, supervizat de specialiști</Text></View>
+                <View style={styles.customBadge}><Ionicons name="sparkles" size={10} color="#fff" /><Text style={styles.customBadgeText}>Generat cu AI</Text></View>
               )}
             </View>
           </View>

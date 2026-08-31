@@ -54,9 +54,8 @@ export default function TermsScreen() {
         <Text style={styles.h}>5. Conținut generat de AI</Text>
         <Text style={styles.p}>
           Răspunsurile AI (articole, explicații, „Întreabă specialistul", tabele comparative) sunt generate
-          automat de un model de limbaj (Claude, Anthropic) și supervizate de specialiști la nivel de
-          conținut general, nu individual, pentru fiecare răspuns. Pot conține inexactități — verifică
-          întotdeauna informațiile importante cu un specialist.
+          automat de un model de limbaj (Claude, Anthropic), fără verificare individuală pentru fiecare
+          răspuns. Pot conține inexactități — verifică întotdeauna informațiile importante cu un specialist.
         </Text>
 
         <Text style={styles.h}>6. Proprietate intelectuală</Text>

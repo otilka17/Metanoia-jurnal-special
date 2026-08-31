@@ -79,7 +79,7 @@ export default function AskScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Întreabă specialistul</Text>
         <Text style={styles.sub}>AI specializat în copii cu profiluri atipice</Text>
-        <Text style={styles.aiNote}>Conținut generat cu AI, supervizat de specialiști</Text>
+        <Text style={styles.aiNote}>Conținut generat cu AI — nu înlocuiește un consult cu un specialist</Text>
         <TouchableOpacity testID="rename-assistant" onPress={openRename} style={styles.renameRow}>
           <Ionicons name="create-outline" size={14} color={theme.colors.primary} />
           <Text style={styles.renameText}>

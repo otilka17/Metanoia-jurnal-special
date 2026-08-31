@@ -201,7 +201,7 @@ export default function ArticleScreen() {
 
             <View style={styles.aiNote}>
               <Ionicons name="sparkles" size={13} color={theme.colors.textDisabled} />
-              <Text style={styles.aiNoteText}>Conținut generat cu AI, supervizat de specialiști.</Text>
+              <Text style={styles.aiNoteText}>Conținut generat cu AI — nu înlocuiește un consult cu un specialist.</Text>
             </View>
           </>
         )}
