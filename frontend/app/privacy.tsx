@@ -20,7 +20,7 @@ export default function PrivacyScreen() {
         <Text style={styles.updated}>Ultima actualizare: august 2026</Text>
 
         <Text style={styles.p}>
-          Ghid Părinte (Metanoia) respectă confidențialitatea datelor tale și ale familiei tale. Acest
+          Jurnal Părinte (Metanoia) respectă confidențialitatea datelor tale și ale familiei tale. Acest
           document explică ce date colectăm, de ce, cu cine le partajăm și ce drepturi ai, în conformitate
           cu Regulamentul General privind Protecția Datelor (GDPR).
         </Text>

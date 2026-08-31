@@ -1,4 +1,4 @@
-# PRD - Ghid Părinte: Educația Copilului Supradotat / Hiperactiv
+# PRD - Jurnal Părinte: Educația Copilului Supradotat / Hiperactiv
 
 ## Overview
 Mobile app (Expo React Native, iOS + Android) — Romanian-language educational guide for parents of gifted/hyperactive (ADHD/2e) children. Structure mirrors a provided NotebookLM mind map with 5 main categories and 12 subtopics.

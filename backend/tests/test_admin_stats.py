@@ -1,4 +1,4 @@
-"""Backend API tests for admin + personal stats endpoints (Ghid Părinte)."""
+"""Backend API tests for admin + personal stats endpoints (Jurnal Părinte)."""
 import os
 import uuid
 import requests

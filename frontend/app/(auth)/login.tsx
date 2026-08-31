@@ -48,7 +48,7 @@ export default function LoginScreen() {
             <View style={styles.logoCircle}>
               <Ionicons name="leaf" size={40} color={theme.colors.primary} />
             </View>
-            <Text style={styles.brandName}>Ghid Părinte</Text>
+            <Text style={styles.brandName}>Jurnal Părinte</Text>
           </View>
 
           {!showForm ? (

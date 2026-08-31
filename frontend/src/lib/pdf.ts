@@ -39,7 +39,7 @@ export async function exportArticlePdf(subtopicId: string) {
   <div class="example">${escapeHtml(c.exemplu_situatie)}</div>
   <h2>Când să ceri ajutor</h2>
   <p>${escapeHtml(c.cand_sa_cer_ajutor)}</p>
-  <div class="footer">Ghid Părinte — Educația Copilului Supradotat / Hiperactiv</div>
+  <div class="footer">Jurnal Părinte — Educația Copilului Supradotat / Hiperactiv</div>
 </body></html>`;
   const { uri } = await Print.printToFileAsync({ html });
   if (await Sharing.isAvailableAsync()) {

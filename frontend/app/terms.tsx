@@ -20,13 +20,13 @@ export default function TermsScreen() {
         <Text style={styles.updated}>Ultima actualizare: august 2026</Text>
 
         <Text style={styles.p}>
-          Prin crearea unui cont și folosirea aplicației Ghid Părinte (Metanoia), ești de acord cu acești
+          Prin crearea unui cont și folosirea aplicației Jurnal Părinte (Metanoia), ești de acord cu acești
           termeni. Te rugăm să-i citești cu atenție.
         </Text>
 
         <Text style={styles.h}>1. Ce este aplicația</Text>
         <Text style={styles.p}>
-          Ghid Părinte este o aplicație de monitorizare și sprijin educațional pentru părinții copiilor cu
+          Jurnal Părinte este o aplicație de monitorizare și sprijin educațional pentru părinții copiilor cu
           profiluri atipice (supradotați, ADHD, autism, sensibilitate emoțională). Aplicația oferă jurnal
           pentru urmărirea evoluției copilului, teste orientative, conținut informativ, un asistent AI
           conversațional și o comunitate de părinți.

@@ -119,7 +119,7 @@ ${GUIDE.map((s) => `
   ${(s.bullets || []).map((b) => `${b.title ? `<div class="bhead">${escapeHtml(b.title)}</div>` : ""}<ul>${b.items.map(it => `<li>${escapeHtml(it)}</li>`).join("")}</ul>`).join("")}
   ${s.table ? `<table><tr>${s.table.headers.map(h => `<th>${escapeHtml(h)}</th>`).join("")}</tr>${s.table.rows.map(r => `<tr>${r.map(c => `<td>${escapeHtml(c)}</td>`).join("")}</tr>`).join("")}</table>` : ""}
 `).join("")}
-<div class="footer">Ghid Părinte — Educația Copilului Supradotat / Hiperactiv</div>
+<div class="footer">Jurnal Părinte — Educația Copilului Supradotat / Hiperactiv</div>
 </body></html>`;
       const { uri } = await Print.printToFileAsync({ html });
       if (await Sharing.isAvailableAsync()) {
@@ -261,7 +261,7 @@ ${GUIDE.map((s) => `
 
         <View style={styles.footer}>
           <Ionicons name="leaf" size={20} color={theme.colors.primary} />
-          <Text style={styles.footerText}>Ghid Părinte — conținut educațional</Text>
+          <Text style={styles.footerText}>Jurnal Părinte — conținut educațional</Text>
         </View>
       </ScrollView>
 

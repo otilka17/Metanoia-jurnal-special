@@ -61,9 +61,9 @@ export default function AdminScreen() {
   const [askViewer, setAskViewer] = useState<{ user: AdminUser; items: AskItem[] } | null>(null);
   const [askLoading, setAskLoading] = useState(false);
   const [pregenLoading, setPregenLoading] = useState(false);
-  const [broadcastSubject, setBroadcastSubject] = useState("Noutăți în Ghid Părinte 💚");
+  const [broadcastSubject, setBroadcastSubject] = useState("Noutăți în Jurnal Părinte 💚");
   const [broadcastBody, setBroadcastBody] = useState(
-    "Mulțumim că faci parte din comunitatea Ghid Părinte!\nAm adăugat două secțiuni noi: Exerciții — activități pas-cu-pas pentru copil, cu imagini și instrucțiuni clare — și Jocuri pentru concentrare, 5 jocuri pentru atenție și memorie.\nLe găsești direct din meniul aplicației.\nCu drag,\nEchipa Ghid Părinte"
+    "Mulțumim că faci parte din comunitatea Jurnal Părinte!\nAm adăugat două secțiuni noi: Exerciții — activități pas-cu-pas pentru copil, cu imagini și instrucțiuni clare — și Jocuri pentru concentrare, 5 jocuri pentru atenție și memorie.\nLe găsești direct din meniul aplicației.\nCu drag,\nEchipa Jurnal Părinte"
   );
   const [broadcastLoading, setBroadcastLoading] = useState(false);
   const [specialists, setSpecialists] = useState<Specialist[]>([]);

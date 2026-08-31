@@ -58,7 +58,7 @@ function HeaderBar({ onMenu, unreadCount, onBell }: { onMenu: () => void; unread
       <TouchableOpacity testID="burger-menu-button" onPress={onMenu} style={styles.iconBtn}>
         <Ionicons name="menu" size={26} color={theme.colors.textPrimary} />
       </TouchableOpacity>
-      <Text style={styles.brand}>Ghid Părinte</Text>
+      <Text style={styles.brand}>Jurnal Părinte</Text>
       <TouchableOpacity testID="notifications-bell" onPress={onBell} style={styles.iconBtn}>
         <Ionicons name="notifications-outline" size={24} color={theme.colors.textPrimary} />
         {unreadCount > 0 && (

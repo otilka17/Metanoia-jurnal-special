@@ -150,7 +150,7 @@ export default function ProfileScreen() {
   const shareReferralCode = async () => {
     if (!referralInfo) return;
     await shareOrCopy(
-      `Te invit să încerci Ghid Părinte, o aplicație de monitorizare pentru părinți, cu AI personalizat! La înregistrare, introdu codul meu de recomandare: ${referralInfo.code}.\n\nhttps://otilka17.github.io/Metanoia-jurnal-special/`
+      `Te invit să încerci Jurnal Părinte, o aplicație de monitorizare pentru părinți, cu AI personalizat! La înregistrare, introdu codul meu de recomandare: ${referralInfo.code}.\n\nhttps://otilka17.github.io/Metanoia-jurnal-special/`
     );
   };
 

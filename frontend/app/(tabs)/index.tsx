@@ -341,7 +341,7 @@ export default function HomeScreen() {
 
           {!!r.admin_reply && (
             <View style={styles.adminReplyBox}>
-              <Text style={styles.adminReplyLabel}>Răspuns Ghid Părinte</Text>
+              <Text style={styles.adminReplyLabel}>Răspuns Jurnal Părinte</Text>
               <Text style={styles.adminReplyText}>{r.admin_reply}</Text>
             </View>
           )}

@@ -83,7 +83,7 @@ export default function FamilyScreen() {
   const shareCode = async () => {
     if (!family) return;
     await shareOrCopy(
-      `Te invit să te alături familiei mele în aplicația Ghid Părinte! Folosește codul: ${family.code} pentru a vedea jurnalul partajat și testul copilului nostru.`
+      `Te invit să te alături familiei mele în aplicația Jurnal Părinte! Folosește codul: ${family.code} pentru a vedea jurnalul partajat și testul copilului nostru.`
     );
   };
 

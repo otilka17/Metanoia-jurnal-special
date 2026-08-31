@@ -456,7 +456,7 @@ SUPER_ADMIN_EMAIL = "otilia.ioana96@gmail.com"
 
 # ============ EMAIL (Resend) ============
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
-EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "Ghid Părinte")
+EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "Jurnal Părinte")
 EMAIL_FROM_ADDRESS = os.environ.get("EMAIL_FROM_ADDRESS", "salut@hategalternativ.ro")
 
 _SHORTENERS = ("bit.ly", "tinyurl.com", "t.co", "is.gd", "cutt.ly", "goo.gl", "rebrand.ly")
@@ -1363,7 +1363,7 @@ async def ask_specialist(data: AskRequest, user: dict = Depends(get_current_user
     if not data.question.strip():
         raise HTTPException(status_code=400, detail="Întrebarea este goală")
     system_msg = (
-        "Ești asistent AI de PSIHOEDUCAȚIE și SUPORT pentru părinți în aplicația 'Ghid Părinte / "
+        "Ești asistent AI de PSIHOEDUCAȚIE și SUPORT pentru părinți în aplicația 'Jurnal Părinte / "
         "Metanoia'. Domeniu: copii cu profile atipice — supradotați, ADHD (inclusiv ADHD invizibil "
         "la fete), sensibilitate emoțională, dublu excepționali (2e), tulburări de ticuri, anxietate, "
         "depresie, tulburări de spectru autist. Vorbești ROMÂNĂ.\n\n"
@@ -1518,7 +1518,7 @@ async def journal_patterns(user: dict = Depends(get_current_user)):
 
 @api_router.get("/")
 async def root():
-    return {"message": "Ghid Părinte API"}
+    return {"message": "Jurnal Părinte API"}
 
 
 # ============ USER OWN STATS ============

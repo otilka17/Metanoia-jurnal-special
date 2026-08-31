@@ -49,7 +49,7 @@ export default function Onboarding() {
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <View style={styles.topRow}>
-        <Text style={styles.brand}>Ghid Părinte</Text>
+        <Text style={styles.brand}>Jurnal Părinte</Text>
         <TouchableOpacity testID="onboarding-skip" onPress={finish}>
           <Text style={styles.skip}>Sari peste</Text>
         </TouchableOpacity>
