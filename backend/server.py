@@ -213,7 +213,7 @@ CATEGORIES = [
     {
         "id": "cat-5",
         "title": "Gestionarea Crizelor (Meltdowns)",
-        "subtitle": "Intervenție și recuperare",
+        "subtitle": "Idei de calmare și reconectare",
         "color": "#B56B6B",
         "icon": "thunderstorm",
         "profiles": ["autism", "sensibil", "adhd"],
@@ -575,10 +575,10 @@ async def send_welcome_email(to: str, name: str) -> None:
         f'<p style="margin:0 0 16px;font-size:14px;line-height:20px">Ne bucurăm că te alături comunității <strong>{html_escape(EMAIL_FROM_NAME)}</strong> — o aplicație de monitorizare pentru părinții copiilor supradotați, hiperactivi sau sensibili emoțional.</p>'
         f'<p style="margin:0 0 12px;font-size:14px;line-height:20px">Iată ce poți descoperi în aplicație:</p>'
         f'<ul style="margin:0 0 20px;padding-left:20px;font-size:13px;color:#555;line-height:22px">'
-        f'<li>📖 <strong>Ghidul Specialistului</strong> — 20 capitole practice</li>'
+        f'<li>📖 <strong>Resurse educaționale</strong> — 20 capitole practice</li>'
         f'<li>🧠 <strong>Mind Map interactiv</strong> — teme cheie ale parentingului</li>'
         f'<li>📝 <strong>Jurnal cu analiză AI</strong> — descoperă tipare</li>'
-        f'<li>🧩 <strong>Test profil copil</strong> — 12 întrebări → recomandări</li>'
+        f'<li>🧩 <strong>Chestionar de auto-reflecție pentru părinte</strong> — 12 întrebări → recomandări</li>'
         f'<li>💬 <strong>Comunitate anonimă</strong> — întreabă alți părinți</li>'
         f'<li>👨‍👩‍👧 <strong>Familie partajată</strong> — cu partenerul tău</li>'
         f'</ul>'
@@ -622,7 +622,7 @@ async def send_family_join_notice(to: str, addressee_name: str, other_name: str,
             f'<p style="margin:0 0 16px;font-size:14px;line-height:20px">De acum, vedeți împreună:</p>'
             f'<ul style="margin:0 0 20px;padding-left:20px;font-size:13px;color:#555;line-height:22px">'
             f'<li>📝 Toate însemnările din <strong>Jurnal</strong> (cu autorul vizibil)</li>'
-            f'<li>🧩 Cel mai recent <strong>Test profil copil</strong></li>'
+            f'<li>🧩 Cel mai recent <strong>Chestionar de auto-reflecție pentru părinte</strong></li>'
             f'<li>📊 <strong>Statistici lunare</strong> combinate</li>'
             f'</ul>'
         )

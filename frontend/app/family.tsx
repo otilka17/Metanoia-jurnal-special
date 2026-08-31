@@ -273,7 +273,7 @@ export default function FamilyScreen() {
             <View style={styles.sharedInfo}>
               <Text style={styles.sharedTitle}>📋 Ce se partajează:</Text>
               <Text style={styles.sharedItem}>• Toate însemnările din Jurnal (cu autorul vizibil)</Text>
-              <Text style={styles.sharedItem}>• Rezultatul Testului profil copil (cel mai recent)</Text>
+              <Text style={styles.sharedItem}>• Rezultatul Chestionarului de auto-reflecție (cel mai recent)</Text>
               <Text style={styles.sharedItem}>• Statisticile lunare combinate</Text>
               <Text style={styles.sharedItem}>• Un membru cu rol de <Text style={{ fontWeight: "700" }}>specialist</Text> vede tot, dar nu poate adăuga însemnări sau teste noi</Text>
             </View>

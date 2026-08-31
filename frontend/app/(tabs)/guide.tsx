@@ -123,7 +123,7 @@ ${GUIDE.map((s) => `
 </body></html>`;
       const { uri } = await Print.printToFileAsync({ html });
       if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: "Ghidul Specialistului" });
+        await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: "Resurse educaționale" });
       }
     } catch (e: any) { Alert.alert("Eroare PDF", e.message || "Nu am putut exporta"); }
     finally { setExporting(false); }
@@ -175,7 +175,7 @@ ${GUIDE.map((s) => `
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.hero}>
-          <Text style={styles.badge}>GHIDUL SPECIALISTULUI</Text>
+          <Text style={styles.badge}>RESURSE EDUCAȚIONALE</Text>
           <Text style={styles.heroTitle}>{GUIDE_TITLE}</Text>
           <Text style={styles.heroSub}>{GUIDE_SUBTITLE}</Text>
           <View style={styles.bar} />
@@ -261,7 +261,7 @@ ${GUIDE.map((s) => `
 
         <View style={styles.footer}>
           <Ionicons name="leaf" size={20} color={theme.colors.primary} />
-          <Text style={styles.footerText}>Jurnal Părinte — conținut educațional</Text>
+          <Text style={styles.footerText}>Sinteză educațională realizată cu asistență AI pe baza literaturii de parenting și neurodiversitate</Text>
         </View>
       </ScrollView>
 

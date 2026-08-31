@@ -31,8 +31,8 @@ const RECOMMEND_OPTS = [
 ];
 const MOST_USEFUL_OPTS = [
   { key: "mindmap", label: "Mind Map" },
-  { key: "ghid", label: "Ghidul Specialistului" },
-  { key: "test", label: "Test profil" },
+  { key: "ghid", label: "Resurse educaționale" },
+  { key: "test", label: "Chestionar auto-reflecție" },
   { key: "ask", label: "Întreabă AI" },
   { key: "comunitate", label: "Comunitate" },
 ];

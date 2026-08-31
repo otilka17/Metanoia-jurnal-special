@@ -213,7 +213,7 @@ export default function HomeScreen() {
       <TouchableOpacity testID="open-guide" style={styles.guideCard} onPress={() => router.push("/(tabs)/guide")}>
         <View style={styles.guideIcon}><Ionicons name="library" size={22} color="#fff" /></View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.guideTitle}>Ghidul Specialistului</Text>
+          <Text style={styles.guideTitle}>Resurse educaționale</Text>
           <Text style={styles.guideText}>"Navigând Lumea Copilului Supradotat" + Ghidul Avansat — 20 capitole</Text>
         </View>
         <Ionicons name="chevron-forward" size={22} color="#fff" />
@@ -264,7 +264,7 @@ export default function HomeScreen() {
       <View style={styles.quickRow}>
         <TouchableOpacity testID="open-test" style={[styles.quickCard, { backgroundColor: "#7A9E9F" }]} onPress={() => router.push("/(tabs)/test")}>
           <Ionicons name="clipboard-outline" size={22} color="#fff" />
-          <Text style={styles.quickTitle}>Test profil copil</Text>
+          <Text style={styles.quickTitle}>Chestionar auto-reflecție</Text>
           <Text style={styles.quickText}>12 întrebări</Text>
         </TouchableOpacity>
         <TouchableOpacity testID="open-ask" style={[styles.quickCard, { backgroundColor: "#E8C37C" }]} onPress={() => router.push("/(tabs)/ask")}>

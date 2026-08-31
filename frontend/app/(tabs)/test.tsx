@@ -4,6 +4,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/src/lib/api";
 import { theme } from "@/src/lib/theme";
 
+const DISCLAIMER_TEXT = "Acest chestionar are rol strict orientativ și educativ pentru părinți. Rezultatele nu reprezintă un diagnostic clinic de ADHD, TSA sau supradotare. Pentru o evaluare oficială, consultați un medic neuropsihiatru infantil sau un psiholog clinician.";
+
 type Axis = "gift" | "adhd" | "emo";
 type Question = { q: string; opts: { label: string; axis: Axis; score: number }[] };
 
@@ -108,7 +110,7 @@ function computeProfile(scores: Record<Axis, number>): Profile {
       description: "Răspunsurile sugerează un profil de supradotare combinat cu trăsături de hiperactivitate/ADHD. Este o combinație care necesită evaluare specializată pentru a confirma — supradotarea poate masca dificultățile, iar ADHD poate masca supradotarea.",
       bettsType: "Tip V — Dublu-Etichetat (2e)",
       bettsDesc: "Supradotare + posibilă dificultate. Are nevoie de accent pe punctele tari, nu doar pe remedierea deficienței.",
-      recommendation: "Recomandare: evaluare psihopedagogică completă (IQ + atenție + funcții executive). Citește capitolele 3, 4 și 7 din Ghidul Specialistului.",
+      recommendation: "Recomandare: evaluare psihopedagogică completă (IQ + atenție + funcții executive). Citește capitolele 3, 4 și 7 din secțiunea Resurse educaționale.",
     };
   }
   if (isHighGift) {
@@ -118,7 +120,7 @@ function computeProfile(scores: Record<Axis, number>): Profile {
       icon: "sparkles",
       description: "Răspunsurile sugerează un profil de supradotare cu sensibilitate ridicată. Heterocronia (decalaj cognitiv-emoțional) poate genera frustrare. Curiozitatea intensă și gândirea complexă sunt resurse, dar pot fi epuizante pentru copil.",
       bettsType, bettsDesc,
-      recommendation: "Recomandare: evaluare psihopedagogică pentru confirmare. Citește capitolele 1, 2 și 9 din Ghid. Curriculum diferențiat poate fi util.",
+      recommendation: "Recomandare: evaluare psihopedagogică pentru confirmare. Citește capitolele 1, 2 și 9 din Resurse educaționale. Curriculum diferențiat poate fi util.",
     };
   }
   if (isHighAdhd) {
@@ -127,7 +129,7 @@ function computeProfile(scores: Record<Axis, number>): Profile {
       color: "#DE8F6E",
       icon: "flash",
       description: "Răspunsurile indică trăsături compatibile cu ADHD: dificultăți de atenție/autoreglare în contexte multiple. Important: doar un specialist poate stabili un diagnostic. Multe trăsături similare apar și la copiii activi normali sau supradotați.",
-      recommendation: "Recomandare: consult psihologic/psihiatric pediatric pentru evaluare. Citește capitolul 4 (profilul ADHD complet) și capitolul 15 (diagnostic diferențial) din Ghidul Specialistului.",
+      recommendation: "Recomandare: consult psihologic/psihiatric pediatric pentru evaluare. Citește capitolul 4 (profilul ADHD complet) și capitolul 15 (diagnostic diferențial) din secțiunea Resurse educaționale.",
     };
   }
   if (isHighEmo) {
@@ -136,7 +138,7 @@ function computeProfile(scores: Record<Axis, number>): Profile {
       color: "#E8C37C",
       icon: "heart",
       description: "Răspunsurile arată un copil cu sensibilitate emoțională marcată. Aceasta poate fi una dintre cele 5 supraexcitabilități descrise de Dabrowski (frecventă la copii supradotați), dar și un trait separat.",
-      recommendation: "Recomandare: citește capitolul 9 (Gestionarea Emoțiilor) și capitolul 2 din Ghid. Tehnicile de respirație și validare emoțională sunt esențiale.",
+      recommendation: "Recomandare: citește capitolul 9 (Gestionarea Emoțiilor) și capitolul 2 din Resurse educaționale. Tehnicile de respirație și validare emoțională sunt esențiale.",
     };
   }
   return {
@@ -222,7 +224,7 @@ export default function TestScreen() {
           <Ionicons name="bulb" size={20} color={theme.colors.primary} />
           <Text style={styles.recText}>{savedResult.recommendation}</Text>
         </View>
-        <Text style={styles.disclaimer}>⚠ Acest test este orientativ, NU un diagnostic. Pentru certitudine, consultă un psiholog specializat.</Text>
+        <Text style={styles.disclaimer}>⚠ {DISCLAIMER_TEXT}</Text>
         <TouchableOpacity testID="test-restart" style={styles.btn} onPress={() => { setSavedResult(null); reset(); }}>
           <Ionicons name="refresh" size={18} color="#fff" />
           <Text style={styles.btnText}>Refă testul</Text>
@@ -265,7 +267,7 @@ export default function TestScreen() {
           <Ionicons name="bulb" size={20} color={theme.colors.primary} />
           <Text style={styles.recText}>{profile.recommendation}</Text>
         </View>
-        <Text style={styles.disclaimer}>⚠ Acest test este orientativ, NU un diagnostic. Pentru certitudine, consultă un psiholog specializat.</Text>
+        <Text style={styles.disclaimer}>⚠ {DISCLAIMER_TEXT}</Text>
         <TouchableOpacity testID="test-restart" style={styles.btn} onPress={reset}>
           <Ionicons name="refresh" size={18} color="#fff" />
           <Text style={styles.btnText}>Refă testul</Text>
@@ -282,6 +284,12 @@ export default function TestScreen() {
       <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${progress}%` }]} /></View>
       <Text style={styles.qCounter}>Întrebarea {idx + 1} din {QUESTIONS.length}</Text>
       <View style={styles.qContainer}>
+        {idx === 0 && (
+          <View style={styles.topDisclaimer}>
+            <Ionicons name="information-circle-outline" size={16} color={theme.colors.textSecondary} />
+            <Text style={styles.topDisclaimerText}>{DISCLAIMER_TEXT}</Text>
+          </View>
+        )}
         <Text style={styles.question}>{q.q}</Text>
         {q.opts.map((opt, i) => (
           <TouchableOpacity key={i} testID={`opt-${idx}-${i}`} style={styles.opt} onPress={() => onPick(opt.axis, opt.score)}>
@@ -301,6 +309,8 @@ const styles = StyleSheet.create({
   qCounter: { fontSize: 12, color: theme.colors.textSecondary, padding: 16, fontWeight: "600", letterSpacing: 0.5 },
   qContainer: { paddingHorizontal: 20 },
   question: { ...theme.font.h2, color: theme.colors.textPrimary, marginBottom: 24 },
+  topDisclaimer: { flexDirection: "row", gap: 8, alignItems: "flex-start", backgroundColor: theme.colors.surfaceElevated, padding: 12, borderRadius: 12, marginBottom: 20 },
+  topDisclaimerText: { flex: 1, fontSize: 11.5, color: theme.colors.textSecondary, lineHeight: 16, fontStyle: "italic" },
   opt: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: theme.colors.surface, padding: 16, borderRadius: 12, marginBottom: 10, borderWidth: 1, borderColor: theme.colors.border },
   optText: { flex: 1, fontSize: 14, color: theme.colors.textPrimary, marginRight: 12 },
   resultHero: { alignItems: "center", padding: 32, borderRadius: 20, marginBottom: 20 },

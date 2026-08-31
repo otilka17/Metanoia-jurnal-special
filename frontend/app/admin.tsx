@@ -46,7 +46,7 @@ type Specialist = { id: string; name: string; title: string; specialization: str
 const ROLE_LABELS: Record<string, string> = { parinte: "Părinte", specialist: "Specialist", altceva: "Altceva" };
 const USEFUL_LABELS: Record<string, string> = { da: "Da", partial: "Parțial", nu: "Nu" };
 const USAGE_LABELS: Record<string, string> = { copil_propriu: "Pentru copilul propriu", altii: "Pentru alții (elevi, pacienți)", ambele: "Ambele" };
-const MOST_USEFUL_LABELS: Record<string, string> = { mindmap: "Mind Map", ghid: "Ghidul Specialistului", test: "Test profil", ask: "Întreabă AI", comunitate: "Comunitate" };
+const MOST_USEFUL_LABELS: Record<string, string> = { mindmap: "Mind Map", ghid: "Resurse educaționale", test: "Chestionar auto-reflecție", ask: "Întreabă AI", comunitate: "Comunitate" };
 
 export default function AdminScreen() {
   const router = useRouter();

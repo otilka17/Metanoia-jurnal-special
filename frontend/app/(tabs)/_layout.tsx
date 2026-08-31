@@ -26,14 +26,14 @@ const MENU_GROUPS = [
     title: "Conținut",
     items: [
       { label: "Mind Map", route: "/(tabs)/mindmap", icon: "git-network" as const },
-      { label: "Ghidul Specialistului", route: "/(tabs)/guide", icon: "library" as const },
+      { label: "Resurse educaționale", route: "/(tabs)/guide", icon: "library" as const },
       { label: "Tabele comparative", route: "/compare", icon: "grid" as const },
     ],
   },
   {
     title: "Instrumente",
     items: [
-      { label: "Test profil copil", route: "/(tabs)/test", icon: "clipboard" as const },
+      { label: "Chestionar auto-reflecție", route: "/(tabs)/test", icon: "clipboard" as const },
       { label: "Întreabă specialistul", route: "/(tabs)/ask", icon: "chatbubbles" as const },
       { label: "Exerciții", route: "/exercises", icon: "body" as const },
       { label: "Jocuri pentru concentrare", route: "/games", icon: "game-controller" as const },

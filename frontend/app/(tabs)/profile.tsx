@@ -281,7 +281,7 @@ export default function ProfileScreen() {
               <StatCard icon="bookmark" value={myStats.bookmarks_total || 0} label="Bookmarks" color="#E8C37C" />
               <StatCard icon="library" value={myStats.guide_read_chapters || 0} label="Capitole citite" color="#5E8B7E" />
               <StatCard icon="chatbubble-ellipses" value={(myStats.forum?.posts || 0) + (myStats.forum?.answers || 0)} label="Postări forum" sub={`${myStats.forum?.posts || 0} întrebări`} color="#9B8CC4" />
-              <StatCard icon="clipboard" value={myStats.test_result ? 1 : 0} label="Test profil" sub={myStats.test_result?.profile_title ? myStats.test_result.profile_title.slice(0, 20) + '…' : "Nefăcut"} color="#6E8FD8" />
+              <StatCard icon="clipboard" value={myStats.test_result ? 1 : 0} label="Auto-reflecție" sub={myStats.test_result?.profile_title ? myStats.test_result.profile_title.slice(0, 20) + '…' : "Nefăcut"} color="#6E8FD8" />
               <StatCard icon="flame" value={myStats.journal?.streak_days || 0} label="Streak jurnal" sub="zile la rând" color="#D9743C" />
             </View>
             {!!myStats.journal?.badges?.length && (
