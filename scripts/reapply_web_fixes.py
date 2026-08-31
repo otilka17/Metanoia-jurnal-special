@@ -62,7 +62,7 @@ def fix_app_json():
     patch(
         path,
         '"experiments": {\n      "typedRoutes": true\n    }',
-        '"experiments": {\n      "typedRoutes": true,\n      "baseUrl": "/Metanoia-psihologiacopilului"\n    }',
+        '"experiments": {\n      "typedRoutes": true,\n      "baseUrl": "/Metanoia-jurnal-special"\n    }',
         "experiments.baseUrl",
     )
 

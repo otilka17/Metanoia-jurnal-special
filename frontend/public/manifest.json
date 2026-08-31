@@ -2,14 +2,14 @@
   "name": "Ghid Părinte",
   "short_name": "Ghid Părinte",
   "description": "Acesta este un jurnal digital și un spațiu de suport dedicat părinților: un loc pentru gândurile tale, organizare de familie și idei recreative de conectare prin joacă, ghidate asistat de AI.",
-  "start_url": "/Metanoia-psihologiacopilului/",
-  "scope": "/Metanoia-psihologiacopilului/",
+  "start_url": "/Metanoia-jurnal-special/",
+  "scope": "/Metanoia-jurnal-special/",
   "display": "standalone",
   "background_color": "#F9F8F6",
   "theme_color": "#5E8B7E",
   "icons": [
     {
-      "src": "/Metanoia-psihologiacopilului/apple-touch-icon.png",
+      "src": "/Metanoia-jurnal-special/apple-touch-icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

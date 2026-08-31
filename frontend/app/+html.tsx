@@ -13,8 +13,8 @@ export default function Root({ children }: PropsWithChildren) {
           content="width=device-width, initial-scale=1, shrink-to-fit=no"
         />
         <title>Ghid Părinte</title>
-        <link rel="manifest" href="/Metanoia-psihologiacopilului/manifest.json" />
-        <link rel="apple-touch-icon" href="/Metanoia-psihologiacopilului/apple-touch-icon.png" />
+        <link rel="manifest" href="/Metanoia-jurnal-special/manifest.json" />
+        <link rel="apple-touch-icon" href="/Metanoia-jurnal-special/apple-touch-icon.png" />
         <meta name="theme-color" content="#5E8B7E" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
