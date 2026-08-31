@@ -55,7 +55,7 @@ export default function LoginScreen() {
             <>
               <Text style={styles.welcomeTitle} testID="welcome-title">Bine ai venit</Text>
               <Text style={styles.welcomeSub}>
-                Aplicație de monitorizare pentru părinții copiilor{"\n"}supradotați și hiperactivi
+                Aplicație de monitorizare a progresului pentru părinții copiilor{"\n"}supradotați și hiperactivi
               </Text>
 
               <View style={styles.featuresList}>
