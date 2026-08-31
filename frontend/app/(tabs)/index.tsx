@@ -197,7 +197,7 @@ export default function HomeScreen() {
       <View style={styles.headerRow}>
         <View style={{ flex: 1 }}>
           <Text style={styles.greet}>Bună, {user?.name?.split(" ")[0] || "părinte"} 🌿</Text>
-          <Text style={styles.subgreet}>Ghidul tău pentru o parentalitate conștientă</Text>
+          <Text style={styles.subgreet}>Monitorizarea ta zilnică pentru o parentalitate conștientă</Text>
         </View>
       </View>
 

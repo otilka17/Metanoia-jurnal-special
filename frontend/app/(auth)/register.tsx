@@ -55,7 +55,7 @@ export default function RegisterScreen() {
           </TouchableOpacity>
 
           <Text style={styles.title} testID="register-title">Creează un cont</Text>
-          <Text style={styles.subtitle}>Începe călătoria ta de părinte conștient.</Text>
+          <Text style={styles.subtitle}>Începe să monitorizezi dezvoltarea copilului tău, pas cu pas.</Text>
 
           <View style={styles.field}>
             <Text style={styles.label}>NUME</Text>

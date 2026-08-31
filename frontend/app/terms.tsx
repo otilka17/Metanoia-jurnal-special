@@ -26,9 +26,10 @@ export default function TermsScreen() {
 
         <Text style={styles.h}>1. Ce este aplicația</Text>
         <Text style={styles.p}>
-          Ghid Părinte este un instrument educațional și de sprijin pentru părinții copiilor cu profiluri
-          atipice (supradotați, ADHD, autism, sensibilitate emoțională). Aplicația oferă conținut informativ,
-          un asistent AI conversațional, jurnal, teste orientative și o comunitate de părinți.
+          Ghid Părinte este o aplicație de monitorizare și sprijin educațional pentru părinții copiilor cu
+          profiluri atipice (supradotați, ADHD, autism, sensibilitate emoțională). Aplicația oferă jurnal
+          pentru urmărirea evoluției copilului, teste orientative, conținut informativ, un asistent AI
+          conversațional și o comunitate de părinți.
         </Text>
 
         <Text style={styles.h}>2. Nu este consult medical sau psihologic</Text>
