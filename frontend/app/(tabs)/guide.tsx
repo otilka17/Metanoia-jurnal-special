@@ -261,7 +261,7 @@ ${GUIDE.map((s) => `
 
         <View style={styles.footer}>
           <Ionicons name="leaf" size={20} color={theme.colors.primary} />
-          <Text style={styles.footerText}>Ghid Părinte — sursă: documentele specialistului</Text>
+          <Text style={styles.footerText}>Ghid Părinte — conținut educațional</Text>
         </View>
       </ScrollView>
 
