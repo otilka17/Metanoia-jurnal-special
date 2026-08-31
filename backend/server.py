@@ -2125,6 +2125,7 @@ async def list_posts(category: Optional[str] = None, limit: int = 50, skip: int 
             "liked_by_me": user["id"] in liked_by,
             "flagged_by_me": user["id"] in flagged_by,
             "is_mine": it.get("user_id") == user["id"],
+            "author_id": it.get("user_id") if not it.get("is_anonymous") else None,
             "answer_count": it.get("answer_count", 0),
             "created_at": it["created_at"],
         })
@@ -2181,6 +2182,7 @@ async def get_post(post_id: str, user: dict = Depends(get_current_user)):
             "liked_by_me": user["id"] in liked_by,
             "flagged_by_me": user["id"] in flagged_by,
             "is_mine": a.get("user_id") == user["id"],
+            "author_id": a.get("user_id") if not a.get("is_anonymous") else None,
             "created_at": a["created_at"],
         })
     post_out = {
@@ -2194,6 +2196,7 @@ async def get_post(post_id: str, user: dict = Depends(get_current_user)):
         "liked_by_me": user["id"] in post.get("liked_by", []),
         "flagged_by_me": user["id"] in post.get("flagged_by", []),
         "is_mine": post.get("user_id") == user["id"],
+        "author_id": post.get("user_id") if not post.get("is_anonymous") else None,
         "answer_count": len(answers),
         "created_at": post["created_at"],
     }

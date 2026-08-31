@@ -25,12 +25,12 @@ type Post = {
   id: string; category: string; title: string; content: string;
   display_name: string; is_anonymous: boolean;
   likes: number; liked_by_me: boolean; flagged_by_me: boolean;
-  is_mine: boolean; answer_count: number; created_at: string;
+  is_mine: boolean; author_id: string | null; answer_count: number; created_at: string;
 };
 type Answer = {
   id: string; content: string; display_name: string; is_anonymous: boolean;
   likes: number; liked_by_me: boolean; flagged_by_me: boolean;
-  is_mine: boolean; created_at: string;
+  is_mine: boolean; author_id: string | null; created_at: string;
 };
 type ForumCat = { id: string; title: string; icon: string; color: string };
 
@@ -211,6 +211,11 @@ export default function PostDetailScreen() {
               <Text style={styles.authorText}>{post.display_name}{post.is_mine ? " (tu)" : ""}</Text>
               <Text style={styles.dot}>·</Text>
               <Text style={styles.timeText}>{timeAgo(post.created_at)}</Text>
+              {!!post.author_id && !post.is_mine && (
+                <TouchableOpacity testID="message-post-author" onPress={() => router.push(`/messages/${post.author_id}` as any)} style={{ marginLeft: 6 }}>
+                  <Ionicons name="mail-outline" size={15} color={theme.colors.primary} />
+                </TouchableOpacity>
+              )}
             </View>
             <TouchableOpacity testID="like-post" onPress={togglePostLike} style={styles.likeBtn}>
               <Ionicons name={post.liked_by_me ? "heart" : "heart-outline"} size={18} color={post.liked_by_me ? "#E94B5B" : theme.colors.textSecondary} />
@@ -237,6 +242,11 @@ export default function PostDetailScreen() {
                 <Text style={styles.authorText}>{a.display_name}{a.is_mine ? " (tu)" : ""}</Text>
                 <Text style={styles.dot}>·</Text>
                 <Text style={styles.timeText}>{timeAgo(a.created_at)}</Text>
+                {!!a.author_id && !a.is_mine && (
+                  <TouchableOpacity testID={`message-answer-author-${a.id}`} onPress={() => router.push(`/messages/${a.author_id}` as any)} style={{ marginLeft: 6 }}>
+                    <Ionicons name="mail-outline" size={14} color={theme.colors.primary} />
+                  </TouchableOpacity>
+                )}
               </View>
               <TouchableOpacity onPress={() => setMenuTarget({ type: "answer", id: a.id, isMine: a.is_mine, flagged: a.flagged_by_me })} style={styles.iconBtnSm}>
                 <Ionicons name="ellipsis-horizontal" size={18} color={theme.colors.textSecondary} />
