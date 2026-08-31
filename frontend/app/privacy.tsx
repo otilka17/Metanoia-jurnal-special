@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -6,6 +6,15 @@ import { theme } from "@/src/lib/theme";
 
 export default function PrivacyScreen() {
   const router = useRouter();
+
+  const changeCookiePreference = () => {
+    if (Platform.OS !== "web") return;
+    try {
+      window.localStorage.removeItem("cookie_consent");
+    } catch {}
+    window.location.reload();
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.bg }}>
       <SafeAreaView edges={["top"]} style={{ backgroundColor: theme.colors.surface }}>
@@ -76,7 +85,25 @@ export default function PrivacyScreen() {
           administrator.
         </Text>
 
-        <Text style={styles.h}>7. Contact</Text>
+        <Text style={styles.h}>7. Cookie-uri</Text>
+        <Text style={styles.p}>
+          Aplicația în sine (contul tău, jurnalul, testele) nu folosește cookie-uri proprii — datele de
+          autentificare sunt stocate local pe dispozitivul tău, nu în cookie-uri.
+        </Text>
+        <Text style={styles.p}>
+          Widget-ul de chat live (<Text style={styles.b}>Tawk.to</Text>) folosește cookie-uri proprii, terțe,
+          pentru a ține minte conversația și vizitatorul. Acesta se încarcă doar dacă alegi „Accept" la
+          banner-ul afișat la prima vizită — dacă alegi „Refuz", widget-ul de chat nu se încarcă și nu se
+          setează niciun cookie.
+        </Text>
+        {Platform.OS === "web" && (
+          <TouchableOpacity onPress={changeCookiePreference} style={styles.cookieBtn}>
+            <Ionicons name="refresh-outline" size={16} color={theme.colors.primary} />
+            <Text style={styles.cookieBtnText}>Schimbă preferința despre cookie-uri</Text>
+          </TouchableOpacity>
+        )}
+
+        <Text style={styles.h}>8. Contact</Text>
         <Text style={styles.p}>
           Pentru orice întrebare despre confidențialitate, ne poți scrie la{" "}
           <Text style={styles.b}>otilia.ioana96@gmail.com</Text>.
@@ -98,4 +125,6 @@ const styles = StyleSheet.create({
   p: { fontSize: 14, color: theme.colors.textSecondary, lineHeight: 21, marginBottom: 10 },
   li: { fontSize: 14, color: theme.colors.textSecondary, lineHeight: 21, marginBottom: 6, paddingLeft: 4 },
   b: { fontWeight: "700", color: theme.colors.textPrimary },
+  cookieBtn: { flexDirection: "row", alignItems: "center", gap: 8, alignSelf: "flex-start", backgroundColor: theme.colors.surfaceElevated, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 999, marginTop: 4 },
+  cookieBtnText: { fontSize: 12.5, color: theme.colors.primary, fontWeight: "600" },
 });
