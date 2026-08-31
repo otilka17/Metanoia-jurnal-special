@@ -132,6 +132,8 @@ export const api = {
     request("/reviews", { method: "POST", body: { rating, comment } }),
   deleteMyReview: () => request("/reviews/mine", { method: "DELETE" }),
   adminDeleteReview: (id: string) => request(`/admin/reviews/${id}`, { method: "DELETE" }),
+  adminReplyReview: (id: string, reply: string) =>
+    request(`/admin/reviews/${id}/reply`, { method: "POST", body: { reply } }),
 
   // Notifications
   listNotifications: () => request("/notifications"),

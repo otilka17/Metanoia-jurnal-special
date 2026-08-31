@@ -2355,6 +2355,34 @@ async def admin_delete_review(review_id: str, admin: dict = Depends(require_admi
     return {"ok": True}
 
 
+class ReviewReply(BaseModel):
+    reply: str = Field(min_length=1, max_length=500)
+
+
+@api_router.post("/admin/reviews/{review_id}/reply")
+async def admin_reply_review(review_id: str, data: ReviewReply, admin: dict = Depends(require_admin)):
+    review = await db.reviews.find_one({"id": review_id})
+    if not review:
+        raise HTTPException(status_code=404, detail="Recenzie inexistentă")
+    reply = data.reply.strip()[:500]
+    await db.reviews.update_one(
+        {"id": review_id},
+        {"$set": {"admin_reply": reply, "admin_reply_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    if review.get("user_id"):
+        await db.notifications.insert_one({
+            "id": str(uuid.uuid4()),
+            "user_id": review["user_id"],
+            "kind": "review_reply",
+            "title": "Ai primit un răspuns la recenzia ta",
+            "body": reply[:120],
+            "route": "/(tabs)",
+            "is_read": False,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+    return {"ok": True}
+
+
 # ============ FEEDBACK ============
 VALID_MOST_USEFUL = {"mindmap", "ghid", "test", "ask", "comunitate"}
 

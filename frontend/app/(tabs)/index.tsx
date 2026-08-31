@@ -9,7 +9,7 @@ import { storage } from "@/src/utils/storage";
 import { theme } from "@/src/lib/theme";
 
 type Category = { id: string; title: string; subtitle: string; color: string; icon: string; profiles?: string[]; subtopics: { id: string; title: string }[] };
-type Review = { id: string; author_name: string; rating: number; comment: string; created_at: string; is_mine: boolean };
+type Review = { id: string; author_name: string; rating: number; comment: string; created_at: string; is_mine: boolean; admin_reply?: string };
 
 const PROFILE_FILTERS: { key: string; label: string }[] = [
   { key: "toate", label: "Toate" },
@@ -82,6 +82,9 @@ export default function HomeScreen() {
   const [myComment, setMyComment] = useState("");
   const [savingReview, setSavingReview] = useState(false);
   const [showFeedbackPrompt, setShowFeedbackPrompt] = useState(false);
+  const [replyDraft, setReplyDraft] = useState<Record<string, string>>({});
+  const [replyingId, setReplyingId] = useState<string | null>(null);
+  const [savingReplyId, setSavingReplyId] = useState<string | null>(null);
 
   const load = async () => {
     try { const res: any = await api.getCategories(); setCats(res.categories); } catch (e) { console.warn(e); }
@@ -168,6 +171,22 @@ export default function HomeScreen() {
     ]);
   };
   const changeProfile = async (p: string) => { setProfileFilter(p); await storage.setItem(PROFILE_KEY, p); };
+
+  const submitReply = async (reviewId: string) => {
+    const text = (replyDraft[reviewId] || "").trim();
+    if (!text) return;
+    setSavingReplyId(reviewId);
+    try {
+      await api.adminReplyReview(reviewId, text);
+      setReplyingId(null);
+      setReplyDraft((d) => ({ ...d, [reviewId]: "" }));
+      await loadReviews();
+    } catch (e: any) {
+      Alert.alert("Eroare", e.message || "Nu am putut trimite răspunsul");
+    } finally {
+      setSavingReplyId(null);
+    }
+  };
 
   const visibleCats = profileFilter === "toate" ? cats : cats.filter(c => c.profiles?.includes(profileFilter));
 
@@ -319,6 +338,43 @@ export default function HomeScreen() {
             )}
           </View>
           {!!r.comment && <Text style={styles.reviewComment}>{r.comment}</Text>}
+
+          {!!r.admin_reply && (
+            <View style={styles.adminReplyBox}>
+              <Text style={styles.adminReplyLabel}>Răspuns Ghid Părinte</Text>
+              <Text style={styles.adminReplyText}>{r.admin_reply}</Text>
+            </View>
+          )}
+
+          {user?.is_admin && !r.is_mine && (
+            replyingId === r.id ? (
+              <View style={styles.replyForm}>
+                <TextInput
+                  testID={`reply-input-${r.id}`}
+                  value={replyDraft[r.id] || ""}
+                  onChangeText={(t) => setReplyDraft((d) => ({ ...d, [r.id]: t }))}
+                  placeholder="Scrie un răspuns..."
+                  placeholderTextColor={theme.colors.textDisabled}
+                  style={styles.replyInput}
+                  multiline
+                />
+                <View style={{ flexDirection: "row", gap: 10, marginTop: 8 }}>
+                  <TouchableOpacity onPress={() => setReplyingId(null)}>
+                    <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>Anulează</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity testID={`reply-send-${r.id}`} onPress={() => submitReply(r.id)} disabled={savingReplyId === r.id}>
+                    <Text style={{ color: theme.colors.primary, fontWeight: "700", fontSize: 13 }}>
+                      {savingReplyId === r.id ? "Se trimite..." : "Trimite"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity testID={`reply-open-${r.id}`} onPress={() => { setReplyingId(r.id); setReplyDraft((d) => ({ ...d, [r.id]: r.admin_reply || "" })); }}>
+                <Text style={styles.replyLink}>{r.admin_reply ? "Editează răspunsul" : "Răspunde"}</Text>
+              </TouchableOpacity>
+            )
+          )}
         </View>
       ))}
 
@@ -439,6 +495,12 @@ const styles = StyleSheet.create({
   reviewAuthor: { fontSize: 13, fontWeight: "700", color: theme.colors.textPrimary },
   reviewStars: { flexDirection: "row", gap: 1, marginTop: 3 },
   reviewComment: { fontSize: 13, color: theme.colors.textSecondary, lineHeight: 19, marginTop: 8 },
+  adminReplyBox: { backgroundColor: theme.colors.surfaceElevated, borderRadius: 10, padding: 10, marginTop: 10 },
+  adminReplyLabel: { fontSize: 11, fontWeight: "700", color: theme.colors.primary, marginBottom: 3 },
+  adminReplyText: { fontSize: 13, color: theme.colors.textPrimary, lineHeight: 18 },
+  replyLink: { fontSize: 12, fontWeight: "600", color: theme.colors.primary, marginTop: 8 },
+  replyForm: { marginTop: 10 },
+  replyInput: { backgroundColor: theme.colors.surfaceElevated, borderRadius: 10, padding: 10, fontSize: 13, color: theme.colors.textPrimary, minHeight: 60, textAlignVertical: "top" },
   modalBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "center", paddingHorizontal: 28 },
   modalCard: { backgroundColor: theme.colors.surface, borderRadius: 20, padding: 24, alignItems: "center" },
   modalIconWrap: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", marginBottom: 14 },
