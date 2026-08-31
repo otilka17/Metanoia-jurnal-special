@@ -38,6 +38,15 @@ export default function ExercisesScreen() {
         </View>
       </SafeAreaView>
 
+      <View style={styles.disclaimer}>
+        <Ionicons name="information-circle-outline" size={16} color={theme.colors.textSecondary} />
+        <Text style={styles.disclaimerText}>
+          Această aplicație nu oferă terapie (ABA, logopedie, kinetoterapie etc.), evaluare clinică sau
+          diagnostic medical și nu înlocuiește echipa multidisciplinară de specialiști care monitorizează
+          copilul tău.
+        </Text>
+      </View>
+
       {loading ? (
         <ActivityIndicator color={theme.colors.primary} style={{ marginTop: 60 }} />
       ) : (
@@ -70,6 +79,8 @@ const styles = StyleSheet.create({
   iconBtn: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
   title: { fontSize: 18, fontWeight: "700", color: theme.colors.textPrimary },
   subtitle: { fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 },
+  disclaimer: { flexDirection: "row", gap: 8, alignItems: "flex-start", backgroundColor: theme.colors.surfaceElevated, marginHorizontal: 20, marginTop: 16, padding: 12, borderRadius: 12 },
+  disclaimerText: { flex: 1, fontSize: 11.5, color: theme.colors.textSecondary, lineHeight: 16, fontStyle: "italic" },
   card: { flexDirection: "row", gap: 14, alignItems: "center", backgroundColor: theme.colors.surface, borderRadius: 16, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: theme.colors.border },
   iconWrap: { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center" },
   cardTitle: { fontSize: 16, fontWeight: "700", color: theme.colors.textPrimary },

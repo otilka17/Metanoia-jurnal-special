@@ -39,6 +39,11 @@ export default function TermsScreen() {
           înlocuiește evaluarea unui psiholog, psihiatru sau medic pediatru. Pentru orice îngrijorare
           reală despre sănătatea sau dezvoltarea copilului tău, consultă un specialist.
         </Text>
+        <Text style={styles.p}>
+          Această aplicație nu oferă terapie (ABA, logopedie, kinetoterapie etc.), evaluare clinică sau
+          diagnostic medical și nu înlocuiește echipa multidisciplinară de specialiști care monitorizează
+          copilul tău.
+        </Text>
 
         <Text style={styles.h}>3. Contul tău</Text>
         <Text style={styles.li}>• Ești responsabil pentru confidențialitatea parolei tale.</Text>
