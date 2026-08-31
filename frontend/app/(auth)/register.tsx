@@ -26,6 +26,7 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState("");
   const [referralCode, setReferralCode] = useState(params.ref ? String(params.ref).toUpperCase() : "");
   const [loading, setLoading] = useState(false);
+  const [agreed, setAgreed] = useState(false);
 
   const onSubmit = async () => {
     if (!name.trim() || !email.trim() || !password) {
@@ -34,6 +35,10 @@ export default function RegisterScreen() {
     }
     if (password.length < 6) {
       Alert.alert("Atenție", "Parola trebuie să aibă minim 6 caractere.");
+      return;
+    }
+    if (!agreed) {
+      Alert.alert("Atenție", "Trebuie să fii de acord cu Termenii și Politica de Confidențialitate pentru a continua.");
       return;
     }
     setLoading(true);
@@ -107,22 +112,37 @@ export default function RegisterScreen() {
             />
           </View>
 
-          <Text style={styles.consentText}>
-            Prin crearea contului, ești de acord cu{" "}
-            <Text testID="register-terms-link" style={styles.consentLink} onPress={() => router.push("/terms")}>
-              Termenii și Condițiile
-            </Text>{" "}
-            și{" "}
-            <Text testID="register-privacy-link" style={styles.consentLink} onPress={() => router.push("/privacy")}>
-              Politica de Confidențialitate
-            </Text>.
+          <Text style={styles.disclaimerText}>
+            Materialele din aplicație au rol exclusiv educativ și de orientare — nu constituie diagnoză
+            clinică, evaluare psihologică oficială sau tratament.
           </Text>
 
           <TouchableOpacity
+            testID="register-consent-checkbox"
+            style={styles.consentRow}
+            onPress={() => setAgreed((v) => !v)}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.checkbox, agreed && styles.checkboxChecked]}>
+              {agreed && <Ionicons name="checkmark" size={14} color="#fff" />}
+            </View>
+            <Text style={styles.consentText}>
+              Sunt de acord cu{" "}
+              <Text testID="register-terms-link" style={styles.consentLink} onPress={() => router.push("/terms")}>
+                Termenii și Condițiile
+              </Text>{" "}
+              și{" "}
+              <Text testID="register-privacy-link" style={styles.consentLink} onPress={() => router.push("/privacy")}>
+                Politica de Confidențialitate
+              </Text>.
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             testID="register-submit-button"
-            style={[styles.btn, loading && { opacity: 0.6 }]}
+            style={[styles.btn, (loading || !agreed) && { opacity: 0.5 }]}
             onPress={onSubmit}
-            disabled={loading}
+            disabled={loading || !agreed}
           >
             {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Creează cont</Text>}
           </TouchableOpacity>
@@ -145,7 +165,14 @@ const styles = StyleSheet.create({
     borderRadius: 12, paddingHorizontal: 16, paddingVertical: 16,
     fontSize: 16, color: theme.colors.textPrimary,
   },
-  consentText: { fontSize: 12, color: theme.colors.textSecondary, marginTop: 8, lineHeight: 18 },
+  disclaimerText: { fontSize: 11.5, color: theme.colors.textDisabled, marginTop: 8, lineHeight: 16, fontStyle: "italic" },
+  consentRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, marginTop: 14 },
+  checkbox: {
+    width: 20, height: 20, borderRadius: 5, borderWidth: 1.5, borderColor: theme.colors.border,
+    alignItems: "center", justifyContent: "center", marginTop: 1,
+  },
+  checkboxChecked: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
+  consentText: { flex: 1, fontSize: 12, color: theme.colors.textSecondary, lineHeight: 18 },
   consentLink: { color: theme.colors.primary, fontWeight: "600" },
   btn: {
     backgroundColor: theme.colors.primary,

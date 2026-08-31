@@ -31,7 +31,11 @@ export default function PrivacyScreen() {
         <Text style={styles.li}>• Date tehnice minime necesare funcționării (ex. jetoane de autentificare).</Text>
         <Text style={styles.p}>
           Nu colectăm date direct de la copii — aplicația este destinată părinților/adulților, care pot
-          alege ce informații despre copilul lor introduc în jurnal sau în conversațiile cu AI.
+          alege ce informații despre copilul lor introduc în jurnal, în testul de profil sau în
+          conversațiile cu AI (ex. profil, note, vârstă). Aceste informații sunt legate strict de contul
+          tău și sunt vizibile doar pentru tine — părintele/tutorele legal care le-a introdus — și, dacă
+          alegi să te alături unei familii în aplicație, pentru ceilalți membri ai familiei tale. Nu sunt
+          niciodată vizibile altor utilizatori.
         </Text>
 
         <Text style={styles.h}>2. De ce folosim aceste date</Text>
