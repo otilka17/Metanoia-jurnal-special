@@ -39,6 +39,7 @@ export default function PrivacyScreen() {
         <Text style={styles.li}>• Pentru a genera răspunsuri AI personalizate (articole, explicații, „Întreabă specialistul").</Text>
         <Text style={styles.li}>• Pentru a-ți arăta propriile statistici și progres.</Text>
         <Text style={styles.li}>• Pentru a-ți trimite emailuri esențiale (bun venit, resetare parolă, notificări de familie).</Text>
+        <Text style={styles.li}>• Pentru a-ți trimite, ocazional, anunțuri despre noutăți în aplicație — te poți dezabona oricând din Profil.</Text>
 
         <Text style={styles.h}>3. Cu cine partajăm datele</Text>
         <Text style={styles.p}>Nu vindem datele tale. Le partajăm strict cu furnizorii tehnici necesari funcționării aplicației:</Text>
@@ -56,11 +57,11 @@ export default function PrivacyScreen() {
         <Text style={styles.h}>5. Drepturile tale (GDPR)</Text>
         <Text style={styles.li}>• Dreptul de acces — poți vedea ce date avem despre tine (ecranul Profil).</Text>
         <Text style={styles.li}>• Dreptul de rectificare — poți corecta oricând datele contului.</Text>
-        <Text style={styles.li}>• Dreptul de ștergere („dreptul de a fi uitat") — poți cere ștergerea completă a contului.</Text>
+        <Text style={styles.li}>• Dreptul de ștergere („dreptul de a fi uitat") — poți să-ți ștergi singur/ă contul și toate datele asociate, oricând, din Profil → „Șterge contul și toate datele mele".</Text>
         <Text style={styles.li}>• Dreptul de portabilitate — poți cere o copie a datelor tale într-un format uzual.</Text>
-        <Text style={styles.li}>• Dreptul de opoziție — te poți opune anumitor prelucrări.</Text>
+        <Text style={styles.li}>• Dreptul de opoziție — te poți dezabona oricând de la emailurile aplicației din Profil → „Dezabonează-te de la emailuri", sau te poți opune altor prelucrări scriindu-ne.</Text>
         <Text style={styles.p}>
-          Pentru orice solicitare legată de aceste drepturi, scrie-ne la {" "}
+          Pentru orice altă solicitare legată de aceste drepturi, scrie-ne la {" "}
           <Text style={styles.b}>otilia.ioana96@gmail.com</Text>. Răspundem în cel mult 30 de zile.
         </Text>
 

@@ -2685,7 +2685,10 @@ async def _exercise_migration_and_backfill():
 
 @app.on_event("startup")
 async def start_background_loops():
-    asyncio.create_task(_weekly_recap_loop())
+    # Weekly recap emails paused — was the one email sent on a schedule rather than
+    # triggered by a direct user action (register, forgot password). Re-enable by
+    # uncommenting once the email-preferences/consent flow is reviewed.
+    # asyncio.create_task(_weekly_recap_loop())
     asyncio.create_task(_exercise_migration_and_backfill())
 
 

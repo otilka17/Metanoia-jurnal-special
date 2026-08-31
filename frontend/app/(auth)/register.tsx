@@ -107,6 +107,17 @@ export default function RegisterScreen() {
             />
           </View>
 
+          <Text style={styles.consentText}>
+            Prin crearea contului, ești de acord cu{" "}
+            <Text testID="register-terms-link" style={styles.consentLink} onPress={() => router.push("/terms")}>
+              Termenii și Condițiile
+            </Text>{" "}
+            și{" "}
+            <Text testID="register-privacy-link" style={styles.consentLink} onPress={() => router.push("/privacy")}>
+              Politica de Confidențialitate
+            </Text>.
+          </Text>
+
           <TouchableOpacity
             testID="register-submit-button"
             style={[styles.btn, loading && { opacity: 0.6 }]}
@@ -134,6 +145,8 @@ const styles = StyleSheet.create({
     borderRadius: 12, paddingHorizontal: 16, paddingVertical: 16,
     fontSize: 16, color: theme.colors.textPrimary,
   },
+  consentText: { fontSize: 12, color: theme.colors.textSecondary, marginTop: 8, lineHeight: 18 },
+  consentLink: { color: theme.colors.primary, fontWeight: "600" },
   btn: {
     backgroundColor: theme.colors.primary,
     borderRadius: 999, paddingVertical: 16, alignItems: "center", marginTop: 16,
