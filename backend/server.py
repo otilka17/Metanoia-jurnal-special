@@ -284,6 +284,7 @@ class UserOut(BaseModel):
     is_admin: bool = False
     assistant_name: Optional[str] = None
     referral_code: Optional[str] = None
+    email_opt_out: bool = False
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -657,7 +658,7 @@ async def _maybe_send_weekly_recaps() -> None:
         return
     week_key = now.strftime("%G-W%V")
     since = now - timedelta(days=7)
-    async for u in db.users.find({}, {"_id": 0, "id": 1, "email": 1, "name": 1, "last_weekly_recap_week": 1}):
+    async for u in db.users.find({"email_opt_out": {"$ne": True}}, {"_id": 0, "id": 1, "email": 1, "name": 1, "last_weekly_recap_week": 1}):
         if u.get("last_weekly_recap_week") == week_key:
             continue
         try:
@@ -764,7 +765,7 @@ async def me(user: dict = Depends(get_current_user)):
     if not referral_code:
         referral_code = await generate_referral_code()
         await db.users.update_one({"id": user["id"]}, {"$set": {"referral_code": referral_code}})
-    return UserOut(id=user["id"], email=user["email"], name=user["name"], created_at=user["created_at"], is_admin=is_super_admin(user), assistant_name=user.get("assistant_name"), referral_code=referral_code)
+    return UserOut(id=user["id"], email=user["email"], name=user["name"], created_at=user["created_at"], is_admin=is_super_admin(user), assistant_name=user.get("assistant_name"), referral_code=referral_code, email_opt_out=user.get("email_opt_out", False))
 
 
 @api_router.get("/referrals/me")
@@ -1203,7 +1204,7 @@ class BroadcastEmailRequest(BaseModel):
 
 
 async def _send_broadcast_email(subject: str, body: str):
-    users = await db.users.find({}, {"_id": 0, "email": 1}).to_list(10000)
+    users = await db.users.find({"email_opt_out": {"$ne": True}}, {"_id": 0, "email": 1}).to_list(10000)
     paragraphs = "".join(
         f'<p style="margin:0 0 14px;font-size:14px;line-height:20px">{html_escape(line)}</p>'
         for line in body.split("\n") if line.strip()
@@ -1224,7 +1225,7 @@ async def _send_broadcast_email(subject: str, body: str):
 @api_router.post("/admin/broadcast-email")
 async def admin_broadcast_email(data: BroadcastEmailRequest, admin: dict = Depends(require_admin)):
     """Sends the given subject/body (as an email, one paragraph per line) to every registered user, in the background."""
-    count = await db.users.count_documents({})
+    count = await db.users.count_documents({"email_opt_out": {"$ne": True}})
     asyncio.create_task(_send_broadcast_email(data.subject, data.body))
     return {"ok": True, "recipients": count}
 
@@ -1761,15 +1762,8 @@ async def admin_user_ask_history(user_id: str, admin: dict = Depends(require_adm
     return {"user": target, "items": items}
 
 
-@api_router.delete("/admin/users/{user_id}")
-async def admin_delete_user(user_id: str, admin: dict = Depends(require_admin)):
-    if user_id == admin["id"]:
-        raise HTTPException(status_code=400, detail="Nu poți șterge propriul cont din admin")
-    target = await db.users.find_one({"id": user_id})
-    if not target:
-        raise HTTPException(status_code=404, detail="Utilizator inexistent")
-    # Cascade delete
-    await db.users.delete_one({"id": user_id})
+async def _cascade_delete_user_data(user_id: str):
+    """Deletes every record tied to a user, across every feature. Does not delete the user doc itself."""
     await db.journal.delete_many({"user_id": user_id})
     await db.bookmarks.delete_many({"user_id": user_id})
     await db.ask_history.delete_many({"user_id": user_id})
@@ -1777,11 +1771,45 @@ async def admin_delete_user(user_id: str, admin: dict = Depends(require_admin)):
     await db.forum_posts.delete_many({"user_id": user_id})
     await db.forum_answers.delete_many({"user_id": user_id})
     await db.guide_progress.delete_many({"user_id": user_id})
+    await db.reviews.delete_many({"user_id": user_id})
+    await db.game_scores.delete_many({"user_id": user_id})
+    await db.feedback.delete_many({"user_id": user_id})
+    await db.notifications.delete_many({"user_id": user_id})
+    await db.messages.delete_many({"$or": [{"sender_id": user_id}, {"recipient_id": user_id}]})
     # Remove from family
     await db.families.update_many({"member_ids": user_id}, {"$pull": {"member_ids": user_id}})
     # Delete empty families
     await db.families.delete_many({"member_ids": {"$size": 0}})
+
+
+@api_router.delete("/admin/users/{user_id}")
+async def admin_delete_user(user_id: str, admin: dict = Depends(require_admin)):
+    if user_id == admin["id"]:
+        raise HTTPException(status_code=400, detail="Nu poți șterge propriul cont din admin")
+    target = await db.users.find_one({"id": user_id})
+    if not target:
+        raise HTTPException(status_code=404, detail="Utilizator inexistent")
+    await _cascade_delete_user_data(user_id)
+    await db.users.delete_one({"id": user_id})
     return {"ok": True}
+
+
+@api_router.delete("/auth/me")
+async def delete_my_account(user: dict = Depends(get_current_user)):
+    """Self-service account deletion: erases the account and every record tied to it (GDPR right to erasure)."""
+    await _cascade_delete_user_data(user["id"])
+    await db.users.delete_one({"id": user["id"]})
+    return {"ok": True}
+
+
+class EmailPreferences(BaseModel):
+    opt_out: bool
+
+
+@api_router.post("/auth/email-preferences")
+async def set_email_preferences(data: EmailPreferences, user: dict = Depends(get_current_user)):
+    await db.users.update_one({"id": user["id"]}, {"$set": {"email_opt_out": data.opt_out}})
+    return {"ok": True, "opt_out": data.opt_out}
 
 
 @api_router.post("/admin/users/{user_id}/toggle-admin")

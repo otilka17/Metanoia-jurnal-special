@@ -119,6 +119,9 @@ export const api = {
   // Password
   changePassword: (old_password: string, new_password: string) =>
     request("/auth/change-password", { method: "POST", body: { old_password, new_password } }),
+  deleteMyAccount: () => request("/auth/me", { method: "DELETE" }),
+  setEmailPreferences: (opt_out: boolean) =>
+    request("/auth/email-preferences", { method: "POST", body: { opt_out } }),
   setAssistantName: (name: string) =>
     request("/auth/assistant-name", { method: "POST", body: { name } }),
   forgotPassword: (email: string) =>

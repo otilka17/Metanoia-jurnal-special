@@ -65,6 +65,9 @@ export default function ProfileScreen() {
   const [confirmPass, setConfirmPass] = useState("");
   const [pwSaving, setPwSaving] = useState(false);
   const [showPass, setShowPass] = useState(false);
+  const [emailOptOut, setEmailOptOut] = useState(false);
+  const [savingEmailPref, setSavingEmailPref] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const submitChangePassword = async () => {
     if (newPass.length < 6) { Alert.alert("Parolă prea scurtă", "Parola nouă trebuie să aibă minim 6 caractere."); return; }
@@ -96,6 +99,46 @@ export default function ProfileScreen() {
       const ref: any = await api.myReferrals();
       setReferralInfo({ code: ref.code, count: ref.count });
     } catch (e) { console.warn("myReferrals failed", e); }
+    try {
+      const me: any = await api.me();
+      setEmailOptOut(!!me.email_opt_out);
+    } catch (e) { console.warn("me failed", e); }
+  };
+
+  const toggleEmailOptOut = async () => {
+    const next = !emailOptOut;
+    setSavingEmailPref(true);
+    try {
+      await api.setEmailPreferences(next);
+      setEmailOptOut(next);
+    } catch (e: any) {
+      Alert.alert("Eroare", e.message || "Nu am putut salva preferința");
+    } finally {
+      setSavingEmailPref(false);
+    }
+  };
+
+  const confirmDeleteAccount = () => {
+    Alert.alert(
+      "Ștergi contul definitiv?",
+      "Toate datele tale (jurnal, mesaje, recenzii, postări, teste) vor fi șterse ireversibil. Nu poți reveni asupra acestei acțiuni.",
+      [
+        { text: "Anulează", style: "cancel" },
+        {
+          text: "Șterge definitiv", style: "destructive", onPress: async () => {
+            setDeletingAccount(true);
+            try {
+              await api.deleteMyAccount();
+              await logout();
+              router.replace("/(auth)/login");
+            } catch (e: any) {
+              Alert.alert("Eroare", e.message || "Nu am putut șterge contul");
+              setDeletingAccount(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const copyReferralCode = async () => {
@@ -343,9 +386,35 @@ export default function ProfileScreen() {
           <Text style={styles.pwBtnText}>Schimbă parola</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity
+          testID="email-optout-toggle"
+          style={styles.pwBtn}
+          onPress={toggleEmailOptOut}
+          disabled={savingEmailPref}
+        >
+          <Ionicons name={emailOptOut ? "mail-outline" : "mail"} size={20} color={theme.colors.primary} />
+          <Text style={styles.pwBtnText}>
+            {emailOptOut ? "Reactivează emailurile" : "Dezabonează-te de la emailuri"}
+          </Text>
+        </TouchableOpacity>
+
         <TouchableOpacity testID="logout-button" style={styles.logoutBtn} onPress={onLogout}>
           <Ionicons name="log-out-outline" size={20} color={theme.colors.error} />
           <Text style={styles.logoutText}>Deconectare</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          testID="delete-account-button"
+          style={[styles.logoutBtn, { marginTop: 10 }]}
+          onPress={confirmDeleteAccount}
+          disabled={deletingAccount}
+        >
+          {deletingAccount ? (
+            <ActivityIndicator color={theme.colors.error} size="small" />
+          ) : (
+            <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
+          )}
+          <Text style={styles.logoutText}>Șterge contul și toate datele mele</Text>
         </TouchableOpacity>
       </ScrollView>
 
